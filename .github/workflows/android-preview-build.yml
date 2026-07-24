@@ -49,7 +49,8 @@ jobs:
       - name: Build with EAS
         run: eas build --platform android --profile preview --non-interactive --local
         env:
-          GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx4096m -XX:MaxMetaspaceSize=1024m'"
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx2560m -XX:MaxMetaspaceSize=512m' -Dorg.gradle.workers.max=2"
+          REACT_NATIVE_ARCHS: "arm64-v8a,x86_64"
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EXPO_PUBLIC_BACKEND_URL_PRODUCTION: ${{ secrets.EXPO_PUBLIC_BACKEND_URL_PRODUCTION }}
           EAS_BUILD_ANDROID_KEYSTORE_PATH: ${{ steps.decode_keystore.outputs.keystore_path }}
