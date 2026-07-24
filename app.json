@@ -15,7 +15,9 @@
       "infoPlist": {
         "NSMicrophoneUsageDescription": "TourCast needs microphone access to capture and broadcast tour audio.",
         "NSCameraUsageDescription": "TourCast needs camera access to scan QR codes for joining sessions.",
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "android": {
@@ -27,7 +29,9 @@
       },
       "permissions": [
         "RECORD_AUDIO",
-        "CAMERA"
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -54,6 +58,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "85e52899-c6a8-4781-a57f-0ae1c38d380f"
+      }
+    },
+    "owner": "danprav"
   }
 }
