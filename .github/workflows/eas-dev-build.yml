@@ -46,6 +46,9 @@ jobs:
           max-size: "2G"
           key: ${{ runner.os }}-android-ccache
 
+      - name: Install project dependencies
+        run: npm ci --legacy-peer-deps
+
       - name: Install EAS CLI globally
         run: npm install -g eas-cli
 
