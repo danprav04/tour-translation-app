@@ -13,6 +13,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -46,6 +51,7 @@ jobs:
       - name: Build with EAS
         run: eas build --platform android --profile preview --non-interactive --local
         env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx4096m -XX:MaxMetaspaceSize=1024m'"
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EXPO_PUBLIC_BACKEND_URL_PRODUCTION: ${{ secrets.EXPO_PUBLIC_BACKEND_URL_PRODUCTION }}
           EAS_BUILD_ANDROID_KEYSTORE_PATH: ${{ steps.decode_keystore.outputs.keystore_path }}
