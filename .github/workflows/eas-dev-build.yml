@@ -37,14 +37,14 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-      
-      - name: Install Android NDK r27
-        run: sdkmanager "ndk;27.0.12077973"
+      - name: Setup Gradle Cache
+        uses: gradle/actions/setup-gradle@v3
 
-      - name: Install project dependencies
-        run: npm ci --legacy-peer-deps
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          max-size: "2G"
+          key: ${{ runner.os }}-android-ccache
 
       - name: Install EAS CLI globally
         run: npm install -g eas-cli
@@ -74,6 +74,9 @@ jobs:
       - name: Build development client locally for Android
         run: eas build --profile development --platform android --local --non-interactive
         env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx2560m -XX:MaxMetaspaceSize=512m' -Dorg.gradle.workers.max=2 -Dorg.gradle.parallel=true"
+          REACT_NATIVE_ARCHS: "arm64-v8a"
+          NDK_CCACHE: "ccache"
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: Find APK
