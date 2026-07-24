@@ -3,8 +3,8 @@ services:
   tour-relay:
     build: .
     ports:
-      - "3000:3000"
+      - "8000:8000"
     environment:
       - NODE_ENV=production
-      - PORT=3000
+      - PORT=8000
     restart: unless-stopped

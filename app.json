@@ -21,6 +21,7 @@
       }
     },
     "android": {
+      "package": "com.danprav.tourcast",
       "adaptiveIcon": {
         "backgroundColor": "#0A0E1A",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
