@@ -1,0 +1,283 @@
+import React, { useEffect, useRef } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  SafeAreaView,
+  Pressable,
+  Animated,
+  Easing,
+  Alert,
+  Dimensions,
+} from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useListener } from '@/hooks/useListener';
+import StatusBadge from '@/components/StatusBadge';
+import AudioVisualizer from '@/components/AudioVisualizer';
+import GlassCard from '@/components/GlassCard';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const MUTE_BTN_SIZE = Math.min(SCREEN_WIDTH * 0.45, 180);
+
+export default function StreamScreen() {
+  const router = useRouter();
+  const { roomCode } = useLocalSearchParams<{ roomCode: string }>();
+  const {
+    isConnected,
+    isMuted,
+    isReconnecting,
+    connect,
+    disconnect,
+    toggleMute,
+  } = useListener();
+
+  const [pulseAnim] = useState(() => new Animated.Value(1));
+  const [scaleAnim] = useState(() => new Animated.Value(1));
+
+  // Connect on mount
+  useEffect(() => {
+    if (roomCode) {
+      connect(roomCode);
+    }
+    return () => {
+      disconnect();
+    };
+  }, [roomCode, connect, disconnect]);
+
+  // Pulse animation when connected & unmuted
+  useEffect(() => {
+    if (isConnected && !isMuted) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.15,
+            duration: 1500,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1500,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [isConnected, isMuted, pulseAnim]);
+
+  const handleMutePress = () => {
+    // Button press animation
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 0.92,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 200,
+        easing: Easing.out(Easing.back(2)),
+        useNativeDriver: true,
+      }),
+    ]).start();
+    toggleMute();
+  };
+
+  const handleDisconnect = () => {
+    Alert.alert(
+      'Disconnect',
+      'Leave this audio session?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Disconnect',
+          style: 'destructive',
+          onPress: () => {
+            disconnect();
+            router.back();
+          },
+        },
+      ]
+    );
+  };
+
+  const connectionStatus = isReconnecting
+    ? 'reconnecting'
+    : isConnected
+    ? 'connected'
+    : 'disconnected';
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <StatusBadge status={connectionStatus} />
+          <Text style={styles.roomCode}>Room: {roomCode}</Text>
+        </View>
+
+        {/* Main content */}
+        <View style={styles.center}>
+          {/* Mute Button */}
+          <Animated.View
+            style={[
+              styles.muteRing,
+              {
+                transform: [{ scale: pulseAnim }],
+                borderColor: isMuted
+                  ? 'rgba(255,71,87,0.2)'
+                  : 'rgba(124,92,252,0.2)',
+              },
+            ]}
+          >
+            <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+              <Pressable
+                onPress={handleMutePress}
+                style={[
+                  styles.muteBtn,
+                  isMuted ? styles.muteBtnMuted : styles.muteBtnActive,
+                ]}
+              >
+                <Text style={styles.muteIcon}>{isMuted ? '🔇' : '🔊'}</Text>
+                <Text style={styles.muteLabel}>
+                  {isMuted ? 'Muted' : 'Listening'}
+                </Text>
+              </Pressable>
+            </Animated.View>
+          </Animated.View>
+
+          {/* Visualizer */}
+          <View style={styles.visualizer}>
+            <AudioVisualizer
+              isActive={isConnected && !isMuted}
+              barCount={9}
+              color={isMuted ? '#FF4757' : '#7C5CFC'}
+              height={45}
+            />
+          </View>
+
+          {/* Status text */}
+          <Text style={styles.statusText}>
+            {isReconnecting
+              ? 'Attempting to reconnect...'
+              : isConnected
+              ? isMuted
+                ? 'Audio is muted. Tap to listen.'
+                : 'Receiving audio from host'
+              : 'Connecting...'}
+          </Text>
+        </View>
+
+        {/* Disconnect */}
+        <View style={styles.footer}>
+          <Pressable
+            onPress={handleDisconnect}
+            style={({ pressed }) => [
+              styles.disconnectBtn,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={styles.disconnectText}>Disconnect</Text>
+          </Pressable>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: '#0A0E1A',
+  },
+  container: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 40,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  roomCode: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 1,
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  muteRing: {
+    width: MUTE_BTN_SIZE + 30,
+    height: MUTE_BTN_SIZE + 30,
+    borderRadius: (MUTE_BTN_SIZE + 30) / 2,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  muteBtn: {
+    width: MUTE_BTN_SIZE,
+    height: MUTE_BTN_SIZE,
+    borderRadius: MUTE_BTN_SIZE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+  },
+  muteBtnActive: {
+    backgroundColor: 'rgba(124,92,252,0.15)',
+    borderColor: 'rgba(124,92,252,0.4)',
+  },
+  muteBtnMuted: {
+    backgroundColor: 'rgba(255,71,87,0.1)',
+    borderColor: 'rgba(255,71,87,0.3)',
+  },
+  muteIcon: {
+    fontSize: 48,
+    marginBottom: 8,
+  },
+  muteLabel: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  visualizer: {
+    marginTop: 40,
+    marginBottom: 20,
+  },
+  statusText: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  footer: {
+    alignItems: 'center',
+  },
+  disconnectBtn: {
+    backgroundColor: 'rgba(255,71,87,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,71,87,0.3)',
+    paddingHorizontal: 40,
+    paddingVertical: 16,
+    borderRadius: 16,
+  },
+  disconnectText: {
+    color: '#FF4757',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  pressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.97 }],
+  },
+});
