@@ -54,7 +54,8 @@
         {
           "cameraPermission": "TourCast needs camera access to scan QR codes."
         }
-      ]
+      ],
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true,
