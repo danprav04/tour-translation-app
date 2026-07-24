@@ -55,7 +55,26 @@
           "cameraPermission": "TourCast needs camera access to scan QR codes."
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "kotlinVersion": "2.1.20",
+            "packagingOptions": {
+              "pickFirst": ["**/libc++_shared.so"]
+            },
+            "extraProguardRules": "-keep class com.danprav.tourcast.** { *; }",
+            "enableShrinkResourcesInReleaseBuilds": false,
+            "newArchEnabled": true,
+            "ndk": {
+              "abiFilters": ["arm64-v8a"]
+            }
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
