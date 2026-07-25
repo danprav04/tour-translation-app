@@ -11,8 +11,8 @@ on:
 env:
   REGISTRY: ghcr.io
   CONTAINER_NAME: "tour-relay-server"
-  HOST_PORT: 3000
-  CONTAINER_PORT: 3000
+  HOST_PORT: 27495
+  CONTAINER_PORT: 27495
 
 jobs:
   build-and-push-image:
@@ -112,7 +112,7 @@ jobs:
             echo "ExecStartPre=-/usr/bin/docker stop ${{ env.CONTAINER_NAME }}" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
             echo "ExecStartPre=-/usr/bin/docker rm ${{ env.CONTAINER_NAME }}" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
             echo "ExecStartPre=/usr/bin/docker pull ${FULL_IMAGE_URI}" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
-            echo "ExecStart=/usr/bin/docker run --rm --name ${{ env.CONTAINER_NAME }} -p \"${{ env.HOST_PORT }}:${{ env.CONTAINER_PORT }}\" ${FULL_IMAGE_URI}" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
+            echo "ExecStart=/usr/bin/docker run --rm --name ${{ env.CONTAINER_NAME }} -p \"${{ env.HOST_PORT }}:${{ env.CONTAINER_PORT }}\" -e PORT=\"${{ env.CONTAINER_PORT }}\" ${FULL_IMAGE_URI}" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
             echo "ExecStop=/usr/bin/docker stop ${{ env.CONTAINER_NAME }}" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
             echo "" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
             echo "[Install]" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
