@@ -92,7 +92,14 @@ export default function HostScreen() {
       'This will disconnect all listeners. Continue?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'End Session', style: 'destructive', onPress: stopRoom },
+        { 
+          text: 'End Session', 
+          style: 'destructive', 
+          onPress: () => {
+            clear();
+            stopRoom();
+          }
+        },
       ]
     );
   };

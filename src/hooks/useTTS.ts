@@ -298,6 +298,7 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
     
     cleanupPlayer();
     setTTSAudioBase64(null);
+    setTTSText('');
     setIsTTSPlaying(false);
     setPlaybackPosition(0);
     setPlaybackDuration(0);

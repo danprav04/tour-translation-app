@@ -6,9 +6,8 @@
  */
 
 const TTS_MODELS = [
-  'gemini-3.1-flash',
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
+  'gemini-3.1-flash-tts-preview', // Current valid model name for TTS
+  'gemini-2.5-flash-tts-preview', // Fallback
 ];
 
 // Charon: Informative voice well-suited for a tour guide
