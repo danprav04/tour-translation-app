@@ -1,56 +1,120 @@
-# Welcome to your Expo app 👋
+<div align="center">
+  <h1>🎙️ TourCast</h1>
+  <p>Live Audio Broadcasting App for Tour Guides and Audiences</p>
+</div>
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+---
 
-## Get started
+## 📖 Overview
 
-1. Install dependencies
+**TourCast** is a real-time audio broadcasting application built with React Native (Expo) and a Node.js/Socket.IO backend. It empowers tour guides, translators, or presenters to seamlessly stream live audio to their audience's devices with ultra-low latency. 
 
-   ```bash
-   npm install
-   ```
+Listeners can simply join a session by scanning a QR code or entering a unique 6-character room code, completely bypassing the need for specialized radio hardware.
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## ✨ Features
 
-In the output, you'll find options to open the app in a
+- **📡 Live Audio Streaming:** Broadcast crisp, low-latency audio using WebSockets (Socket.IO).
+- **🔒 Room-based Sessions:** Securely create distinct rooms with unique 6-character access codes.
+- **📷 QR Code Onboarding:** Frictionless joining experience for listeners via in-app QR code scanning.
+- **👥 Audience Management:** Hosts can view connected listeners, rename devices for clarity, or kick disruptive users.
+- **🎵 Background Playback:** Listeners can keep hearing the broadcast even while using other apps or locking their screens.
+- **📱 Cross-Platform:** High-performance mobile client for both iOS and Android platforms built with Expo.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+---
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## 🛠️ Tech Stack
 
-## Get a fresh project
+### Mobile Client (Frontend)
+- **Framework:** React Native / Expo
+- **Routing:** Expo Router (File-based navigation)
+- **Audio:** `expo-audio` (Capture and background playback)
+- **Camera/Scanning:** `expo-camera` / `react-native-qrcode-svg`
+- **Styling:** NativeWind / TailwindCSS (or similar via `global.css`)
+- **Language:** TypeScript
 
-When you're ready, run:
+### Signaling Server (Backend)
+- **Framework:** Node.js / Express.js
+- **Real-time Engine:** Socket.IO
+- **Containerization:** Docker & Docker Compose
 
-```bash
-npm run reset-project
+---
+
+## 📂 Project Structure
+
+```text
+tour-translation-app/
+├── server/                 # Express & Socket.IO backend for signaling
+│   ├── index.js            # Main server entrypoint
+│   ├── Dockerfile          # Docker configuration for production deployment
+│   └── docker-compose.yml  # Docker Compose for local orchestration
+├── src/                    # Mobile app source code
+│   ├── app/                # Expo Router screens (index, host, listener, settings)
+│   ├── components/         # Reusable React components
+│   ├── context/            # Global state management
+│   ├── hooks/              # Custom React hooks
+│   └── services/           # Socket and API services
+├── app.json                # Expo configuration file
+└── package.json            # Project dependencies and scripts
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-### Other setup steps
+## 🚀 Getting Started
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+### Prerequisites
+- [Node.js](https://nodejs.org/) (v18 or newer recommended)
+- [Docker](https://www.docker.com/) (Optional, for running the backend)
+- [Expo Go](https://expo.dev/go) or a configured Simulator/Emulator
 
-## Learn more
+### 1. Setup the Backend Server
 
-To learn more about developing your project with Expo, look at the following resources:
+You can run the server natively or via Docker.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+**Option A: Run Locally (Node)**
+```bash
+cd server
+npm install
+npm start
+```
+*The server will start on port 3000.*
 
-## Join the community
+**Option B: Run with Docker**
+```bash
+cd server
+docker-compose up -d
+```
 
-Join our community of developers creating universal apps.
+### 2. Setup the Mobile App
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Open a new terminal window at the root of the project.
+
+```bash
+# Install dependencies
+npm install
+
+# Start the Expo development server
+npx expo start
+```
+
+Press `a` to open the app on an Android Emulator, `i` for an iOS Simulator, or scan the QR code in the terminal using the Expo Go app on your physical device.
+
+*(Note: Real-time audio capture requires a physical device for the host. Ensure the mobile app is pointing to your local machine's IP address if testing on a physical phone.)*
+
+---
+
+## 🕹️ Usage
+
+1. **Host a Tour:** Tap "Host a Tour" on the home screen. A room will be created with a unique 6-letter code and a QR code will be displayed.
+2. **Join a Tour:** 
+   - Tap "Join a Tour".
+   - Either enter the 6-letter room code manually or use your camera to scan the host's QR code.
+3. **Manage Listeners:** As a host, tap on any listener in your audience list to rename them or remove them from the session.
+4. **End Session:** The host can disconnect at any time, which will automatically close the room for all listeners.
+
+---
+
+## 📄 License
+
+This project is open-source and available under the standard MIT License. See the [LICENSE](LICENSE) file for more information.
