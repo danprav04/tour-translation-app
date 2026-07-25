@@ -3,6 +3,7 @@ import socketService, { ListenerInfo } from '@/services/socketService';
 import audioService from '@/services/audioService';
 import geminiTranslateService from '@/services/geminiTranslateService';
 import { useSettingsContext } from '@/context/SettingsContext';
+import foregroundService from '@/services/foregroundService';
 
 const base64ToArrayBuffer = (base64: string): ArrayBuffer => {
   const binaryString = atob(base64);
@@ -39,6 +40,11 @@ export const useHost = () => {
       setIsConnected(true);
       await updateSettings({ lastRoomCode: roomCode });
 
+      await foregroundService.start(
+        'TourCast Host Session',
+        `Broadcasting room ${roomCode}`
+      );
+
       socketService.onListenerJoined((listener) => {
         setListeners(prev => [...prev, listener]);
       });
@@ -66,6 +72,7 @@ export const useHost = () => {
       setIsTranslating(false);
     }
     socketService.disconnect();
+    await foregroundService.stop();
     setIsConnected(false);
     setRoomCode(null);
     setListeners([]);

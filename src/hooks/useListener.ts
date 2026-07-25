@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import socketService from '@/services/socketService';
 import audioService from '@/services/audioService';
 import { useSettingsContext } from '@/context/SettingsContext';
+import foregroundService from '@/services/foregroundService';
 
 const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
   let binary = '';
@@ -25,6 +26,11 @@ export const useListener = () => {
       socketService.connect(settings.serverUrl);
       await socketService.joinRoom(code, 'Listener Device');
       
+      await foregroundService.start(
+        'TourCast Listener',
+        `Listening to room ${code}`
+      );
+
       // Request audio mode so playback works in the background
       await audioService.enablePlaybackMode();
 
@@ -55,8 +61,9 @@ export const useListener = () => {
     }
   };
 
-  const disconnect = () => {
+  const disconnect = async () => {
     socketService.disconnect();
+    await foregroundService.stop();
     setIsConnected(false);
     setRoomCode(null);
   };

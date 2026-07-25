@@ -3,6 +3,9 @@ import { StatusBar } from 'expo-status-bar';
 import { SettingsProvider } from '@/context/SettingsContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+// Import early to register the Notifee foreground service handler
+import '@/services/foregroundService';
+
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
