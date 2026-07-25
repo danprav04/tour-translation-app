@@ -31,6 +31,13 @@ class GeminiTranslateService {
               translationConfig: {
                 targetLanguageCode: targetLanguageCode
               }
+            },
+            realtimeInputConfig: {
+              automaticActivityDetection: {
+                disabled: false,
+                prefixPaddingMs: 100,
+                silenceDurationMs: 600 // Aggressively detect end of speech after 600ms of silence
+              }
             }
           }
         };

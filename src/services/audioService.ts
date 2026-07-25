@@ -109,20 +109,22 @@ class AudioService {
     
     this.playbackBuffer = newBuffer;
 
-    // Flush every ~0.5 seconds of audio to avoid creating too many players
-    // 24000 Hz * 2 bytes/sample * 0.5s = 24000 bytes
-    if (this.playbackBuffer.length >= sampleRate * 2 * 0.5) {
+    // Flush every ~1.5 seconds of audio to reduce Player creations
+    // 24000 Hz * 2 bytes/sample * 1.5s = 72000 bytes
+    if (this.playbackBuffer.length >= sampleRate * 2 * 1.5) {
       if (this.bufferFlushTimeout) {
         clearTimeout(this.bufferFlushTimeout);
         this.bufferFlushTimeout = null;
       }
       this.flushPlaybackBuffer(sampleRate);
     } else {
-      if (!this.bufferFlushTimeout) {
-        this.bufferFlushTimeout = setTimeout(() => {
-          this.flushPlaybackBuffer(sampleRate);
-        }, 500);
+      // Properly debounce the flush: reset the timer every time we get a chunk
+      if (this.bufferFlushTimeout) {
+        clearTimeout(this.bufferFlushTimeout);
       }
+      this.bufferFlushTimeout = setTimeout(() => {
+        this.flushPlaybackBuffer(sampleRate);
+      }, 300); // Wait 300ms of silence from Gemini before flushing
     }
   }
 
@@ -161,9 +163,9 @@ class AudioService {
       this.currentSound = createAudioPlayer(item.uri);
       this.currentSound.play();
 
-      // Start next chunk slightly early (50ms) to mask AudioPlayer initialization 
+      // Start next chunk slightly early (100ms) to mask AudioPlayer initialization 
       // latency, preventing gaps/stuttering between chunks
-      const overlapMs = 50;
+      const overlapMs = 100;
       const timeoutMs = Math.max(0, (item.duration * 1000) - overlapMs);
 
       setTimeout(() => {
