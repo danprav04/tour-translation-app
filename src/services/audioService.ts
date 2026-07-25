@@ -161,13 +161,17 @@ class AudioService {
       this.currentSound = createAudioPlayer(item.uri);
       this.currentSound.play();
 
-      // Reliable timeout based on exact chunk duration
+      // Start next chunk slightly early (50ms) to mask AudioPlayer initialization 
+      // latency, preventing gaps/stuttering between chunks
+      const overlapMs = 50;
+      const timeoutMs = Math.max(0, (item.duration * 1000) - overlapMs);
+
       setTimeout(() => {
         this.currentSound?.remove();
         this.currentSound = null;
         this.isPlaying = false;
         this.processPlaybackQueue();
-      }, item.duration * 1000);
+      }, timeoutMs);
 
     } catch (error) {
       console.error('Failed to play audio chunk', error);
