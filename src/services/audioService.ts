@@ -148,7 +148,6 @@ class AudioService {
     this.processPlaybackQueue();
   }
 
-  private activeSounds: AudioPlayer[] = [];
 
   private async processPlaybackQueue(): Promise<void> {
     if (this.isPlaying || this.playbackQueue.length === 0) return;
@@ -162,29 +161,20 @@ class AudioService {
     }
 
     try {
-      const player = createAudioPlayer(item.uri);
-      this.activeSounds.push(player);
-      player.play();
+      this.currentSound = createAudioPlayer(item.uri);
+      this.currentSound.play();
 
-      // Start next chunk slightly early (100ms) to mask initialization latency
-      const overlapMs = 100;
+      // Only overlap if the chunk is long enough, otherwise it creates a "pop"
+      const overlapMs = item.duration > 0.3 ? 50 : 0;
       const timeoutMs = Math.max(0, (item.duration * 1000) - overlapMs);
 
-      // Trigger the next chunk
+      // Trigger the next chunk and safely remove the current one
       setTimeout(() => {
+        this.currentSound?.remove();
+        this.currentSound = null;
         this.isPlaying = false;
         this.processPlaybackQueue();
       }, timeoutMs);
-
-      // Safely cleanup THIS player AFTER it has fully finished playing + padding
-      setTimeout(() => {
-        try {
-          player.remove();
-        } catch (e) {
-          // ignore
-        }
-        this.activeSounds = this.activeSounds.filter(p => p !== player);
-      }, (item.duration * 1000) + 1000);
 
     } catch (error) {
       console.error('Failed to play audio chunk', error);
