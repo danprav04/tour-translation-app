@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import socketService, { ListenerInfo } from '@/services/socketService';
 import audioService from '@/services/audioService';
 import geminiTranslateService from '@/services/geminiTranslateService';
@@ -22,6 +22,11 @@ export const useHost = () => {
   const [isTranslating, setIsTranslating] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const selectedLanguage = settings.targetLanguage;
+
+  const isTranslatingRef = useRef(isTranslating);
+  useEffect(() => {
+    isTranslatingRef.current = isTranslating;
+  }, [isTranslating]);
 
   const startRoom = async () => {
     try {
@@ -64,7 +69,7 @@ export const useHost = () => {
   };
 
   const handleAudioChunk = (base64Data: string) => {
-    if (isTranslating) {
+    if (isTranslatingRef.current) {
       geminiTranslateService.sendAudioChunk(base64Data);
     } else {
       const buffer = base64ToArrayBuffer(base64Data);
