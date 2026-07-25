@@ -33,18 +33,39 @@ class AudioService {
         encoding: 'int16'
       });
 
+      let audioChunks: Uint8Array[] = [];
+      let currentBufferSize = 0;
+      const TARGET_BUFFER_SIZE = 8000; // ~250ms at 16kHz 16-bit mono
+
       this.stream.addListener('audioStreamBuffer', (buffer) => {
         if (!this._isCapturing) return;
+        
         const bytes = new Uint8Array(buffer.data);
-        
-        // Fast base64 encoding for the PCM chunk
-        let binary = '';
-        const chunkSize = 8192;
-        for (let i = 0; i < bytes.length; i += chunkSize) {
-          binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
+        audioChunks.push(bytes);
+        currentBufferSize += bytes.length;
+
+        if (currentBufferSize >= TARGET_BUFFER_SIZE) {
+          // Combine chunks
+          const combined = new Uint8Array(currentBufferSize);
+          let offset = 0;
+          for (const chunk of audioChunks) {
+            combined.set(chunk, offset);
+            offset += chunk.length;
+          }
+          
+          // Reset buffer
+          audioChunks = [];
+          currentBufferSize = 0;
+
+          // Fast base64 encoding for the combined PCM chunk
+          let binary = '';
+          const chunkSize = 8192;
+          for (let i = 0; i < combined.length; i += chunkSize) {
+            binary += String.fromCharCode.apply(null, Array.from(combined.subarray(i, i + chunkSize)));
+          }
+          
+          onChunk(btoa(binary));
         }
-        
-        onChunk(btoa(binary));
       });
 
       await this.stream.start();
