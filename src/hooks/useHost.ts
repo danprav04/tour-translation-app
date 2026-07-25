@@ -82,30 +82,39 @@ export const useHost = () => {
     }
   };
 
+  const startTranslation = async (langCode: string) => {
+    try {
+      await geminiTranslateService.connect(settings.geminiApiKey, langCode);
+      geminiTranslateService.onTranslatedAudio((translatedBase64) => {
+        audioService.playChunk(translatedBase64);
+        const buffer = base64ToArrayBuffer(translatedBase64);
+        socketService.sendAudioChunk(buffer);
+      });
+      setIsTranslating(true);
+    } catch (error) {
+      console.error('Failed to start translation', error);
+      setIsTranslating(false);
+    }
+  };
+
+  const stopTranslation = () => {
+    geminiTranslateService.disconnect();
+    setIsTranslating(false);
+  };
+
   const toggleTranslation = async () => {
     if (isTranslating) {
-      geminiTranslateService.disconnect();
-      setIsTranslating(false);
+      stopTranslation();
     } else {
-      try {
-        await geminiTranslateService.connect(settings.geminiApiKey, selectedLanguage);
-        geminiTranslateService.onTranslatedAudio((translatedBase64) => {
-          audioService.playChunk(translatedBase64);
-          const buffer = base64ToArrayBuffer(translatedBase64);
-          socketService.sendAudioChunk(buffer);
-        });
-        setIsTranslating(true);
-      } catch (error) {
-        console.error('Failed to start translation', error);
-      }
+      await startTranslation(selectedLanguage);
     }
   };
 
   const setLanguage = async (code: string) => {
     await updateSettings({ targetLanguage: code });
     if (isTranslating) {
-      await toggleTranslation();
-      await toggleTranslation();
+      stopTranslation();
+      await startTranslation(code);
     }
   };
 

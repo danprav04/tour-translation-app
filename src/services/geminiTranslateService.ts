@@ -8,15 +8,18 @@ class GeminiTranslateService {
       this.disconnect();
     }
 
-    const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+    const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
 
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(url);
       this.ws = ws;
 
+      let isSetupComplete = false;
+
       ws.onopen = () => {
         if (this.ws !== ws) return;
         
+        console.log('[Gemini WS] Connected. Sending setup...');
         const setupMessage = {
           setup: {
             model: "models/gemini-3.5-live-translate-preview",
@@ -26,31 +29,83 @@ class GeminiTranslateService {
                 voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } }
               }
             },
-            targetLanguageCode: targetLanguageCode
+            systemInstruction: {
+              parts: [{ text: `You are a real-time translator. Translate all spoken audio to the language code: ${targetLanguageCode}. Only output the translated audio without any other conversation.` }]
+            }
           }
         };
         ws.send(JSON.stringify(setupMessage));
       };
 
-      ws.onmessage = (event) => {
+      ws.onmessage = async (event) => {
         if (this.ws !== ws) return;
         
         try {
-          const message = JSON.parse(event.data);
+          let messageText = '';
           
-          if (message.setupComplete) {
-            resolve();
-          } else if (message.serverContent?.modelTurn?.parts) {
-            const parts = message.serverContent.modelTurn.parts;
-            for (const part of parts) {
-              if (part.inlineData && part.inlineData.data) {
-                if (this.onTranslatedAudioCallback) {
-                  this.onTranslatedAudioCallback(part.inlineData.data);
+          if (typeof event.data === 'string') {
+            messageText = event.data;
+          } else if (event.data instanceof Blob) {
+            messageText = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsText(event.data);
+            });
+          } else if (event.data instanceof ArrayBuffer) {
+            // Convert ArrayBuffer to string safely
+            const bytes = new Uint8Array(event.data);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+              binary += String.fromCharCode(bytes[i]);
+            }
+            // Naive utf8 decode
+            try {
+              messageText = decodeURIComponent(escape(binary));
+            } catch (e) {
+              messageText = binary;
+            }
+          } else {
+            console.log('[Gemini WS] Received unknown object type:', Object.prototype.toString.call(event.data));
+            messageText = JSON.stringify(event.data);
+          }
+
+          console.log('[Gemini WS] Raw message text:', messageText);
+
+          let message;
+          try {
+            message = JSON.parse(messageText);
+          } catch (e) {
+            console.log('[Gemini WS] Parsed message is not JSON, or parse failed.');
+            return;
+          }
+
+          // In case the API wraps the response in an array
+          const messages = Array.isArray(message) ? message : [message];
+
+          for (const msg of messages) {
+            if (msg.setupComplete) {
+              console.log('[Gemini WS] Setup complete received.');
+              isSetupComplete = true;
+              resolve();
+            } else if (msg.serverContent?.modelTurn?.parts) {
+              const parts = msg.serverContent.modelTurn.parts;
+              for (const part of parts) {
+                if (part.inlineData && part.inlineData.data) {
+                  if (this.onTranslatedAudioCallback) {
+                    this.onTranslatedAudioCallback(part.inlineData.data);
+                  }
                 }
               }
+            } else if (msg.error) {
+              console.error('[Gemini WS] Error from server:', msg.error);
+              reject(new Error(msg.error.message || 'Server returned an error'));
+            } else {
+              console.log('[Gemini WS] Unhandled message part:', msg);
             }
           }
         } catch (error) {
+          console.error('[Gemini WS] Failed in onmessage:', error);
           if (this.onErrorCallback) {
             this.onErrorCallback(error instanceof Error ? error : new Error('Unknown error parsing message'));
           }
@@ -60,15 +115,20 @@ class GeminiTranslateService {
       ws.onerror = (error) => {
         if (this.ws !== ws) return;
         
+        console.error('[Gemini WS] WebSocket error observed:', error);
         if (this.onErrorCallback) {
           this.onErrorCallback(new Error('WebSocket error'));
         }
         reject(new Error('WebSocket connection failed'));
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
+        console.log(`[Gemini WS] Closed with code ${event.code}, reason: ${event.reason}`);
         if (this.ws === ws) {
           this.ws = null;
+        }
+        if (!isSetupComplete) {
+          reject(new Error(`WebSocket closed before setup: ${event.reason}`));
         }
       };
     });

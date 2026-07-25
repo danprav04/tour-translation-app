@@ -71,12 +71,17 @@ class AudioService {
                 const reader = new FileReader();
                 const base64Promise = new Promise<string>((resolve) => {
                   reader.onloadend = () => {
-                    const dataUrl = reader.result as string;
-                    // Extract base64 from data URL
-                    const base64 = dataUrl.split(',')[1] || '';
-                    resolve(base64);
+                    const arrayBuffer = reader.result as ArrayBuffer;
+                    // Skip the 44-byte WAV header to get raw PCM
+                    const pcmBuffer = arrayBuffer.slice(44);
+                    const bytes = new Uint8Array(pcmBuffer);
+                    let binary = '';
+                    for (let i = 0; i < bytes.byteLength; i++) {
+                      binary += String.fromCharCode(bytes[i]);
+                    }
+                    resolve(btoa(binary));
                   };
-                  reader.readAsDataURL(blob);
+                  reader.readAsArrayBuffer(blob);
                 });
                 const base64Data = await base64Promise;
                 if (base64Data) {
