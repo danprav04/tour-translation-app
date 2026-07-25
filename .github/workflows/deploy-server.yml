@@ -1,12 +1,7 @@
 name: Deploy Server via Docker
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'server/**'
-      - '.github/workflows/deploy-server.yml'
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
