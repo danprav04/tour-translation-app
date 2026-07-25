@@ -8,7 +8,7 @@ class GeminiTranslateService {
       this.disconnect();
     }
 
-    const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+    const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
 
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(url);

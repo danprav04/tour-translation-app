@@ -4,11 +4,11 @@ import {
   View,
   Text,
   ScrollView,
-  SafeAreaView,
   Pressable,
   FlatList,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useHost } from '@/hooks/useHost';
 import { useSettingsContext } from '@/context/SettingsContext';
@@ -28,12 +28,14 @@ export default function HostScreen() {
     listeners,
     isMicActive,
     isTranslating,
+    isEchoEnabled,
     isConnected,
     selectedLanguage,
     startRoom,
     stopRoom,
     toggleMic,
     toggleTranslation,
+    toggleEcho,
     setLanguage,
     kickListener,
     renameListener,
@@ -170,6 +172,19 @@ export default function HostScreen() {
                       </Pressable>
                     ))}
                   </View>
+                  
+                  {/* Local Echo Sub-toggle */}
+                  <View style={{ marginTop: 12 }}>
+                    <ToggleCard
+                      icon="🔊"
+                      label="Local Echo"
+                      description="Hear the translated audio on your own speaker (use headphones to avoid feedback)"
+                      value={isEchoEnabled}
+                      onToggle={toggleEcho}
+                      accentColor="#FF5C93"
+                      style={{ padding: 12, backgroundColor: 'rgba(255,255,255,0.02)' }}
+                    />
+                  </View>
                 </ToggleCard>
               </View>
             </ToggleCard>
@@ -236,12 +251,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 20,
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 40,
+    paddingTop: 20,
+    paddingBottom: 20,
   },
   header: {
     flexDirection: 'row',

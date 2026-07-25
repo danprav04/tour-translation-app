@@ -4,8 +4,8 @@ import {
   View,
   Text,
   Pressable,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import GlassCard from '@/components/GlassCard';
 import AudioVisualizer from '@/components/AudioVisualizer';
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingTop: 20,
   },
   header: {
     alignItems: 'center',

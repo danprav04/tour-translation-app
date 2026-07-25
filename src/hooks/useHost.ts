@@ -20,13 +20,16 @@ export const useHost = () => {
   const [listeners, setListeners] = useState<ListenerInfo[]>([]);
   const [isMicActive, setIsMicActive] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
+  const [isEchoEnabled, setIsEchoEnabled] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const selectedLanguage = settings.targetLanguage;
 
   const isTranslatingRef = useRef(isTranslating);
+  const isEchoEnabledRef = useRef(isEchoEnabled);
   useEffect(() => {
     isTranslatingRef.current = isTranslating;
-  }, [isTranslating]);
+    isEchoEnabledRef.current = isEchoEnabled;
+  }, [isTranslating, isEchoEnabled]);
 
   const startRoom = async () => {
     try {
@@ -91,7 +94,12 @@ export const useHost = () => {
     try {
       await geminiTranslateService.connect(settings.geminiApiKey, langCode);
       geminiTranslateService.onTranslatedAudio((translatedBase64) => {
-        audioService.playChunk(translatedBase64);
+        // Play locally if echo is enabled
+        if (isEchoEnabledRef.current) {
+          audioService.playChunk(translatedBase64);
+        }
+        
+        // Always broadcast to listeners
         const buffer = base64ToArrayBuffer(translatedBase64);
         socketService.sendAudioChunk(buffer);
       });
@@ -113,6 +121,10 @@ export const useHost = () => {
     } else {
       await startTranslation(selectedLanguage);
     }
+  };
+
+  const toggleEcho = () => {
+    setIsEchoEnabled(prev => !prev);
   };
 
   const setLanguage = async (code: string) => {
@@ -143,12 +155,15 @@ export const useHost = () => {
     listeners,
     isMicActive,
     isTranslating,
+    isEchoEnabled,
+    setIsEchoEnabled,
     isConnected,
     selectedLanguage,
     startRoom,
     stopRoom,
     toggleMic,
     toggleTranslation,
+    toggleEcho,
     setLanguage,
     kickListener,
     renameListener
