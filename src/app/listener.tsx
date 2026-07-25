@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,7 +9,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useSettingsContext } from '@/context/SettingsContext';
 import GlassCard from '@/components/GlassCard';
@@ -24,6 +24,13 @@ export default function ListenerScreen() {
   const [roomCode, setRoomCode] = useState('');
   const [scanned, setScanned] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      setScanned(false);
+      setShowScanner(false);
+    }, [])
+  );
 
   const handleConnect = (code: string) => {
     const trimmed = code.trim().toUpperCase();
