@@ -37,12 +37,16 @@ export default function StreamScreen() {
   // Connect on mount
   useEffect(() => {
     if (roomCode) {
-      connect(roomCode);
+      connect(roomCode).catch((error) => {
+        Alert.alert('Connection Error', error.message || 'Failed to connect to room', [
+          { text: 'OK', onPress: () => router.back() }
+        ]);
+      });
     }
     return () => {
       disconnect();
     };
-  }, [roomCode, connect, disconnect]);
+  }, [roomCode, connect, disconnect, router]);
 
   // Pulse animation when connected & unmuted
   useEffect(() => {

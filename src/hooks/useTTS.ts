@@ -165,7 +165,22 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
    */
   const broadcastTTSAudio = useCallback((audioBase64: string) => {
     const buffer = base64ToArrayBuffer(audioBase64);
-    socketService.sendAudioChunk(buffer, TTS_SAMPLE_RATE);
+    const uint8Array = new Uint8Array(buffer);
+    const CHUNK_SIZE = 256 * 1024; // 256 KB chunks to stay well below Socket.io 1MB limit
+    
+    let offset = 0;
+    const sendNextChunk = () => {
+      if (offset >= uint8Array.length) return;
+      
+      const chunk = uint8Array.slice(offset, offset + CHUNK_SIZE);
+      socketService.sendAudioChunk(chunk.buffer, TTS_SAMPLE_RATE);
+      
+      offset += CHUNK_SIZE;
+      // Small delay to prevent flooding the socket and dropping volatile packets
+      setTimeout(sendNextChunk, 50); 
+    };
+    
+    sendNextChunk();
   }, []);
 
   /**

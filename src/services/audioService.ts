@@ -9,6 +9,11 @@ class AudioService {
   private isPlaying: boolean = false;
   private currentSound: AudioPlayer | null = null;
 
+  async requestPermissions(): Promise<boolean> {
+    const permission = await requestRecordingPermissionsAsync();
+    return permission.granted;
+  }
+
   async enablePlaybackMode(): Promise<void> {
     await setAudioModeAsync({
       allowsRecording: false,

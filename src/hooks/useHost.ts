@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Alert } from 'react-native';
 import socketService, { ListenerInfo } from '@/services/socketService';
 import audioService from '@/services/audioService';
 import geminiTranslateService from '@/services/geminiTranslateService';
@@ -48,6 +49,13 @@ export const useHost = () => {
       setIsConnected(true);
       await updateSettings({ lastRoomCode: roomCode });
 
+      // Android 14+ requires microphone permission to be granted before
+      // starting a foreground service with type "microphone".
+      const hasPermission = await audioService.requestPermissions();
+      if (!hasPermission) {
+        throw new Error('Microphone permission is required to start a session.');
+      }
+
       await foregroundService.start(
         'TourCast Host Session',
         `Broadcasting room ${roomCode}`
@@ -67,6 +75,10 @@ export const useHost = () => {
 
     } catch (error) {
       console.error('Failed to start room', error);
+      Alert.alert(
+        'Session Failed',
+        error instanceof Error ? error.message : 'Failed to start session. Please ensure microphone permissions are granted.'
+      );
       setIsConnected(false);
     }
   };

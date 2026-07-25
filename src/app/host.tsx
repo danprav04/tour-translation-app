@@ -79,7 +79,11 @@ export default function HostScreen() {
       Alert.alert('Server Required', 'Please configure the server URL in Settings first.');
       return;
     }
-    await startRoom();
+    try {
+      await startRoom();
+    } catch (error: any) {
+      Alert.alert('Failed to Start', error.message || 'Could not start the session. Check your server connection.');
+    }
   };
 
   const handleStop = () => {
