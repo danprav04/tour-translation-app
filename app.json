@@ -85,7 +85,8 @@
             "reactNativeArchitectures": ["arm64-v8a"]
           }
         }
-      ]
+      ],
+      "./plugins/withNotifeeForegroundService.js"
     ],
     "experiments": {
       "typedRoutes": true,

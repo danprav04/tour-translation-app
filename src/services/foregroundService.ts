@@ -34,8 +34,8 @@ class ForegroundService {
           ongoing: true,
           color: AndroidColor.AQUA,
           foregroundServiceTypes: [
-            AndroidForegroundServiceType.MICROPHONE,
-            AndroidForegroundServiceType.MEDIA_PLAYBACK
+            AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MICROPHONE,
+            AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
           ],
           pressAction: {
             id: 'default',
