@@ -55,7 +55,14 @@
           "cameraPermission": "TourCast needs camera access to scan QR codes."
         }
       ],
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "TourCast needs microphone access to capture and broadcast tour audio.",
+          "recordAudioAndroid": true,
+          "enableBackgroundPlayback": true
+        }
+      ],
       [
         "expo-build-properties",
         {

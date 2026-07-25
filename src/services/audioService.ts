@@ -1,30 +1,29 @@
-import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
+import { AudioModule, setAudioModeAsync, requestRecordingPermissionsAsync, createAudioPlayer } from 'expo-audio';
+import type { AudioRecorder, AudioPlayer } from 'expo-audio';
 
 class AudioService {
-  private recording: Audio.Recording | null = null;
+  private recording: AudioRecorder | null = null;
   private captureInterval: ReturnType<typeof setTimeout> | null = null;
   private _isCapturing: boolean = false;
   private _isMuted: boolean = false;
   private playbackQueue: string[] = [];
   private isPlaying: boolean = false;
-  private currentSound: Audio.Sound | null = null;
+  private currentSound: AudioPlayer | null = null;
 
   async startCapture(onChunk: (base64Data: string) => void): Promise<void> {
     if (this._isCapturing) return;
 
     try {
-      const permission = await Audio.requestPermissionsAsync();
-      if (permission.status !== 'granted') {
+      const permission = await requestRecordingPermissionsAsync();
+      if (!permission.granted) {
         throw new Error('Audio recording permission denied');
       }
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-        interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
-        shouldDuckAndroid: false,
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
+        shouldPlayInBackground: true,
+        interruptionMode: 'doNotMix',
       });
 
       this._isCapturing = true;
@@ -33,25 +32,21 @@ class AudioService {
         if (!this._isCapturing) return;
 
         try {
-          const { recording } = await Audio.Recording.createAsync({
+          this.recording = new AudioModule.AudioRecorder({
             isMeteringEnabled: false,
-            android: {
-              extension: '.3gp',
-              outputFormat: Audio.AndroidOutputFormat.AMR_WB,
-              audioEncoder: Audio.AndroidAudioEncoder.AMR_WB,
-              sampleRate: 16000,
-              numberOfChannels: 1,
-              bitRate: 23850,
-            },
+            extension: '.wav',
+            sampleRate: 16000,
+            numberOfChannels: 1,
+            bitRate: 128000,
             ios: {
-              extension: '.wav',
-              audioQuality: Audio.IOSAudioQuality.HIGH,
-              sampleRate: 16000,
-              numberOfChannels: 1,
-              bitRate: 128000,
+              audioQuality: 'high',
               linearPCMBitDepth: 16,
               linearPCMIsBigEndian: false,
               linearPCMIsFloat: false,
+            },
+            android: {
+              outputFormat: 'default',
+              audioEncoder: 'default'
             },
             web: {
               mimeType: 'audio/webm',
@@ -59,14 +54,15 @@ class AudioService {
             }
           });
 
-          this.recording = recording;
+          await this.recording.prepareToRecordAsync();
+          this.recording.record();
 
           // Record for ~300ms chunks
           await new Promise(resolve => setTimeout(resolve, 300));
 
           if (this.recording && this._isCapturing) {
-            await this.recording.stopAndUnloadAsync();
-            const uri = this.recording.getURI();
+            await this.recording.stop();
+            const uri = this.recording.uri;
             if (uri) {
               // Read file as base64 - use fetch to read local URI
               try {
@@ -117,16 +113,16 @@ class AudioService {
     }
     if (this.recording) {
       try {
-        await this.recording.stopAndUnloadAsync();
+        await this.recording.stop();
       } catch {
         // Recording may already be stopped
       }
       this.recording = null;
     }
     // Reset audio mode for playback
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,
+    await setAudioModeAsync({
+      allowsRecording: false,
+      playsInSilentMode: true,
     });
   }
 
@@ -164,19 +160,19 @@ class AudioService {
     }
 
     try {
-      const { sound } = await Audio.Sound.createAsync({ uri });
-      this.currentSound = sound;
+      this.currentSound = createAudioPlayer(uri);
 
-      sound.setOnPlaybackStatusUpdate(async (status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          await sound.unloadAsync();
+      const statusListener = this.currentSound.addListener('playbackStatusUpdate', (status) => {
+        if (status.didJustFinish) {
+          statusListener.remove();
+          this.currentSound?.remove();
           this.currentSound = null;
           this.isPlaying = false;
           this.processPlaybackQueue();
         }
       });
 
-      await sound.playAsync();
+      this.currentSound.play();
     } catch (error) {
       console.error('Failed to play audio chunk', error);
       this.isPlaying = false;
@@ -190,7 +186,7 @@ class AudioService {
       // Clear queue and stop current playback
       this.playbackQueue = [];
       if (this.currentSound) {
-        this.currentSound.unloadAsync().catch(() => {});
+        this.currentSound.remove();
         this.currentSound = null;
       }
       this.isPlaying = false;

@@ -77,7 +77,7 @@ jobs:
       - name: Build development client locally for Android
         run: eas build --profile development --platform android --local --non-interactive
         env:
-          GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx2560m -XX:MaxMetaspaceSize=512m' -Dorg.gradle.workers.max=2 -Dorg.gradle.parallel=true"
+          GRADLE_OPTS: "-Xmx2560m -XX:MaxMetaspaceSize=512m -Dorg.gradle.workers.max=2 -Dorg.gradle.parallel=true"
           REACT_NATIVE_ARCHS: "arm64-v8a"
           NDK_CCACHE: "ccache"
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
