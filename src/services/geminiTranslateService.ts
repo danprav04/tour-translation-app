@@ -29,8 +29,8 @@ class GeminiTranslateService {
                 voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } }
               }
             },
-            systemInstruction: {
-              parts: [{ text: `You are a real-time translator. Translate all spoken audio to the language code: ${targetLanguageCode}. Only output the translated audio without any other conversation.` }]
+            translationConfig: {
+              targetLanguage: targetLanguageCode
             }
           }
         };

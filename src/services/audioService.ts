@@ -75,26 +75,53 @@ class AudioService {
     });
   }
 
+  private playbackBuffer: Uint8Array = new Uint8Array(0);
+  private bufferFlushTimeout: ReturnType<typeof setTimeout> | null = null;
+
   async playChunk(base64AudioData: string, sampleRate: number = 24000): Promise<void> {
     if (this._isMuted) return;
 
-    // Create a WAV with proper header from raw PCM data
     try {
       const pcmBytes = this.base64ToUint8Array(base64AudioData);
-      const wavHeader = this.createWavHeader(pcmBytes.length, sampleRate, 16, 1);
-      const wavBuffer = new Uint8Array(wavHeader.byteLength + pcmBytes.length);
-      wavBuffer.set(new Uint8Array(wavHeader), 0);
-      wavBuffer.set(pcmBytes, wavHeader.byteLength);
+      
+      const newBuffer = new Uint8Array(this.playbackBuffer.length + pcmBytes.length);
+      newBuffer.set(this.playbackBuffer);
+      newBuffer.set(pcmBytes, this.playbackBuffer.length);
+      this.playbackBuffer = newBuffer;
 
-      // Convert to base64 data URI
-      const wavBase64 = this.uint8ArrayToBase64(wavBuffer);
-      const dataUri = `data:audio/wav;base64,${wavBase64}`;
+      if (this.bufferFlushTimeout) {
+        clearTimeout(this.bufferFlushTimeout);
+      }
 
-      this.playbackQueue.push(dataUri);
-      this.processPlaybackQueue();
+      // Flush at ~0.5 seconds of audio (24000 bytes at 24kHz 16-bit mono = 0.5s)
+      if (this.playbackBuffer.length >= 24000) {
+        this.flushPlaybackBuffer(sampleRate);
+      } else {
+        this.bufferFlushTimeout = setTimeout(() => {
+          this.flushPlaybackBuffer(sampleRate);
+        }, 500);
+      }
     } catch (error) {
-      console.error('Failed to prepare audio chunk for playback', error);
+      console.error('Failed to buffer audio chunk', error);
     }
+  }
+
+  private flushPlaybackBuffer(sampleRate: number): void {
+    if (this.playbackBuffer.length === 0) return;
+    
+    const pcmBytes = this.playbackBuffer;
+    this.playbackBuffer = new Uint8Array(0);
+
+    const wavHeader = this.createWavHeader(pcmBytes.length, sampleRate, 16, 1);
+    const wavBuffer = new Uint8Array(wavHeader.byteLength + pcmBytes.length);
+    wavBuffer.set(new Uint8Array(wavHeader), 0);
+    wavBuffer.set(pcmBytes, wavHeader.byteLength);
+
+    const wavBase64 = this.uint8ArrayToBase64(wavBuffer);
+    const dataUri = `data:audio/wav;base64,${wavBase64}`;
+
+    this.playbackQueue.push(dataUri);
+    this.processPlaybackQueue();
   }
 
   private async processPlaybackQueue(): Promise<void> {
