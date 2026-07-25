@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, Text, Animated, Easing } from 'react-native';
 
 type StatusType = 'connected' | 'disconnected' | 'reconnecting' | 'broadcasting';
