@@ -70,7 +70,7 @@ class GeminiTranslateService {
             messageText = JSON.stringify(event.data);
           }
 
-          console.log('[Gemini WS] Raw message text:', messageText);
+          // console.log('[Gemini WS] Raw message text:', messageText);
 
           let message;
           try {
@@ -92,19 +92,19 @@ class GeminiTranslateService {
               const parts = msg.serverContent.modelTurn.parts;
               for (const part of parts) {
                 if (part.inlineData && part.inlineData.data) {
-                  console.log('[Gemini WS] Received audio chunk of length', part.inlineData.data.length);
+                  // console.log('[Gemini WS] Received audio chunk of length', part.inlineData.data.length);
                   if (this.onTranslatedAudioCallback) {
                     this.onTranslatedAudioCallback(part.inlineData.data);
                   }
                 }
               }
             } else if (msg.serverContent) {
-              console.log('[Gemini WS] serverContent without audio parts:', JSON.stringify(msg.serverContent));
+              // console.log('[Gemini WS] serverContent without audio parts:', JSON.stringify(msg.serverContent));
             } else if (msg.error) {
               console.error('[Gemini WS] Error from server:', msg.error);
               reject(new Error(msg.error.message || 'Server returned an error'));
             } else {
-              console.log('[Gemini WS] Unhandled message part:', msg);
+              // console.log('[Gemini WS] Unhandled message part:', msg);
             }
           }
         } catch (error) {
