@@ -55,9 +55,9 @@ class SocketService {
     });
   }
 
-  sendAudioChunk(data: ArrayBuffer): void {
+  sendAudioChunk(data: ArrayBuffer, sampleRate: number): void {
     if (this.socket && this.socket.connected) {
-      this.socket.volatile.emit('audio-chunk', data);
+      this.socket.volatile.emit('audio-chunk', data, sampleRate);
     }
   }
 
@@ -73,7 +73,7 @@ class SocketService {
     }
   }
 
-  onAudioData(callback: (data: ArrayBuffer) => void): void {
+  onAudioData(callback: (data: ArrayBuffer, sampleRate: number) => void): void {
     if (this.socket) {
       this.socket.on('audio-data', callback);
     }

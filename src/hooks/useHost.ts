@@ -76,7 +76,7 @@ export const useHost = () => {
       geminiTranslateService.sendAudioChunk(base64Data);
     } else {
       const buffer = base64ToArrayBuffer(base64Data);
-      socketService.sendAudioChunk(buffer);
+      socketService.sendAudioChunk(buffer, 16000);
     }
   };
 
@@ -96,12 +96,12 @@ export const useHost = () => {
       geminiTranslateService.onTranslatedAudio((translatedBase64) => {
         // Play locally if echo is enabled
         if (isEchoEnabledRef.current) {
-          audioService.playChunk(translatedBase64);
+          audioService.playChunk(translatedBase64, 24000);
         }
         
         // Always broadcast to listeners
         const buffer = base64ToArrayBuffer(translatedBase64);
-        socketService.sendAudioChunk(buffer);
+        socketService.sendAudioChunk(buffer, 24000);
       });
       setIsTranslating(true);
     } catch (error) {

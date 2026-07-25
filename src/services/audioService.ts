@@ -9,6 +9,14 @@ class AudioService {
   private isPlaying: boolean = false;
   private currentSound: AudioPlayer | null = null;
 
+  async enablePlaybackMode(): Promise<void> {
+    await setAudioModeAsync({
+      allowsRecording: false,
+      playsInSilentMode: true,
+      shouldPlayInBackground: true,
+    });
+  }
+
   async startCapture(onChunk: (base64Data: string) => void): Promise<void> {
     if (this._isCapturing) return;
 
@@ -93,6 +101,7 @@ class AudioService {
     await setAudioModeAsync({
       allowsRecording: false,
       playsInSilentMode: true,
+      shouldPlayInBackground: true,
     });
   }
 

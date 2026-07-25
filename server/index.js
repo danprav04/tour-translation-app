@@ -102,20 +102,17 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('audio-chunk', (data, roomId) => {
+  socket.on('audio-chunk', (data, sampleRate) => {
     // Broadcast audio-data to all other sockets in the room, volatile
-    // Determine the room ID if not explicitly sent
-    let targetRoomId = roomId;
-    if (!targetRoomId) {
-      for (const [id, room] of rooms.entries()) {
-        if (room.hostSocketId === socket.id) {
-          targetRoomId = id;
-          break;
-        }
+    let targetRoomId;
+    for (const [id, room] of rooms.entries()) {
+      if (room.hostSocketId === socket.id) {
+        targetRoomId = id;
+        break;
       }
     }
     if (targetRoomId) {
-      socket.volatile.to(targetRoomId).emit('audio-data', data);
+      socket.volatile.to(targetRoomId).emit('audio-data', data, sampleRate);
     }
   });
 

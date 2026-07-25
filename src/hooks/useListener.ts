@@ -25,14 +25,17 @@ export const useListener = () => {
       socketService.connect(settings.serverUrl);
       await socketService.joinRoom(code, 'Listener Device');
       
+      // Request audio mode so playback works in the background
+      await audioService.enablePlaybackMode();
+
       setRoomCode(code);
       setIsConnected(true);
       setIsReconnecting(false);
 
-      socketService.onAudioData((data: ArrayBuffer) => {
+      socketService.onAudioData((data: ArrayBuffer, sampleRate: number) => {
         if (!isMuted) {
           const base64Str = arrayBufferToBase64(data);
-          audioService.playChunk(base64Str);
+          audioService.playChunk(base64Str, sampleRate || 16000); // Fallback to 16000 if not provided
         }
       });
 
