@@ -1,13 +1,14 @@
 /**
  * TTS Service — Generates speech audio from text using Gemini TTS REST API.
  * 
- * Uses gemini-3.1-flash-tts-preview as primary model with gemini-2.5-flash-tts fallback.
+ * Uses gemini-3.1-flash as primary model with gemini-2.5-flash fallback.
  * Returns raw PCM audio data (24kHz, 16-bit, mono) as base64 string.
  */
 
 const TTS_MODELS = [
-  'gemini-3.1-flash-tts',
-  'gemini-2.5-flash-tts',
+  'gemini-3.1-flash',
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
 ];
 
 // Charon: Informative voice well-suited for a tour guide

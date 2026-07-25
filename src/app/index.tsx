@@ -4,6 +4,7 @@ import {
   View,
   Text,
   Pressable,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -15,7 +16,11 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.appName}>TourCast</Text>
@@ -73,7 +78,7 @@ export default function HomeScreen() {
         >
           <Text style={styles.settingsText}>⚙️ Settings</Text>
         </Pressable>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -83,10 +88,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0A0E1A',
   },
-  container: {
+  scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 24,
     paddingTop: 20,
+    paddingBottom: 24,
   },
   header: {
     alignItems: 'center',
@@ -110,10 +119,10 @@ const styles = StyleSheet.create({
   },
   cards: {
     gap: 16,
-    flex: 1,
+    flexGrow: 1,
   },
   card: {
-    flex: 1,
+    flexGrow: 1,
   },
   cardContent: {
     alignItems: 'center',
@@ -176,6 +185,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 24,
     marginBottom: 20,
+    marginTop: 24,
   },
   settingsText: {
     color: 'rgba(255,255,255,0.5)',
