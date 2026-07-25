@@ -84,7 +84,7 @@ jobs:
           TARGET_SSH_HOST: ${{ secrets.SSH_HOST }}
           TARGET_SSH_USER: ubuntu
           FULL_IMAGE_URI: ${{ needs.build-and-push-image.outputs.image_uri }}
-          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          GHCR_PULL_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USERNAME: ${{ github.repository_owner }}
         run: |
           ssh-keyscan -H "${TARGET_SSH_HOST}" >> ~/.ssh/known_hosts
