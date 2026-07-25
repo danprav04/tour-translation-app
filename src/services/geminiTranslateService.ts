@@ -27,10 +27,10 @@ class GeminiTranslateService {
               responseModalities: ["AUDIO"],
               speechConfig: {
                 voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } }
+              },
+              translationConfig: {
+                targetLanguageCode: targetLanguageCode
               }
-            },
-            translationConfig: {
-              targetLanguage: targetLanguageCode
             }
           }
         };
