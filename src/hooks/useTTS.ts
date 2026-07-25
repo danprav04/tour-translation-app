@@ -97,6 +97,7 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
   const isTTSPlayingRef = useRef(false);
   const playbackPositionRef = useRef(0);
   const lastBroadcastTimeRef = useRef(0);
+  const lastByteOffsetRef = useRef(0);
 
   // Keep refs in sync
   useEffect(() => {
@@ -142,6 +143,7 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
     setPlaybackDuration(0);
     setIsTTSPlaying(false);
     lastBroadcastTimeRef.current = 0;
+    lastByteOffsetRef.current = 0;
 
     try {
       const audioBase64 = await ttsService.generateTTS(ttsText.trim(), apiKey);
@@ -194,8 +196,13 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
       if (playbackPositionRef.current > 0) {
         player.seekTo(playbackPositionRef.current);
         lastBroadcastTimeRef.current = playbackPositionRef.current;
+        lastByteOffsetRef.current = Math.floor(playbackPositionRef.current * TTS_SAMPLE_RATE * BYTES_PER_SAMPLE * CHANNELS);
+        if (lastByteOffsetRef.current % BYTES_PER_SAMPLE !== 0) {
+          lastByteOffsetRef.current -= (lastByteOffsetRef.current % BYTES_PER_SAMPLE);
+        }
       } else {
         lastBroadcastTimeRef.current = 0;
+        lastByteOffsetRef.current = 0;
       }
 
       player.play();
@@ -212,7 +219,7 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
 
           // Broadcast the audio that just played
           if (currentTime > lastBroadcastTimeRef.current) {
-            const startByte = Math.floor(lastBroadcastTimeRef.current * TTS_SAMPLE_RATE * BYTES_PER_SAMPLE * CHANNELS);
+            const startByte = lastByteOffsetRef.current;
             let endByte = Math.floor(currentTime * TTS_SAMPLE_RATE * BYTES_PER_SAMPLE * CHANNELS);
             // Ensure endByte aligns to the sample size (16-bit = 2 bytes)
             if (endByte % BYTES_PER_SAMPLE !== 0) {
@@ -222,6 +229,7 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
             if (endByte > startByte && startByte < pcmBytes.length) {
               const chunk = pcmBytes.slice(startByte, Math.min(endByte, pcmBytes.length));
               socketService.sendAudioChunk(chunk.buffer, TTS_SAMPLE_RATE, true);
+              lastByteOffsetRef.current = endByte; // Perfect continuity for next chunk
             }
             
             lastBroadcastTimeRef.current = currentTime;
@@ -301,6 +309,7 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
     setPlaybackDuration(0);
     playbackPositionRef.current = 0;
     lastBroadcastTimeRef.current = 0;
+    lastByteOffsetRef.current = 0;
     setError(null);
 
     if (wasPlaying) {
