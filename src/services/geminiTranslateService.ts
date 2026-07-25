@@ -11,9 +11,12 @@ class GeminiTranslateService {
     const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
 
     return new Promise((resolve, reject) => {
-      this.ws = new WebSocket(url);
+      const ws = new WebSocket(url);
+      this.ws = ws;
 
-      this.ws.onopen = () => {
+      ws.onopen = () => {
+        if (this.ws !== ws) return;
+        
         const setupMessage = {
           setup: {
             model: "models/gemini-3.5-live-translate-preview",
@@ -26,10 +29,12 @@ class GeminiTranslateService {
             targetLanguageCode: targetLanguageCode
           }
         };
-        this.ws?.send(JSON.stringify(setupMessage));
+        ws.send(JSON.stringify(setupMessage));
       };
 
-      this.ws.onmessage = (event) => {
+      ws.onmessage = (event) => {
+        if (this.ws !== ws) return;
+        
         try {
           const message = JSON.parse(event.data);
           
@@ -52,15 +57,19 @@ class GeminiTranslateService {
         }
       };
 
-      this.ws.onerror = (error) => {
+      ws.onerror = (error) => {
+        if (this.ws !== ws) return;
+        
         if (this.onErrorCallback) {
           this.onErrorCallback(new Error('WebSocket error'));
         }
         reject(new Error('WebSocket connection failed'));
       };
 
-      this.ws.onclose = () => {
-        this.ws = null;
+      ws.onclose = () => {
+        if (this.ws === ws) {
+          this.ws = null;
+        }
       };
     });
   }
