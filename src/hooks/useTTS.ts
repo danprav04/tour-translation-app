@@ -96,6 +96,7 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
   const positionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isTTSPlayingRef = useRef(false);
   const playbackPositionRef = useRef(0);
+  const lastBroadcastTimeRef = useRef(0);
 
   // Keep refs in sync
   useEffect(() => {
@@ -140,6 +141,7 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
     setPlaybackPosition(0);
     setPlaybackDuration(0);
     setIsTTSPlaying(false);
+    lastBroadcastTimeRef.current = 0;
 
     try {
       const audioBase64 = await ttsService.generateTTS(ttsText.trim(), apiKey);
@@ -159,29 +161,6 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
     }
   }, [ttsText, apiKey, cleanupPlayer]);
 
-  /**
-   * Broadcast the TTS audio to listeners via socket.
-   * Sends the full audio as one chunk — listeners buffer and play it.
-   */
-  const broadcastTTSAudio = useCallback((audioBase64: string) => {
-    const buffer = base64ToArrayBuffer(audioBase64);
-    const uint8Array = new Uint8Array(buffer);
-    const CHUNK_SIZE = 256 * 1024; // 256 KB chunks to stay well below Socket.io 1MB limit
-    
-    let offset = 0;
-    const sendNextChunk = () => {
-      if (offset >= uint8Array.length) return;
-      
-      const chunk = uint8Array.slice(offset, offset + CHUNK_SIZE);
-      socketService.sendAudioChunk(chunk.buffer, TTS_SAMPLE_RATE);
-      
-      offset += CHUNK_SIZE;
-      // Small delay to prevent flooding the socket and dropping volatile packets
-      setTimeout(sendNextChunk, 50); 
-    };
-    
-    sendNextChunk();
-  }, []);
 
   /**
    * Start/resume TTS playback and broadcast.
@@ -214,13 +193,13 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
       // Seek to current position if resuming
       if (playbackPositionRef.current > 0) {
         player.seekTo(playbackPositionRef.current);
+        lastBroadcastTimeRef.current = playbackPositionRef.current;
+      } else {
+        lastBroadcastTimeRef.current = 0;
       }
 
       player.play();
       setIsTTSPlaying(true);
-
-      // Broadcast full audio to listeners
-      broadcastTTSAudio(ttsAudioBase64);
 
       // Track playback position
       positionIntervalRef.current = setInterval(() => {
@@ -230,6 +209,23 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
           
           playbackPositionRef.current = currentTime;
           setPlaybackPosition(currentTime);
+
+          // Broadcast the audio that just played
+          if (currentTime > lastBroadcastTimeRef.current) {
+            const startByte = Math.floor(lastBroadcastTimeRef.current * TTS_SAMPLE_RATE * BYTES_PER_SAMPLE * CHANNELS);
+            let endByte = Math.floor(currentTime * TTS_SAMPLE_RATE * BYTES_PER_SAMPLE * CHANNELS);
+            // Ensure endByte aligns to the sample size (16-bit = 2 bytes)
+            if (endByte % BYTES_PER_SAMPLE !== 0) {
+              endByte -= (endByte % BYTES_PER_SAMPLE);
+            }
+
+            if (endByte > startByte && startByte < pcmBytes.length) {
+              const chunk = pcmBytes.slice(startByte, Math.min(endByte, pcmBytes.length));
+              socketService.sendAudioChunk(chunk.buffer, TTS_SAMPLE_RATE);
+            }
+            
+            lastBroadcastTimeRef.current = currentTime;
+          }
 
           // Check if playback finished
           if (duration > 0 && currentTime >= duration - 0.1) {
@@ -243,7 +239,7 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
       setIsTTSPlaying(false);
       onTTSEnd();
     }
-  }, [ttsAudioBase64, onTTSStart, onTTSEnd, cleanupPlayer, broadcastTTSAudio]);
+  }, [ttsAudioBase64, onTTSStart, onTTSEnd, cleanupPlayer]);
 
   /**
    * Called when playback reaches the end naturally.
@@ -284,6 +280,7 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
     const clampedPosition = Math.max(0, Math.min(positionSeconds, playbackDuration));
     playbackPositionRef.current = clampedPosition;
     setPlaybackPosition(clampedPosition);
+    lastBroadcastTimeRef.current = clampedPosition;
 
     if (playerRef.current) {
       playerRef.current.seekTo(clampedPosition);
@@ -303,6 +300,7 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
     setPlaybackPosition(0);
     setPlaybackDuration(0);
     playbackPositionRef.current = 0;
+    lastBroadcastTimeRef.current = 0;
     setError(null);
 
     if (wasPlaying) {

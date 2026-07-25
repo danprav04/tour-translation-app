@@ -8,6 +8,7 @@ class AudioService {
   private playbackQueue: { uri: string; duration: number }[] = [];
   private isPlaying: boolean = false;
   private currentSound: AudioPlayer | null = null;
+  private bufferFlushTimeout: ReturnType<typeof setTimeout> | null = null;
 
   async requestPermissions(): Promise<boolean> {
     const permission = await requestRecordingPermissionsAsync();
