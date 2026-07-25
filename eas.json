@@ -10,7 +10,7 @@
       "channel": "development",
       "env": {
         "EX_UPDATES_NATIVE_DEBUG": "0",
-        "GRADLE_OPTS": "-Dorg.gradle.jvmargs=-Xmx4096m\\ -XX:MaxMetaspaceSize=512m -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.configuration-cache=true"
+        "GRADLE_OPTS": "-Xmx4096m -XX:MaxMetaspaceSize=512m -Dorg.gradle.workers.max=2 -Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
       },
       "android": {
         "buildType": "apk"
