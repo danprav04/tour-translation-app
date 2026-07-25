@@ -6,6 +6,9 @@
     "runtimeVersion": {
       "policy": "appVersion"
     },
+    "updates": {
+      "url": "https://u.expo.dev/85e52899-c6a8-4781-a57f-0ae1c38d380f"
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "tourcast",
