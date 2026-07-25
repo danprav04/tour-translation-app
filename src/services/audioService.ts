@@ -1,9 +1,8 @@
 import { AudioModule, setAudioModeAsync, requestRecordingPermissionsAsync, createAudioPlayer } from 'expo-audio';
-import type { AudioRecorder, AudioPlayer } from 'expo-audio';
+import type { AudioRecorder, AudioPlayer, AudioStream } from 'expo-audio';
 
 class AudioService {
-  private recording: AudioRecorder | null = null;
-  private captureInterval: ReturnType<typeof setTimeout> | null = null;
+  private stream: AudioStream | null = null;
   private _isCapturing: boolean = false;
   private _isMuted: boolean = false;
   private playbackQueue: string[] = [];
@@ -28,80 +27,27 @@ class AudioService {
 
       this._isCapturing = true;
 
-      const recordCycle = async () => {
+      this.stream = new AudioModule.AudioStream({
+        sampleRate: 16000,
+        channels: 1,
+        encoding: 'int16'
+      });
+
+      this.stream.addListener('audioStreamBuffer', (buffer) => {
         if (!this._isCapturing) return;
-
-        try {
-          this.recording = new AudioModule.AudioRecorder({
-            isMeteringEnabled: false,
-            extension: '.wav',
-            sampleRate: 16000,
-            numberOfChannels: 1,
-            bitRate: 128000,
-            ios: {
-              audioQuality: 'high',
-              linearPCMBitDepth: 16,
-              linearPCMIsBigEndian: false,
-              linearPCMIsFloat: false,
-            },
-            android: {
-              outputFormat: 'default',
-              audioEncoder: 'default'
-            },
-            web: {
-              mimeType: 'audio/webm',
-              bitsPerSecond: 128000,
-            }
-          });
-
-          await this.recording.prepareToRecordAsync();
-          this.recording.record();
-
-          // Record for ~300ms chunks
-          await new Promise(resolve => setTimeout(resolve, 300));
-
-          if (this.recording && this._isCapturing) {
-            await this.recording.stop();
-            const uri = this.recording.uri;
-            if (uri) {
-              // Read file as base64 - use fetch to read local URI
-              try {
-                const response = await fetch(uri);
-                const blob = await response.blob();
-                const reader = new FileReader();
-                const base64Promise = new Promise<string>((resolve) => {
-                  reader.onloadend = () => {
-                    const arrayBuffer = reader.result as ArrayBuffer;
-                    // Skip the 44-byte WAV header to get raw PCM
-                    const pcmBuffer = arrayBuffer.slice(44);
-                    const bytes = new Uint8Array(pcmBuffer);
-                    let binary = '';
-                    for (let i = 0; i < bytes.byteLength; i++) {
-                      binary += String.fromCharCode(bytes[i]);
-                    }
-                    resolve(btoa(binary));
-                  };
-                  reader.readAsArrayBuffer(blob);
-                });
-                const base64Data = await base64Promise;
-                if (base64Data) {
-                  onChunk(base64Data);
-                }
-              } catch (readError) {
-                console.error('Failed to read recorded file', readError);
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Recording cycle error', error);
+        const bytes = new Uint8Array(buffer.data);
+        
+        // Fast base64 encoding for the PCM chunk
+        let binary = '';
+        const chunkSize = 8192;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
         }
+        
+        onChunk(btoa(binary));
+      });
 
-        if (this._isCapturing) {
-          this.captureInterval = setTimeout(recordCycle, 0);
-        }
-      };
-
-      recordCycle();
+      await this.stream.start();
 
     } catch (error) {
       console.error('Failed to start capture', error);
@@ -112,18 +58,16 @@ class AudioService {
 
   async stopCapture(): Promise<void> {
     this._isCapturing = false;
-    if (this.captureInterval) {
-      clearTimeout(this.captureInterval);
-      this.captureInterval = null;
-    }
-    if (this.recording) {
+    
+    if (this.stream) {
       try {
-        await this.recording.stop();
-      } catch {
-        // Recording may already be stopped
+        this.stream.stop();
+      } catch (e) {
+        console.error('Failed to stop stream', e);
       }
-      this.recording = null;
+      this.stream = null;
     }
+    
     // Reset audio mode for playback
     await setAudioModeAsync({
       allowsRecording: false,
