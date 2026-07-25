@@ -176,19 +176,33 @@ class AudioService {
     }
 
     try {
-      this.currentSound = createAudioPlayer(item.uri);
-      this.currentSound.play();
+      const player = createAudioPlayer(item.uri);
+      this.currentSound = player;
+      player.play();
 
-      // Only overlap if the chunk is long enough, otherwise it creates a "pop"
-      const overlapMs = item.duration > 0.3 ? 50 : 0;
+      // Start the next chunk slightly early to prevent gaps,
+      // but do NOT stop the current player prematurely so it naturally crossfades.
+      const overlapMs = item.duration > 0.3 ? 80 : 0; // Increased to 80ms for smoother native handoff
       const timeoutMs = Math.max(0, (item.duration * 1000) - overlapMs);
 
-      // Trigger the next chunk and safely remove the current one
+      // Trigger the next chunk
       setTimeout(() => {
-        this.currentSound?.remove();
-        this.currentSound = null;
+        // Unlink current sound so processPlaybackQueue can start the next one
+        if (this.currentSound === player) {
+            this.currentSound = null;
+        }
         this.isPlaying = false;
         this.processPlaybackQueue();
+
+        // Safely remove this player a short time after it should have naturally finished
+        setTimeout(() => {
+          try {
+            player.remove();
+          } catch (e) {
+            // ignore
+          }
+        }, overlapMs + 200);
+
       }, timeoutMs);
 
     } catch (error) {

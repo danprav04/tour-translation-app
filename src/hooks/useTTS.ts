@@ -221,7 +221,7 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
 
             if (endByte > startByte && startByte < pcmBytes.length) {
               const chunk = pcmBytes.slice(startByte, Math.min(endByte, pcmBytes.length));
-              socketService.sendAudioChunk(chunk.buffer, TTS_SAMPLE_RATE);
+              socketService.sendAudioChunk(chunk.buffer, TTS_SAMPLE_RATE, true);
             }
             
             lastBroadcastTimeRef.current = currentTime;

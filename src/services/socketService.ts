@@ -55,9 +55,13 @@ class SocketService {
     });
   }
 
-  sendAudioChunk(data: ArrayBuffer, sampleRate: number): void {
+  sendAudioChunk(data: ArrayBuffer, sampleRate: number, isReliable: boolean = false): void {
     if (this.socket && this.socket.connected) {
-      this.socket.volatile.emit('audio-chunk', data, sampleRate);
+      if (isReliable) {
+        this.socket.emit('audio-chunk', data, sampleRate);
+      } else {
+        this.socket.volatile.emit('audio-chunk', data, sampleRate);
+      }
     }
   }
 
