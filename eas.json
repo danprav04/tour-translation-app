@@ -9,6 +9,7 @@
       "distribution": "internal",
       "channel": "development",
       "env": {
+        "APP_VARIANT": "development",
         "EX_UPDATES_NATIVE_DEBUG": "0",
         "GRADLE_OPTS": "-Xmx4096m -XX:MaxMetaspaceSize=512m -Dorg.gradle.workers.max=2 -Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
       },
