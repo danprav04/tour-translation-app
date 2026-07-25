@@ -27,10 +27,18 @@ export const useHost = () => {
 
   const isTranslatingRef = useRef(isTranslating);
   const isEchoEnabledRef = useRef(isEchoEnabled);
+  const isTTSActiveRef = useRef(false);
+  const wasStreamingBeforeTTSRef = useRef(false);
+  const isMicActiveRef = useRef(false);
+
   useEffect(() => {
     isTranslatingRef.current = isTranslating;
     isEchoEnabledRef.current = isEchoEnabled;
   }, [isTranslating, isEchoEnabled]);
+
+  useEffect(() => {
+    isMicActiveRef.current = isMicActive;
+  }, [isMicActive]);
 
   const startRoom = async () => {
     try {
@@ -79,6 +87,9 @@ export const useHost = () => {
   };
 
   const handleAudioChunk = (base64Data: string) => {
+    // Block mic audio while TTS is broadcasting
+    if (isTTSActiveRef.current) return;
+
     if (isTranslatingRef.current) {
       geminiTranslateService.sendAudioChunk(base64Data);
     } else {
@@ -150,6 +161,32 @@ export const useHost = () => {
     socketService.renameListener(id, newName);
   };
 
+  /**
+   * Pause mic stream for TTS broadcast.
+   * Remembers whether mic was active so it can be restored.
+   */
+  const pauseForTTS = async () => {
+    wasStreamingBeforeTTSRef.current = isMicActiveRef.current;
+    isTTSActiveRef.current = true;
+    if (isMicActiveRef.current) {
+      await audioService.stopCapture();
+      setIsMicActive(false);
+    }
+  };
+
+  /**
+   * Resume mic stream after TTS broadcast ends.
+   * Only restarts mic if it was active before TTS started.
+   */
+  const resumeAfterTTS = async () => {
+    isTTSActiveRef.current = false;
+    if (wasStreamingBeforeTTSRef.current) {
+      await audioService.startCapture(handleAudioChunk);
+      setIsMicActive(true);
+      wasStreamingBeforeTTSRef.current = false;
+    }
+  };
+
   useEffect(() => {
     return () => {
       stopRoom();
@@ -173,6 +210,9 @@ export const useHost = () => {
     toggleEcho,
     setLanguage,
     kickListener,
-    renameListener
+    renameListener,
+    pauseForTTS,
+    resumeAfterTTS,
+    isTTSActive: isTTSActiveRef.current,
   };
 };
