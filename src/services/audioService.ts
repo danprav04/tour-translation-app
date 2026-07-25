@@ -5,7 +5,7 @@ class AudioService {
   private stream: AudioStream | null = null;
   private _isCapturing: boolean = false;
   private _isMuted: boolean = false;
-  private playbackQueue: string[] = [];
+  private playbackQueue: { uri: string; duration: number }[] = [];
   private isPlaying: boolean = false;
   private currentSound: AudioPlayer | null = null;
 
@@ -97,33 +97,32 @@ class AudioService {
   }
 
   private playbackBuffer: Uint8Array = new Uint8Array(0);
-  private bufferFlushTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  async playChunk(base64AudioData: string, sampleRate: number = 24000): Promise<void> {
+  playChunk(base64PcmData: string, sampleRate = 24000): void {
     if (this._isMuted) return;
 
-    try {
-      const pcmBytes = this.base64ToUint8Array(base64AudioData);
-      
-      const newBuffer = new Uint8Array(this.playbackBuffer.length + pcmBytes.length);
-      newBuffer.set(this.playbackBuffer);
-      newBuffer.set(pcmBytes, this.playbackBuffer.length);
-      this.playbackBuffer = newBuffer;
+    const chunkBuffer = this.base64ToUint8Array(base64PcmData);
+    
+    const newBuffer = new Uint8Array(this.playbackBuffer.length + chunkBuffer.length);
+    newBuffer.set(this.playbackBuffer, 0);
+    newBuffer.set(chunkBuffer, this.playbackBuffer.length);
+    
+    this.playbackBuffer = newBuffer;
 
+    // Flush every ~0.5 seconds of audio to avoid creating too many players
+    // 24000 Hz * 2 bytes/sample * 0.5s = 24000 bytes
+    if (this.playbackBuffer.length >= sampleRate * 2 * 0.5) {
       if (this.bufferFlushTimeout) {
         clearTimeout(this.bufferFlushTimeout);
+        this.bufferFlushTimeout = null;
       }
-
-      // Flush at ~0.5 seconds of audio (24000 bytes at 24kHz 16-bit mono = 0.5s)
-      if (this.playbackBuffer.length >= 24000) {
-        this.flushPlaybackBuffer(sampleRate);
-      } else {
+      this.flushPlaybackBuffer(sampleRate);
+    } else {
+      if (!this.bufferFlushTimeout) {
         this.bufferFlushTimeout = setTimeout(() => {
           this.flushPlaybackBuffer(sampleRate);
         }, 500);
       }
-    } catch (error) {
-      console.error('Failed to buffer audio chunk', error);
     }
   }
 
@@ -133,6 +132,8 @@ class AudioService {
     const pcmBytes = this.playbackBuffer;
     this.playbackBuffer = new Uint8Array(0);
 
+    const durationSeconds = pcmBytes.length / (sampleRate * 2);
+
     const wavHeader = this.createWavHeader(pcmBytes.length, sampleRate, 16, 1);
     const wavBuffer = new Uint8Array(wavHeader.byteLength + pcmBytes.length);
     wavBuffer.set(new Uint8Array(wavHeader), 0);
@@ -141,7 +142,7 @@ class AudioService {
     const wavBase64 = this.uint8ArrayToBase64(wavBuffer);
     const dataUri = `data:audio/wav;base64,${wavBase64}`;
 
-    this.playbackQueue.push(dataUri);
+    this.playbackQueue.push({ uri: dataUri, duration: durationSeconds });
     this.processPlaybackQueue();
   }
 
@@ -149,27 +150,25 @@ class AudioService {
     if (this.isPlaying || this.playbackQueue.length === 0) return;
 
     this.isPlaying = true;
-    const uri = this.playbackQueue.shift();
+    const item = this.playbackQueue.shift();
 
-    if (!uri) {
+    if (!item) {
       this.isPlaying = false;
       return;
     }
 
     try {
-      this.currentSound = createAudioPlayer(uri);
-
-      const statusListener = this.currentSound.addListener('playbackStatusUpdate', (status) => {
-        if (status.didJustFinish) {
-          statusListener.remove();
-          this.currentSound?.remove();
-          this.currentSound = null;
-          this.isPlaying = false;
-          this.processPlaybackQueue();
-        }
-      });
-
+      this.currentSound = createAudioPlayer(item.uri);
       this.currentSound.play();
+
+      // Reliable timeout based on exact chunk duration
+      setTimeout(() => {
+        this.currentSound?.remove();
+        this.currentSound = null;
+        this.isPlaying = false;
+        this.processPlaybackQueue();
+      }, item.duration * 1000);
+
     } catch (error) {
       console.error('Failed to play audio chunk', error);
       this.isPlaying = false;
