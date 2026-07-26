@@ -86,7 +86,10 @@ class SocketService {
     return new Promise((resolve, reject) => {
       if (!this.socket) return reject(new Error('Socket not connected'));
       
+      const timeout = setTimeout(() => reject(new Error('Connection timed out. Check your server URL and network.')), 5000);
+
       this.socket.emit('create-room', {}, (response: { success: boolean; roomCode: string; roomId: string; error?: string }) => {
+        clearTimeout(timeout);
         if (response.success) {
           this.currentRoomCode = response.roomCode;
           this.isHostRole = true;
@@ -103,7 +106,10 @@ class SocketService {
     return new Promise((resolve, reject) => {
       if (!this.socket) return reject(new Error('Socket not connected'));
 
+      const timeout = setTimeout(() => reject(new Error('Connection timed out. Check your server URL and network.')), 5000);
+
       this.socket.emit('join-room', { roomCode, deviceName }, (response: { success: boolean; roomId: string; listenerId: string; error?: string }) => {
+        clearTimeout(timeout);
         if (response.success) {
           this.currentRoomCode = roomCode;
           this.currentListenerId = response.listenerId;
