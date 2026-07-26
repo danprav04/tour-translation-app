@@ -5,6 +5,7 @@ import audioService from '@/services/audioService';
 import geminiTranslateService from '@/services/geminiTranslateService';
 import { useSettingsContext } from '@/context/SettingsContext';
 import foregroundService from '@/services/foregroundService';
+import { AndroidForegroundServiceType } from '@notifee/react-native';
 
 const base64ToArrayBuffer = (base64: string): ArrayBuffer => {
   const binaryString = atob(base64);
@@ -49,8 +50,6 @@ export const useHost = () => {
       setIsConnected(true);
       await updateSettings({ lastRoomCode: roomCode });
 
-      // Android 14+ requires microphone permission to be granted before
-      // starting a foreground service with type "microphone".
       const hasPermission = await audioService.requestPermissions();
       if (!hasPermission) {
         throw new Error('Microphone permission is required to start a session.');
@@ -58,7 +57,11 @@ export const useHost = () => {
 
       await foregroundService.start(
         'TourCast Host Session',
-        `Broadcasting room ${roomCode}`
+        `Broadcasting room ${roomCode}`,
+        [
+          AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MICROPHONE,
+          AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+        ]
       );
 
       socketService.onListenerJoined((listener) => {

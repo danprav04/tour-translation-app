@@ -13,7 +13,7 @@ class ForegroundService {
     });
   }
 
-  async start(title: string, body: string) {
+  async start(title: string, body: string, types?: number[]) {
     if (this.isRunning) return;
     
     try {
@@ -25,6 +25,8 @@ class ForegroundService {
         importance: AndroidImportance.LOW,
       });
 
+      const foregroundServiceTypes = types || [AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK];
+
       await notifee.displayNotification({
         title,
         body,
@@ -33,10 +35,7 @@ class ForegroundService {
           asForegroundService: true,
           ongoing: true,
           color: AndroidColor.AQUA,
-          foregroundServiceTypes: [
-            AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MICROPHONE,
-            AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-          ],
+          foregroundServiceTypes,
           pressAction: {
             id: 'default',
           },

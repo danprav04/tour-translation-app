@@ -3,6 +3,7 @@ import type { AudioRecorder, AudioPlayer, AudioStream } from 'expo-audio';
 
 class AudioService {
   private stream: AudioStream | null = null;
+  private streamSubscription: any = null;
   private _isCapturing: boolean = false;
   private _isMuted: boolean = false;
   private playbackQueue: { uri: string; duration: number }[] = [];
@@ -51,7 +52,7 @@ class AudioService {
       let currentBufferSize = 0;
       const TARGET_BUFFER_SIZE = 8000; // ~250ms at 16kHz 16-bit mono
 
-      this.stream.addListener('audioStreamBuffer', (buffer) => {
+      this.streamSubscription = this.stream.addListener('audioStreamBuffer', (buffer) => {
         if (!this._isCapturing) return;
         
         const bytes = new Uint8Array(buffer.data);
@@ -94,6 +95,11 @@ class AudioService {
   async stopCapture(): Promise<void> {
     this._isCapturing = false;
     
+    if (this.streamSubscription) {
+      this.streamSubscription.remove();
+      this.streamSubscription = null;
+    }
+
     if (this.stream) {
       try {
         this.stream.stop();
@@ -139,7 +145,7 @@ class AudioService {
       }
       this.bufferFlushTimeout = setTimeout(() => {
         this.flushPlaybackBuffer(sampleRate);
-      }, 300); // Wait 300ms of silence from Gemini before flushing
+      }, 800); // Wait 800ms of silence from Gemini before flushing
     }
   }
 
