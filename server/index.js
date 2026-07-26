@@ -53,8 +53,21 @@ app.get('/room/:code', (req, res) => {
 // Socket.IO Events
 io.on('connection', (socket) => {
   
-  socket.on('create-room', (callback) => {
-    let roomCode = generateRoomCode();
+  socket.on('create-room', ({ existingRoomCode } = {}, callback) => {
+    let roomCode = existingRoomCode;
+    
+    // Reconnection case: host re-creates the same room
+    if (roomCode && rooms.has(roomCode)) {
+      const room = rooms.get(roomCode);
+      room.hostSocketId = socket.id; // Update host socket ID
+      socket.join(roomCode);
+      if (typeof callback === 'function') {
+        callback({ success: true, roomCode, roomId: roomCode, reconnected: true });
+      }
+      return;
+    }
+
+    roomCode = generateRoomCode();
     while (rooms.has(roomCode)) {
       roomCode = generateRoomCode();
     }
@@ -67,11 +80,11 @@ io.on('connection', (socket) => {
     
     socket.join(roomCode);
     if (typeof callback === 'function') {
-      callback({ success: true, roomCode, roomId: roomCode });
+      callback({ success: true, roomCode, roomId: roomCode, reconnected: false });
     }
   });
 
-  socket.on('join-room', ({ roomCode, deviceName }, callback) => {
+  socket.on('join-room', ({ roomCode, deviceName, existingListenerId }, callback) => {
     if (!roomCode) {
       if (typeof callback === 'function') callback({ success: false, error: 'Missing room code' });
       return;
@@ -85,25 +98,43 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const listenerId = uuidv4();
-    const listenerInfo = {
-      id: listenerId,
-      name: deviceName || 'Anonymous',
-      joinedAt: new Date().toISOString()
-    };
+    // Check if listener is reconnecting
+    let isReconnecting = false;
+    let listenerInfo;
+
+    if (existingListenerId) {
+      for (const [sId, listener] of room.listeners.entries()) {
+        if (listener.id === existingListenerId) {
+          isReconnecting = true;
+          listenerInfo = listener;
+          room.listeners.delete(sId); // Remove old socket id mapping
+          break;
+        }
+      }
+    }
+
+    if (!listenerInfo) {
+      listenerInfo = {
+        id: uuidv4(),
+        name: deviceName || 'Anonymous',
+        joinedAt: new Date().toISOString()
+      };
+    }
     
     room.listeners.set(socket.id, listenerInfo);
     socket.join(code);
     
-    // Notify host
-    io.to(room.hostSocketId).emit('listener-joined', listenerInfo);
+    if (!isReconnecting) {
+      // Notify host only if it's a new join
+      io.to(room.hostSocketId).emit('listener-joined', listenerInfo);
+    }
     
     if (typeof callback === 'function') {
-      callback({ success: true, roomId: code, listenerId });
+      callback({ success: true, roomId: code, listenerId: listenerInfo.id, reconnected: isReconnecting });
     }
   });
 
-  socket.on('audio-chunk', (data, sampleRate) => {
+  socket.on('audio-chunk', (data, sampleRate, seq, timestamp) => {
     // Broadcast audio-data to all other sockets in the room, volatile
     let targetRoomId;
     for (const [id, room] of rooms.entries()) {
@@ -113,7 +144,8 @@ io.on('connection', (socket) => {
       }
     }
     if (targetRoomId) {
-      socket.volatile.to(targetRoomId).emit('audio-data', data, sampleRate);
+      // Passing seq and timestamp to listeners
+      socket.volatile.to(targetRoomId).emit('audio-data', data, sampleRate, seq, timestamp);
     }
   });
 
@@ -148,13 +180,21 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Graceful disconnect vs abrupt disconnect
+  // We can use a timeout to remove rooms, but for now we'll just delay the notification
   socket.on('disconnect', () => {
     let isHost = false;
     for (const [roomId, room] of rooms.entries()) {
       if (room.hostSocketId === socket.id) {
         isHost = true;
-        socket.to(roomId).emit('room-closed');
-        rooms.delete(roomId);
+        // Don't close immediately, give host 10 seconds to reconnect
+        setTimeout(() => {
+          const checkRoom = rooms.get(roomId);
+          if (checkRoom && checkRoom.hostSocketId === socket.id) {
+            socket.to(roomId).emit('room-closed');
+            rooms.delete(roomId);
+          }
+        }, 10000);
         break;
       }
     }
@@ -163,8 +203,27 @@ io.on('connection', (socket) => {
       for (const [roomId, room] of rooms.entries()) {
         if (room.listeners.has(socket.id)) {
           const listener = room.listeners.get(socket.id);
-          room.listeners.delete(socket.id);
-          io.to(room.hostSocketId).emit('listener-left', { listenerId: listener.id });
+          // Wait before notifying host of leave, in case of quick reconnect
+          setTimeout(() => {
+            const checkRoom = rooms.get(roomId);
+            if (checkRoom) {
+              // Check if listener reconnected with a different socket ID
+              let reconnected = false;
+              for (const [sId, l] of checkRoom.listeners.entries()) {
+                if (l.id === listener.id && sId !== socket.id) {
+                  reconnected = true;
+                  break;
+                }
+              }
+              if (!reconnected) {
+                // Not found, they really left
+                if (checkRoom.listeners.has(socket.id)) {
+                   checkRoom.listeners.delete(socket.id);
+                }
+                io.to(checkRoom.hostSocketId).emit('listener-left', { listenerId: listener.id });
+              }
+            }
+          }, 10000);
           break;
         }
       }

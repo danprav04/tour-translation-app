@@ -117,35 +117,133 @@ class AudioService {
     });
   }
 
+  private jitterBuffer: { seq: number, buffer: Uint8Array, sampleRate: number }[] = [];
+  private lastPlayedSeq: number = -1;
+  private isBuffering: boolean = false;
   private playbackBuffer: Uint8Array = new Uint8Array(0);
 
-  playChunk(base64PcmData: string, sampleRate = 24000): void {
+  playChunk(base64PcmData: string, sampleRate = 24000, seq?: number, timestamp?: number): void {
     if (this._isMuted) return;
 
     const chunkBuffer = this.base64ToUint8Array(base64PcmData);
-    
-    const newBuffer = new Uint8Array(this.playbackBuffer.length + chunkBuffer.length);
-    newBuffer.set(this.playbackBuffer, 0);
-    newBuffer.set(chunkBuffer, this.playbackBuffer.length);
-    
-    this.playbackBuffer = newBuffer;
 
-    // Flush every ~1.5 seconds of audio to reduce Player creations
-    // 24000 Hz * 2 bytes/sample * 1.5s = 72000 bytes
-    if (this.playbackBuffer.length >= sampleRate * 2 * 1.5) {
-      if (this.bufferFlushTimeout) {
-        clearTimeout(this.bufferFlushTimeout);
-        this.bufferFlushTimeout = null;
-      }
-      this.flushPlaybackBuffer(sampleRate);
-    } else {
-      // Properly debounce the flush: reset the timer every time we get a chunk
+    // If no sequence number (e.g. local TTS echo), play immediately or append to current buffer
+    if (seq === undefined) {
+      this.appendAndFlush(chunkBuffer, sampleRate, true);
+      return;
+    }
+
+    // Drop old chunks
+    if (this.lastPlayedSeq !== -1 && seq <= this.lastPlayedSeq) {
+      return;
+    }
+
+    // Insert into jitter buffer, maintaining sequence order
+    this.jitterBuffer.push({ seq, buffer: chunkBuffer, sampleRate });
+    this.jitterBuffer.sort((a, b) => a.seq - b.seq);
+
+    // Deep Buffer Strategy (2 seconds latency target)
+    // 1 chunk is typically ~250ms (or depends on source).
+    // Let's flush when we have at least 1.5 to 2 seconds of audio in the jitter buffer,
+    // OR if we are already playing and just keeping up.
+    
+    let totalBufferedBytes = 0;
+    for (const item of this.jitterBuffer) {
+      totalBufferedBytes += item.buffer.length;
+    }
+
+    // Target 2 seconds of buffer before we start playing (for 5s acceptable latency)
+    // sampleRate * 2 bytes per sample * 2 seconds
+    const targetBufferBytes = sampleRate * 2 * 2; 
+    
+    // If we're not playing yet, wait until we hit the target buffer size
+    if (!this.isPlaying && totalBufferedBytes < targetBufferBytes) {
+      this.isBuffering = true;
+      
+      // Failsafe flush if we don't get enough data within 3 seconds
       if (this.bufferFlushTimeout) {
         clearTimeout(this.bufferFlushTimeout);
       }
       this.bufferFlushTimeout = setTimeout(() => {
-        this.flushPlaybackBuffer(sampleRate);
-      }, 800); // Wait 800ms of silence from Gemini before flushing
+        this.processJitterBuffer(sampleRate);
+      }, 3000);
+      
+      return;
+    }
+
+    this.isBuffering = false;
+    
+    // Process the jitter buffer
+    this.processJitterBuffer(sampleRate);
+  }
+
+  private processJitterBuffer(sampleRate: number) {
+    if (this.bufferFlushTimeout) {
+      clearTimeout(this.bufferFlushTimeout);
+      this.bufferFlushTimeout = null;
+    }
+
+    if (this.jitterBuffer.length === 0) return;
+
+    let combinedBuffer = new Uint8Array(0);
+
+    // If this is our first time playing, initialize lastPlayedSeq
+    if (this.lastPlayedSeq === -1) {
+      this.lastPlayedSeq = this.jitterBuffer[0].seq - 1;
+    }
+
+    // Process all chunks that are sequential or missing
+    const chunksToProcess = [];
+    
+    while (this.jitterBuffer.length > 0) {
+      const nextExpectedSeq = this.lastPlayedSeq + 1;
+      const nextAvailable = this.jitterBuffer[0];
+
+      if (nextAvailable.seq === nextExpectedSeq) {
+        chunksToProcess.push(this.jitterBuffer.shift()!.buffer);
+        this.lastPlayedSeq = nextExpectedSeq;
+      } else if (nextAvailable.seq > nextExpectedSeq) {
+        // Missing sequence! Packet Loss Concealment (PLC)
+        // We will insert silence for the missing chunk to maintain timing.
+        // Assuming chunk size is same as next available.
+        console.warn(`[JitterBuffer] Packet loss detected. Missing seq ${nextExpectedSeq}. Concealing...`);
+        const silence = new Uint8Array(nextAvailable.buffer.length);
+        silence.fill(0); // Silence (0 for 16-bit PCM is 0)
+        chunksToProcess.push(silence);
+        this.lastPlayedSeq = nextExpectedSeq;
+      } else {
+        // Somehow we have an old chunk, just drop it
+        this.jitterBuffer.shift();
+      }
+
+      // Break if we've gathered enough to play (e.g. 1.5 seconds)
+      // to avoid blocking the thread too long or creating massive WAV files
+      let bytesGathered = chunksToProcess.reduce((acc, val) => acc + val.length, 0);
+      if (bytesGathered >= sampleRate * 2 * 1.5) {
+        break;
+      }
+    }
+
+    if (chunksToProcess.length > 0) {
+      let totalLength = chunksToProcess.reduce((acc, val) => acc + val.length, 0);
+      let combined = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunksToProcess) {
+        combined.set(chunk, offset);
+        offset += chunk.length;
+      }
+      this.appendAndFlush(combined, sampleRate, false);
+    }
+  }
+
+  private appendAndFlush(chunkBuffer: Uint8Array, sampleRate: number, immediate: boolean) {
+    const newBuffer = new Uint8Array(this.playbackBuffer.length + chunkBuffer.length);
+    newBuffer.set(this.playbackBuffer, 0);
+    newBuffer.set(chunkBuffer, this.playbackBuffer.length);
+    this.playbackBuffer = newBuffer;
+
+    if (immediate || this.playbackBuffer.length >= sampleRate * 2 * 1.0) {
+      this.flushPlaybackBuffer(sampleRate);
     }
   }
 
@@ -222,6 +320,9 @@ class AudioService {
     this._isMuted = muted;
     if (muted) {
       // Clear queue and stop current playback
+      this.jitterBuffer = [];
+      this.lastPlayedSeq = -1;
+      this.playbackBuffer = new Uint8Array(0);
       this.playbackQueue = [];
       if (this.currentSound) {
         this.currentSound.remove();

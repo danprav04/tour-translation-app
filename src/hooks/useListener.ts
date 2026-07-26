@@ -38,10 +38,10 @@ export const useListener = () => {
       setIsConnected(true);
       setIsReconnecting(false);
 
-      socketService.onAudioData((data: ArrayBuffer, sampleRate: number) => {
+      socketService.onAudioData((data: ArrayBuffer, sampleRate: number, seq: number, timestamp: number) => {
         if (!isMuted) {
           const base64Str = arrayBufferToBase64(data);
-          audioService.playChunk(base64Str, sampleRate || 16000); // Fallback to 16000 if not provided
+          audioService.playChunk(base64Str, sampleRate || 16000, seq, timestamp); // Fallback to 16000 if not provided
         }
       });
 
