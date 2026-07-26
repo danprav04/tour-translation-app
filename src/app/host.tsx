@@ -274,6 +274,7 @@ export default function HostScreen() {
         )}
 
         {/* ─── TTS Panel ─── */}
+        {false && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📢 Text-to-Speech Broadcast</Text>
           <GlassCard style={styles.ttsCard}>
@@ -389,6 +390,7 @@ export default function HostScreen() {
             )}
           </GlassCard>
         </View>
+        )}
 
         {/* Connected Listeners */}
         <View style={styles.section}>
