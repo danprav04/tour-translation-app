@@ -119,6 +119,8 @@ class AudioService {
   private jitterBuffer: { seq: number, buffer: Uint8Array, sampleRate: number }[] = [];
   private lastPlayedSeq: number = -1;
   private isBuffering: boolean = false;
+  private chunkFlushTimeout: ReturnType<typeof setTimeout> | null = null;
+  private burstTimeout: ReturnType<typeof setTimeout> | null = null;
 
   playChunk(base64PcmData: string, sampleRate = 24000, seq?: number, timestamp?: number): void {
     if (this._isMuted) return;
@@ -140,44 +142,95 @@ class AudioService {
     this.jitterBuffer.push({ seq, buffer: chunkBuffer, sampleRate });
     this.jitterBuffer.sort((a, b) => a.seq - b.seq);
 
+    // Burst detection: If no chunks arrive for 2 seconds, assume the burst is over.
+    // Resetting the playlist ensures we don't try to resurrect a dead playlist
+    // and resets any accumulated latency drift.
+    if (this.burstTimeout) {
+      clearTimeout(this.burstTimeout);
+    }
+    this.burstTimeout = setTimeout(() => {
+      this.resetPlaylist();
+    }, 2000);
+
     let totalBufferedBytes = 0;
     for (const item of this.jitterBuffer) {
       totalBufferedBytes += item.buffer.length;
     }
 
-    // Target 2 seconds of buffer before we start playing
-    const targetBufferBytes = sampleRate * 2 * 2; 
+    // Target 2.5 seconds of buffer before we start playing a new burst
+    const targetBufferBytes = sampleRate * 2 * 2.5; 
     
-    // If we're not playing yet, wait until we hit the target buffer size
-    const isPlaylistActive = this.playlist && this.playlist.playing;
-    
-    if (!isPlaylistActive && totalBufferedBytes < targetBufferBytes) {
+    // If not playing, wait until we hit the target buffer size
+    if (!this.playlist && totalBufferedBytes < targetBufferBytes) {
       this.isBuffering = true;
       
       if (this.bufferFlushTimeout) {
         clearTimeout(this.bufferFlushTimeout);
       }
       this.bufferFlushTimeout = setTimeout(() => {
-        this.processJitterBuffer(sampleRate);
+        this.processJitterBuffer(sampleRate, true);
       }, 3000);
       
       return;
     }
 
     this.isBuffering = false;
-    this.processJitterBuffer(sampleRate);
+    this.processJitterBuffer(sampleRate, false);
   }
 
-  private processJitterBuffer(sampleRate: number) {
+  private resetPlaylist() {
+    if (this.playlist) {
+      this.playlist.pause();
+      this.playlist.clear();
+      try {
+        this.playlist.remove(); 
+      } catch (e) {}
+      this.playlist = null;
+    }
+    this.isPlaying = false;
+    this.jitterBuffer = [];
+    this.lastPlayedSeq = -1;
+  }
+
+  private processJitterBuffer(sampleRate: number, forceFlush: boolean) {
     if (this.bufferFlushTimeout) {
       clearTimeout(this.bufferFlushTimeout);
       this.bufferFlushTimeout = null;
+    }
+    if (this.chunkFlushTimeout) {
+      clearTimeout(this.chunkFlushTimeout);
+      this.chunkFlushTimeout = null;
     }
 
     if (this.jitterBuffer.length === 0) return;
 
     if (this.lastPlayedSeq === -1) {
       this.lastPlayedSeq = this.jitterBuffer[0].seq - 1;
+    }
+
+    // We only want to extract chunks if we have a solid block of audio (e.g. 1.5 seconds)
+    // AudioPlaylist stutters if we feed it tiny 200ms files.
+    const CHUNK_BLOCK_SECONDS = 1.5;
+    const targetBytes = sampleRate * 2 * CHUNK_BLOCK_SECONDS;
+
+    // Check if we have enough sequential data, or if we are forced to flush
+    let sequentialBytes = 0;
+    let tempSeq = this.lastPlayedSeq;
+    for (let i = 0; i < this.jitterBuffer.length; i++) {
+      if (this.jitterBuffer[i].seq === tempSeq + 1 || this.jitterBuffer[i].seq > tempSeq + 1) {
+        sequentialBytes += this.jitterBuffer[i].buffer.length;
+        tempSeq = this.jitterBuffer[i].seq;
+      } else {
+        break;
+      }
+    }
+
+    if (!forceFlush && sequentialBytes < targetBytes) {
+      // Not enough data yet. Set a timeout to force flush if no more data arrives (e.g. host stopped)
+      this.chunkFlushTimeout = setTimeout(() => {
+        this.processJitterBuffer(sampleRate, true);
+      }, 1000);
+      return;
     }
 
     const chunksToProcess = [];
@@ -199,9 +252,9 @@ class AudioService {
         this.jitterBuffer.shift();
       }
 
-      // Group chunks into roughly 0.5s chunks to avoid excessive small files in the playlist
+      // Group chunks into ~1.5s blocks to ensure smooth playlist transition
       let bytesGathered = chunksToProcess.reduce((acc, val) => acc + val.length, 0);
-      if (bytesGathered >= sampleRate * 2 * 0.5) {
+      if (bytesGathered >= targetBytes) {
         break;
       }
     }
@@ -215,6 +268,13 @@ class AudioService {
         offset += chunk.length;
       }
       this.pushToPlaylist(combined, sampleRate);
+    }
+    
+    // If we still have enough for ANOTHER block, process again immediately
+    if (this.jitterBuffer.length > 0) {
+      this.chunkFlushTimeout = setTimeout(() => {
+        this.processJitterBuffer(sampleRate, false);
+      }, 10);
     }
   }
 
@@ -238,27 +298,13 @@ class AudioService {
       this.isPlaying = true;
     } else {
       this.playlist.add({ uri: dataUri });
-      if (!this.playlist.playing) {
-        this.playlist.play();
-        this.isPlaying = true;
-      }
     }
   }
 
   setMuted(muted: boolean): void {
     this._isMuted = muted;
     if (muted) {
-      this.jitterBuffer = [];
-      this.lastPlayedSeq = -1;
-      if (this.playlist) {
-        this.playlist.pause();
-        this.playlist.clear();
-        try {
-          this.playlist.remove(); // Release memory
-        } catch (e) {}
-        this.playlist = null;
-      }
-      this.isPlaying = false;
+      this.resetPlaylist();
     }
   }
 
