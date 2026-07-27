@@ -458,6 +458,8 @@ export default function HostScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+      )}
+    </ParticipantsRenderer>
   );
 
   if (settings.useLegacyWebSockets) {

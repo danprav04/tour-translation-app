@@ -121,6 +121,7 @@ export default function StreamScreen() {
     ? 'connected'
     : 'disconnected';
 
+  if (!settings.useLegacyWebSockets && (!livekitToken || !livekitUrl)) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={[styles.container, styles.center]}>
