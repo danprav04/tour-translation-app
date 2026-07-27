@@ -103,10 +103,17 @@ function TranslationDataPublisher({ setPublisher }: { setPublisher: any }) {
         // WebRTC Data Channels have a 64KB hard limit and LiveKit recommends <15KB for reliability.
         // We slice the raw PCM bytes into 10KB chunks (must be an even number for 16-bit PCM).
         const CHUNK_SIZE = 10240;
-        for (let offset = 0; offset < bytes.length; offset += CHUNK_SIZE) {
-          const slice = bytes.subarray(offset, offset + CHUNK_SIZE);
-          localParticipant.publishData(slice, { topic: 'translation-audio' }).catch((e: any) => console.log('Failed to publish', e));
-        }
+        const publishAll = async () => {
+          for (let offset = 0; offset < bytes.length; offset += CHUNK_SIZE) {
+            const slice = bytes.subarray(offset, offset + CHUNK_SIZE);
+            try {
+              await localParticipant.publishData(slice, { reliable: true, topic: 'translation-audio' });
+            } catch (e) {
+              console.log('Failed to publish translation audio chunk', e);
+            }
+          }
+        };
+        publishAll();
       }
     });
     return () => setPublisher(undefined);
