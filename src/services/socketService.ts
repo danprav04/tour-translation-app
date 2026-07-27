@@ -186,7 +186,7 @@ class SocketService {
     }
   }
 
-  onRenamed(callback: (newName: string) => void): void {
+  onRenamed(callback: (data: { newName: string }) => void): void {
     if (this.socket) {
       this.socket.on('renamed', callback);
     }

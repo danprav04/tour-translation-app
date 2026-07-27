@@ -24,7 +24,7 @@ export const useListener = () => {
   const connect = async (code: string) => {
     try {
       socketService.connect(settings.serverUrl);
-      await socketService.joinRoom(code, 'Listener Device');
+      await socketService.joinRoom(code, settings.deviceName);
       
       await foregroundService.start(
         'TourCast Listener',
@@ -51,6 +51,12 @@ export const useListener = () => {
 
       socketService.onKicked(() => {
         disconnect();
+      });
+
+      socketService.onRenamed((data: { newName: string }) => {
+        if (data && data.newName) {
+          updateSettings({ deviceName: data.newName });
+        }
       });
 
     } catch (error) {

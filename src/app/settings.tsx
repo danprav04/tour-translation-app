@@ -19,12 +19,14 @@ export default function SettingsScreen() {
   const { settings, updateSettings } = useSettingsContext();
   const [serverUrl, setServerUrl] = useState(settings.serverUrl);
   const [apiKey, setApiKey] = useState(settings.geminiApiKey);
+  const [deviceName, setDeviceName] = useState(settings.deviceName);
   const [showApiKey, setShowApiKey] = useState(false);
 
   const handleSave = () => {
     updateSettings({
       serverUrl: serverUrl.trim(),
       geminiApiKey: apiKey.trim(),
+      deviceName: deviceName.trim() || 'Listener Device',
     });
   };
 
@@ -64,6 +66,22 @@ export default function SettingsScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="url"
+            />
+          </GlassCard>
+
+          {/* Device Name */}
+          <GlassCard style={styles.section}>
+            <Text style={styles.sectionTitle}>📱 Device Name</Text>
+            <Text style={styles.sectionDesc}>
+              This is the name that the host will see when you join a room.
+            </Text>
+            <TextInput
+              style={styles.input}
+              value={deviceName}
+              onChangeText={setDeviceName}
+              onBlur={handleSave}
+              placeholder="e.g. Galaxy S25"
+              placeholderTextColor="rgba(255,255,255,0.2)"
             />
           </GlassCard>
 

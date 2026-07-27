@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
 export interface Settings {
   serverUrl: string;
   geminiApiKey: string;
   targetLanguage: string;
   lastRoomCode: string;
+  deviceName: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -13,6 +15,7 @@ const DEFAULT_SETTINGS: Settings = {
   geminiApiKey: '',
   targetLanguage: 'en',
   lastRoomCode: '',
+  deviceName: Constants.deviceName || 'Listener Device',
 };
 
 const SETTINGS_KEY = '@tour_settings';
@@ -26,7 +29,7 @@ export const useSettings = () => {
       try {
         const stored = await AsyncStorage.getItem(SETTINGS_KEY);
         if (stored) {
-          setSettings(JSON.parse(stored));
+          setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(stored) });
         }
       } catch (error) {
         console.error('Failed to load settings', error);
