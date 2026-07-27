@@ -56,6 +56,7 @@ export default function HostScreen() {
     roomCode,
     livekitToken,
     livekitUrl,
+    listeners,
     isMicActive,
     isTranslating,
     isEchoEnabled,
