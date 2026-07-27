@@ -15,6 +15,10 @@ export const useListener = () => {
   const connect = async (code: string) => {
     try {
       setIsReconnecting(true);
+      if (!settings.serverUrl) {
+        throw new Error('Server URL is not configured. Please set it in Settings first.');
+      }
+
       const deviceName = settings.deviceName || 'Listener';
       
       const response = await fetch(`${settings.serverUrl}/api/livekit/token?roomId=${code}&userId=${encodeURIComponent(deviceName)}&role=listener`);
