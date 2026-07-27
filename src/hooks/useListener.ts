@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useSettingsContext } from '@/context/SettingsContext';
 import foregroundService from '@/services/foregroundService';
+import audioService from '@/services/audioService';
+import socketService from '@/services/socketService';
 
 export const useListener = () => {
-  const { settings } = useSettingsContext();
+  const { settings, updateSettings } = useSettingsContext();
   const [isConnected, setIsConnected] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [roomCode, setRoomCode] = useState<string | null>(null);
@@ -11,6 +13,27 @@ export const useListener = () => {
   
   const [livekitToken, setLivekitToken] = useState<string | null>(null);
   const [livekitUrl, setLivekitUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (settings.useLegacyWebSockets) {
+      socketService.onKicked(() => {
+        disconnect();
+      });
+      socketService.onRenamed(({ newName }) => {
+        updateSettings({ deviceName: newName });
+      });
+      socketService.onRoomClosed(() => {
+        disconnect();
+      });
+      socketService.onAudioData((data, sampleRate, seq, timestamp) => {
+        const base64Data = btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(data))));
+        audioService.playChunk(base64Data, sampleRate, seq, timestamp);
+      });
+    }
+    return () => {
+      socketService.removeAllListeners();
+    };
+  }, [settings.useLegacyWebSockets]);
 
   const connect = async (code: string) => {
     try {
@@ -21,18 +44,28 @@ export const useListener = () => {
 
       const deviceName = settings.deviceName || 'Listener';
       
-      const baseUrl = settings.serverUrl.replace(/\/+$/, '');
-      const response = await fetch(`${baseUrl}/api/livekit/token?roomId=${code}&userId=${encodeURIComponent(deviceName)}&role=listener`);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to fetch token (${response.status}): ${errorText}`);
-      }
+      if (settings.useLegacyWebSockets) {
+        socketService.connect(settings.serverUrl);
+        await socketService.joinRoom(code, deviceName);
+        await audioService.enablePlaybackMode();
+        audioService.setMuted(isMuted);
+      } else {
+        const baseUrl = settings.serverUrl.replace(/\/+$/, '');
+        const response = await fetch(`${baseUrl}/api/livekit/token?roomId=${code}&userId=${encodeURIComponent(deviceName)}&role=listener`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Failed to fetch token (${response.status}): ${errorText}`);
+        }
 
-      const data = await response.json();
-      
-      if (!data.token || !data.wsUrl) {
-        throw new Error('Invalid response from server');
+        const data = await response.json();
+        
+        if (!data.token || !data.wsUrl) {
+          throw new Error('Invalid response from server');
+        }
+        
+        setLivekitToken(data.token);
+        setLivekitUrl(data.wsUrl);
       }
       
       await foregroundService.start(
@@ -55,6 +88,10 @@ export const useListener = () => {
   };
 
   const disconnect = async () => {
+    if (settings.useLegacyWebSockets) {
+      socketService.disconnect();
+      audioService.setMuted(true); // Effectively pauses/clears playlist
+    }
     await foregroundService.stop();
     setIsConnected(false);
     setRoomCode(null);
@@ -64,6 +101,9 @@ export const useListener = () => {
 
   const toggleMute = () => {
     setIsMuted(!isMuted);
+    if (settings.useLegacyWebSockets) {
+      audioService.setMuted(!isMuted);
+    }
   };
 
   useEffect(() => {

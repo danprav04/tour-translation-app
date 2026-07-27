@@ -8,6 +8,7 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -20,6 +21,7 @@ export default function SettingsScreen() {
   const [serverUrl, setServerUrl] = useState(settings.serverUrl);
   const [apiKey, setApiKey] = useState(settings.geminiApiKey);
   const [deviceName, setDeviceName] = useState(settings.deviceName);
+  const [useLegacy, setUseLegacy] = useState(settings.useLegacyWebSockets);
   const [showApiKey, setShowApiKey] = useState(false);
 
   const handleSave = () => {
@@ -27,6 +29,7 @@ export default function SettingsScreen() {
       serverUrl: serverUrl.trim(),
       geminiApiKey: apiKey.trim(),
       deviceName: deviceName.trim() || 'Listener Device',
+      useLegacyWebSockets: useLegacy,
     });
   };
 
@@ -125,6 +128,34 @@ export default function SettingsScreen() {
             )}
           </GlassCard>
 
+          {/* Legacy Mode Toggle */}
+          <GlassCard style={styles.section}>
+            <View style={styles.switchRow}>
+              <View style={styles.switchTextContainer}>
+                <Text style={styles.sectionTitle}>📡 Legacy Socket.io Mode</Text>
+                <Text style={styles.sectionDesc}>
+                  Use the older WebSocket audio engine instead of LiveKit Cloud.
+                </Text>
+              </View>
+              <Switch
+                value={useLegacy}
+                onValueChange={(val) => {
+                  setUseLegacy(val);
+                  // Need to save immediately when switch toggles since it doesn't blur
+                  updateSettings({
+                    ...settings,
+                    serverUrl: serverUrl.trim(),
+                    deviceName: deviceName.trim() || 'Listener Device',
+                    geminiApiKey: apiKey.trim(),
+                    useLegacyWebSockets: val,
+                  });
+                }}
+                trackColor={{ false: 'rgba(255,255,255,0.1)', true: '#00D4AA' }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+          </GlassCard>
+
           {/* About */}
           <GlassCard style={styles.section}>
             <Text style={styles.sectionTitle}>ℹ️ About</Text>
@@ -180,6 +211,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 6,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  switchTextContainer: {
+    flex: 1,
+    paddingRight: 16,
   },
   sectionDesc: {
     color: 'rgba(255,255,255,0.45)',

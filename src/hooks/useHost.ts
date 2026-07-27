@@ -4,6 +4,7 @@ import geminiTranslateService from '@/services/geminiTranslateService';
 import { useSettingsContext } from '@/context/SettingsContext';
 import foregroundService from '@/services/foregroundService';
 import audioService from '@/services/audioService';
+import socketService, { ListenerInfo } from '@/services/socketService';
 import { AndroidForegroundServiceType } from '@notifee/react-native';
 
 const generateRoomCode = () => {
@@ -43,26 +44,56 @@ export const useHost = () => {
   const [livekitToken, setLivekitToken] = useState<string | null>(null);
   const [livekitUrl, setLivekitUrl] = useState<string | null>(null);
 
+  // Setup legacy socket listeners
+  useEffect(() => {
+    if (settings.useLegacyWebSockets) {
+      socketService.onListenerJoined((listener) => {
+        setListeners(prev => [...prev, listener]);
+      });
+      socketService.onListenerLeft((listenerId) => {
+        setListeners(prev => prev.filter(l => l.id !== listenerId));
+      });
+      socketService.onListenerRenamed(({ listenerId, newName }) => {
+        setListeners(prev => prev.map(l => l.id === listenerId ? { ...l, name: newName } : l));
+      });
+    }
+    return () => {
+      socketService.removeAllListeners();
+    };
+  }, [settings.useLegacyWebSockets]);
+
   const startRoom = async () => {
     try {
-      const code = generateRoomCode();
+      if (!settings.serverUrl) {
+        throw new Error('Server URL is not configured.');
+      }
       const deviceName = settings.deviceName || 'Host';
+      let code = '';
 
-      const baseUrl = settings.serverUrl.replace(/\/+$/, '');
-      const response = await fetch(`${baseUrl}/api/livekit/token?roomId=${code}&userId=${encodeURIComponent(deviceName)}&role=host`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch LiveKit token from server');
+      if (settings.useLegacyWebSockets) {
+        // LEGACY SOCKET.IO MODE
+        socketService.connect(settings.serverUrl);
+        const res = await socketService.createRoom();
+        code = res.roomCode;
+      } else {
+        // LIVEKIT MODE
+        code = generateRoomCode();
+        const baseUrl = settings.serverUrl.replace(/\/+$/, '');
+        const response = await fetch(`${baseUrl}/api/livekit/token?roomId=${code}&userId=${encodeURIComponent(deviceName)}&role=host`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch LiveKit token from server');
+        }
+
+        const data = await response.json();
+        
+        if (!data.token || !data.wsUrl) {
+          throw new Error('Invalid response from server');
+        }
+
+        setLivekitToken(data.token);
+        setLivekitUrl(data.wsUrl);
       }
-
-      const data = await response.json();
-      
-      if (!data.token || !data.wsUrl) {
-        throw new Error('Invalid response from server');
-      }
-
-      setLivekitToken(data.token);
-      setLivekitUrl(data.wsUrl);
       setRoomCode(code);
       setIsConnected(true);
       await updateSettings({ lastRoomCode: code });
@@ -96,20 +127,49 @@ export const useHost = () => {
       geminiTranslateService.disconnect();
       setIsTranslating(false);
     }
+    if (isMicActiveRef.current && settings.useLegacyWebSockets) {
+      await audioService.stopCapture();
+    }
+    if (settings.useLegacyWebSockets) {
+      socketService.disconnect();
+    }
     await foregroundService.stop();
     setIsConnected(false);
     setRoomCode(null);
     setLivekitToken(null);
     setLivekitUrl(null);
     setIsMicActive(false);
+    setListeners([]);
   };
 
   const handleAudioChunk = (base64Data: string) => {
-    // Translation will be handled differently with LiveKit, stubbed out for now
+    if (settings.useLegacyWebSockets) {
+      if (isTranslatingRef.current) {
+        geminiTranslateService.sendAudio(base64Data);
+      } else {
+        const binaryString = atob(base64Data);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        socketService.sendAudioChunk(bytes.buffer, 16000, false);
+      }
+    }
   };
 
   const toggleMic = async () => {
-    setIsMicActive(!isMicActive);
+    if (isMicActive) {
+      setIsMicActive(false);
+      if (settings.useLegacyWebSockets) {
+        await audioService.stopCapture();
+      }
+    } else {
+      setIsMicActive(true);
+      if (settings.useLegacyWebSockets) {
+        await audioService.startCapture(handleAudioChunk);
+      }
+    }
   };
 
   const startTranslation = async (langCode: string) => {
@@ -121,7 +181,16 @@ export const useHost = () => {
           audioService.playChunk(translatedBase64, 24000);
         }
         
-        // Always broadcast to listeners
+        // Broadcast to listeners (Legacy)
+        if (settings.useLegacyWebSockets) {
+          const binaryString = atob(translatedBase64);
+          const len = binaryString.length;
+          const bytes = new Uint8Array(len);
+          for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          socketService.sendAudioChunk(bytes.buffer, 24000, true);
+        }
         // TODO: LiveKit translation broadcasting logic
       });
       setIsTranslating(true);
@@ -157,21 +226,25 @@ export const useHost = () => {
   };
 
   const kickListener = (id: string) => {
-    // TODO: Implement kick via LiveKit server API or Data channel
+    if (settings.useLegacyWebSockets) {
+      socketService.kickListener(id);
+    }
   };
 
   const renameListener = (id: string, newName: string) => {
-    // Handled by participant metadata in LiveKit
+    if (settings.useLegacyWebSockets) {
+      socketService.renameListener(id, newName);
+    }
   };
 
-  /**
-   * Pause mic stream for TTS broadcast.
-   */
   const pauseForTTS = async () => {
     wasStreamingBeforeTTSRef.current = isMicActiveRef.current;
     isTTSActiveRef.current = true;
     if (isMicActiveRef.current) {
       setIsMicActive(false);
+      if (settings.useLegacyWebSockets) {
+        await audioService.stopCapture();
+      }
     }
   };
 
@@ -182,6 +255,9 @@ export const useHost = () => {
     isTTSActiveRef.current = false;
     if (wasStreamingBeforeTTSRef.current) {
       setIsMicActive(true);
+      if (settings.useLegacyWebSockets) {
+        await audioService.startCapture(handleAudioChunk);
+      }
       wasStreamingBeforeTTSRef.current = false;
     }
   };

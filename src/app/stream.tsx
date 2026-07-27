@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LiveKitRoom, useRoomContext } from '@livekit/react-native';
 import { useListener } from '@/hooks/useListener';
+import { useSettingsContext } from '@/context/SettingsContext';
 import StatusBadge from '@/components/StatusBadge';
 import AudioVisualizer from '@/components/AudioVisualizer';
 import GlassCard from '@/components/GlassCard';
@@ -22,6 +23,7 @@ const MUTE_BTN_SIZE = Math.min(SCREEN_WIDTH * 0.45, 180);
 
 export default function StreamScreen() {
   const router = useRouter();
+  const { settings } = useSettingsContext();
   const { roomCode } = useLocalSearchParams<{ roomCode: string }>();
   const {
     isConnected,
@@ -119,7 +121,6 @@ export default function StreamScreen() {
     ? 'connected'
     : 'disconnected';
 
-  if (!livekitToken || !livekitUrl) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={[styles.container, styles.center]}>
@@ -127,6 +128,25 @@ export default function StreamScreen() {
         </View>
       </SafeAreaView>
     );
+  }
+
+  const content = (
+    <StreamContent
+      roomCode={roomCode}
+      isMuted={isMuted}
+      isConnected={isConnected}
+      isReconnecting={isReconnecting}
+      connectionStatus={connectionStatus}
+      pulseAnim={pulseAnim}
+      scaleAnim={scaleAnim}
+      handleMutePress={handleMutePress}
+      handleDisconnect={handleDisconnect}
+      useLegacy={settings.useLegacyWebSockets}
+    />
+  );
+
+  if (settings.useLegacyWebSockets) {
+    return content;
   }
 
   return (
@@ -137,33 +157,25 @@ export default function StreamScreen() {
       audio={false}
       video={false}
     >
-      <StreamContent
-        roomCode={roomCode}
-        isMuted={isMuted}
-        isConnected={isConnected}
-        isReconnecting={isReconnecting}
-        connectionStatus={connectionStatus}
-        pulseAnim={pulseAnim}
-        scaleAnim={scaleAnim}
-        handleMutePress={handleMutePress}
-        handleDisconnect={handleDisconnect}
-      />
+      {content}
     </LiveKitRoom>
   );
 }
 
-function StreamContent({
-  roomCode,
-  isMuted,
-  isConnected,
-  isReconnecting,
-  connectionStatus,
-  pulseAnim,
-  scaleAnim,
-  handleMutePress,
-  handleDisconnect,
-}: any) {
+function StreamContent(props: any) {
+  // Use a child component to only call LiveKit hooks when not in legacy mode
+  if (props.useLegacy) {
+    return <StreamContentUI 
+      {...props}
+    />;
+  }
+
+  return <StreamContentLiveKit {...props} />;
+}
+
+function StreamContentLiveKit(props: any) {
   const room = useRoomContext();
+  const { isMuted } = props;
 
   useEffect(() => {
     // Basic mute implementation: disable/enable track playback
@@ -176,6 +188,20 @@ function StreamContent({
     });
   }, [isMuted, room, room.remoteParticipants]);
 
+  return <StreamContentUI {...props} />;
+}
+
+function StreamContentUI({
+  roomCode,
+  isMuted,
+  isConnected,
+  isReconnecting,
+  connectionStatus,
+  pulseAnim,
+  scaleAnim,
+  handleMutePress,
+  handleDisconnect,
+}: any) {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>

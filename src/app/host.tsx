@@ -24,7 +24,26 @@ import ListenerCard from '@/components/ListenerCard';
 import AudioVisualizer from '@/components/AudioVisualizer';
 import type { Participant } from 'livekit-client';
 
-function ParticipantsRenderer({ children }: { children: (activeListeners: Participant[]) => React.ReactNode }) {
+function ParticipantsRenderer({
+  children,
+  legacyListeners,
+  useLegacy
+}: {
+  children: (activeListeners: any[]) => React.ReactNode,
+  legacyListeners: any[],
+  useLegacy: boolean
+}) {
+  if (useLegacy) {
+    // In legacy mode, map socket listeners to LiveKit-like objects
+    const mapped = legacyListeners.map(l => ({
+      sid: l.id,
+      identity: l.name,
+      name: l.name,
+      isLocal: false
+    }));
+    return <>{children(mapped)}</>;
+  }
+
   const participants = useParticipants();
   const activeListeners = participants.filter(p => !p.isLocal);
   return <>{children(activeListeners)}</>;
@@ -174,17 +193,13 @@ export default function HostScreen() {
 
   const seekProgress = playbackDuration > 0 ? playbackPosition / playbackDuration : 0;
 
-  return (
-    <LiveKitRoom
-      serverUrl={livekitUrl || ''}
-      token={livekitToken}
-      connect={true}
-      audio={isMicActive}
-    >
-      <ParticipantsRenderer>
-        {(activeListeners) => (
-          <SafeAreaView style={styles.safe}>
-            <ScrollView
+  const seekTrackWidth = seekTrackWidthRef.current;
+
+  const content = (
+    <ParticipantsRenderer legacyListeners={listeners} useLegacy={settings.useLegacyWebSockets}>
+      {(activeListeners) => (
+        <SafeAreaView style={styles.safe}>
+          <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -443,7 +458,21 @@ export default function HostScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
-        )}
+  );
+
+  if (settings.useLegacyWebSockets) {
+    return content;
+  }
+
+  return (
+    <LiveKitRoom
+      serverUrl={livekitUrl || ''}
+      token={livekitToken}
+      connect={true}
+      audio={isMicActive}
+    >
+      <ParticipantsRenderer>
+        {content}
       </ParticipantsRenderer>
     </LiveKitRoom>
   );
