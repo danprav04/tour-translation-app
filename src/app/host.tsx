@@ -87,6 +87,29 @@ function LocalMicController({ isMicActive, isTranslating }: { isMicActive: boole
   return null;
 }
 
+function TranslationDataPublisher({ setPublisher }: { setPublisher: any }) {
+  const { localParticipant } = useLocalParticipant();
+  
+  React.useEffect(() => {
+    setPublisher((base64Data: string) => {
+      if (localParticipant) {
+        const binaryString = atob(base64Data);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        // Publish to translation-audio topic with RELIABLE flag (0 = reliable in some enums, but we can just omit options if we want, or pass topic)
+        localParticipant.publishData(bytes, { topic: 'translation-audio' }).catch((e: any) => console.log('Failed to publish', e));
+      }
+    });
+    return () => setPublisher(undefined);
+  }, [localParticipant, setPublisher]);
+  
+  return null;
+}
+
 export default function HostScreen() {
   const router = useRouter();
   const { settings } = useSettingsContext();
@@ -110,6 +133,8 @@ export default function HostScreen() {
     renameListener,
     pauseForTTS,
     resumeAfterTTS,
+    isTTSActive,
+    setLivekitPublisher,
   } = useHost();
 
   const onTTSStart = useCallback(async () => {
@@ -552,6 +577,7 @@ export default function HostScreen() {
     >
       <RoomDisconnectCatcher />
       <LocalMicController isMicActive={isMicActive} isTranslating={isTranslating} />
+      <TranslationDataPublisher setPublisher={setLivekitPublisher} />
       {content}
     </LiveKitRoom>
   );

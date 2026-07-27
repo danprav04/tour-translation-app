@@ -151,33 +151,40 @@ export const useHost = () => {
   };
 
   const handleAudioChunk = (base64Data: string) => {
-    if (settings.useLegacyWebSockets) {
-      if (isTranslatingRef.current) {
-        geminiTranslateService.sendAudioChunk(base64Data);
-      } else {
-        const binaryString = atob(base64Data);
-        const len = binaryString.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        socketService.sendAudioChunk(bytes.buffer, 16000, false);
+    if (isTranslatingRef.current) {
+      // In both legacy and LiveKit mode, if translating, send to Gemini
+      geminiTranslateService.sendAudioChunk(base64Data);
+    } else if (settings.useLegacyWebSockets) {
+      // If not translating, only legacy mode broadcasts raw audio chunks
+      const binaryString = atob(base64Data);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
       }
+      socketService.sendAudioChunk(bytes.buffer, 16000, false);
     }
   };
 
   const toggleMic = async () => {
     if (isMicActive) {
       setIsMicActive(false);
-      if (settings.useLegacyWebSockets) {
+      // Stop expo-audio capture if we were using legacy websockets OR translating in LiveKit
+      if (settings.useLegacyWebSockets || isTranslatingRef.current) {
         await audioService.stopCapture();
       }
     } else {
       setIsMicActive(true);
-      if (settings.useLegacyWebSockets) {
+      // Start expo-audio capture if using legacy websockets OR translating in LiveKit
+      if (settings.useLegacyWebSockets || isTranslatingRef.current) {
         await audioService.startCapture(handleAudioChunk);
       }
     }
+  };
+
+  const livekitPublisherRef = useRef<(data: string) => void>();
+  const setLivekitPublisher = (publisher: ((data: string) => void) | undefined) => {
+    livekitPublisherRef.current = publisher;
   };
 
   const startTranslation = async (langCode: string) => {
@@ -201,19 +208,34 @@ export const useHost = () => {
             bytes[i] = binaryString.charCodeAt(i);
           }
           socketService.sendAudioChunk(bytes.buffer, 24000, true);
+        } else if (livekitPublisherRef.current) {
+          // Broadcast to LiveKit data channel
+          livekitPublisherRef.current(translatedBase64);
         }
-        // TODO: LiveKit translation broadcasting logic
       });
       setIsTranslating(true);
+      
+      // If LiveKit mode and the mic is on, we need to take over the mic from LiveKit
+      // Wait a tiny bit for the LocalMicController to release the mic, then start capture
+      if (!settings.useLegacyWebSockets && isMicActiveRef.current) {
+        setTimeout(async () => {
+          await audioService.startCapture(handleAudioChunk);
+        }, 500);
+      }
     } catch (error) {
       console.error('Failed to start translation', error);
       setIsTranslating(false);
     }
   };
 
-  const stopTranslation = () => {
+  const stopTranslation = async () => {
     geminiTranslateService.disconnect();
     setIsTranslating(false);
+    
+    // If LiveKit mode and the mic is on, stop our manual capture so LiveKit can take it back
+    if (!settings.useLegacyWebSockets && isMicActiveRef.current) {
+      await audioService.stopCapture();
+    }
   };
 
   const toggleTranslation = async () => {
@@ -302,5 +324,6 @@ export const useHost = () => {
     pauseForTTS,
     resumeAfterTTS,
     isTTSActive,
+    setLivekitPublisher,
   };
 };

@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { AudioSession, AndroidAudioTypePresets, LiveKitRoom, useRoomContext, useTracks } from '@livekit/react-native';
-import { Track } from 'livekit-client';
+import { Track, RoomEvent } from 'livekit-client';
 import { useListener } from '@/hooks/useListener';
 import { useSettingsContext } from '@/context/SettingsContext';
 import StatusBadge from '@/components/StatusBadge';
@@ -216,14 +216,35 @@ function StreamContentLiveKit(props: any) {
   const tracks = useTracks([Track.Source.Microphone]);
 
   useEffect(() => {
+    // Basic mute implementation: disable/enable track playback
     console.log(`[Listener] Received ${tracks.length} audio tracks. Muted? ${isMuted}`);
-    // Manually ensure tracks are enabled based on our isMuted state
     tracks.forEach(trackRef => {
       if (trackRef.publication) {
         trackRef.publication.setSubscribed(!isMuted);
       }
     });
   }, [tracks, isMuted]);
+
+  // Listen for LiveKit Data Channel messages containing translated audio
+  useEffect(() => {
+    const handleData = (payload: Uint8Array, participant?: any, kind?: any, topic?: string) => {
+      if (topic === 'translation-audio' && !isMuted) {
+        let binary = '';
+        const chunkSize = 8192;
+        for (let i = 0; i < payload.length; i += chunkSize) {
+          binary += String.fromCharCode.apply(null, Array.from(payload.subarray(i, i + chunkSize)));
+        }
+        // Play the decoded TTS chunk
+        import('@/services/audioService').then((module) => {
+          module.default.playChunk(btoa(binary), 24000);
+        });
+      }
+    };
+    room.on(RoomEvent.DataReceived, handleData);
+    return () => {
+      room.off(RoomEvent.DataReceived, handleData);
+    };
+  }, [room, isMuted]);
 
   // Intercept disconnect to catch LiveKit race condition errors
   const handleDisconnect = async () => {
