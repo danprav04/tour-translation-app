@@ -44,6 +44,10 @@ function ParticipantsRenderer({
     return <>{children(mapped)}</>;
   }
 
+  return <LiveKitParticipantsRenderer>{children}</LiveKitParticipantsRenderer>;
+}
+
+function LiveKitParticipantsRenderer({ children }: { children: (activeListeners: any[]) => React.ReactNode }) {
   const participants = useParticipants();
   const activeListeners = participants.filter(p => !p.isLocal);
   return <>{children(activeListeners)}</>;

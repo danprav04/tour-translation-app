@@ -23,7 +23,6 @@ class SocketService {
     }
     this.outgoingSeq = 0;
     this.socket = io(serverUrl, {
-      transports: ['websocket'],
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: Infinity,
@@ -86,7 +85,7 @@ class SocketService {
     return new Promise((resolve, reject) => {
       if (!this.socket) return reject(new Error('Socket not connected'));
       
-      const timeout = setTimeout(() => reject(new Error('Connection timed out. Check your server URL and network.')), 5000);
+      const timeout = setTimeout(() => reject(new Error('Connection timed out. Check your server URL and network.')), 10000);
 
       this.socket.emit('create-room', {}, (response: { success: boolean; roomCode: string; roomId: string; error?: string }) => {
         clearTimeout(timeout);
@@ -106,7 +105,7 @@ class SocketService {
     return new Promise((resolve, reject) => {
       if (!this.socket) return reject(new Error('Socket not connected'));
 
-      const timeout = setTimeout(() => reject(new Error('Connection timed out. Check your server URL and network.')), 5000);
+      const timeout = setTimeout(() => reject(new Error('Connection timed out. Check your server URL and network.')), 10000);
 
       this.socket.emit('join-room', { roomCode, deviceName }, (response: { success: boolean; roomId: string; listenerId: string; error?: string }) => {
         clearTimeout(timeout);

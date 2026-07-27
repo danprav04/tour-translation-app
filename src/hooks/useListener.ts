@@ -73,8 +73,6 @@ export const useListener = () => {
         `Listening to room ${code}`
       );
 
-      setLivekitToken(data.token);
-      setLivekitUrl(data.wsUrl);
       setRoomCode(code);
       setIsConnected(true);
       setIsReconnecting(false);
