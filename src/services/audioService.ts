@@ -163,7 +163,9 @@ class AudioService {
     const targetBufferBytes = sampleRate * 2 * 2.5; 
     
     // If not playing, wait until we hit the target buffer size
-    if (!this.playlist && totalBufferedBytes < targetBufferBytes) {
+    const isPlaylistActive = this.playlist && this.playlist.playing;
+    
+    if (!isPlaylistActive && totalBufferedBytes < targetBufferBytes) {
       this.isBuffering = true;
       
       if (this.bufferFlushTimeout) {
@@ -300,6 +302,10 @@ class AudioService {
       this.isPlaying = true;
     } else {
       this.playlist.add({ uri: dataUri });
+      if (!this.playlist.playing) {
+        this.playlist.play();
+        this.isPlaying = true;
+      }
     }
   }
 
