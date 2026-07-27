@@ -11,7 +11,8 @@
       "env": {
         "APP_VARIANT": "development",
         "EX_UPDATES_NATIVE_DEBUG": "0",
-        "GRADLE_OPTS": "-Xmx4096m -XX:MaxMetaspaceSize=512m -Dorg.gradle.workers.max=2 -Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
+        "GRADLE_OPTS": "-Xmx4096m -XX:MaxMetaspaceSize=512m -Dorg.gradle.workers.max=1 -Dorg.gradle.parallel=false -Dorg.gradle.caching=true",
+        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a,x86_64"
       },
       "android": {
         "buildType": "apk"
