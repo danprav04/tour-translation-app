@@ -10,7 +10,6 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { createAudioPlayer } from 'expo-audio';
 import type { AudioPlayer } from 'expo-audio';
 import ttsService from '@/services/ttsService';
-import socketService from '@/services/socketService';
 
 // PCM format constants for Gemini TTS output
 const TTS_SAMPLE_RATE = 24000;
@@ -228,7 +227,7 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
 
             if (endByte > startByte && startByte < pcmBytes.length) {
               const chunk = pcmBytes.slice(startByte, Math.min(endByte, pcmBytes.length));
-              socketService.sendAudioChunk(chunk.buffer, TTS_SAMPLE_RATE, true);
+              // TODO: LiveKit TTS broadcasting logic
               lastByteOffsetRef.current = endByte; // Perfect continuity for next chunk
             }
             

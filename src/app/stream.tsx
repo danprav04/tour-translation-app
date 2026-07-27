@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { LiveKitRoom, useRoomContext } from '@livekit/react-native';
 import { useListener } from '@/hooks/useListener';
 import StatusBadge from '@/components/StatusBadge';
 import AudioVisualizer from '@/components/AudioVisualizer';
@@ -26,6 +27,8 @@ export default function StreamScreen() {
     isConnected,
     isMuted,
     isReconnecting,
+    livekitToken,
+    livekitUrl,
     connect,
     disconnect,
     toggleMute,
@@ -115,6 +118,63 @@ export default function StreamScreen() {
     : isConnected
     ? 'connected'
     : 'disconnected';
+
+  if (!livekitToken || !livekitUrl) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={[styles.container, styles.center]}>
+          <Text style={styles.statusText}>Connecting...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <LiveKitRoom
+      serverUrl={livekitUrl}
+      token={livekitToken}
+      connect={true}
+      audio={false}
+      video={false}
+    >
+      <StreamContent
+        roomCode={roomCode}
+        isMuted={isMuted}
+        isConnected={isConnected}
+        isReconnecting={isReconnecting}
+        connectionStatus={connectionStatus}
+        pulseAnim={pulseAnim}
+        scaleAnim={scaleAnim}
+        handleMutePress={handleMutePress}
+        handleDisconnect={handleDisconnect}
+      />
+    </LiveKitRoom>
+  );
+}
+
+function StreamContent({
+  roomCode,
+  isMuted,
+  isConnected,
+  isReconnecting,
+  connectionStatus,
+  pulseAnim,
+  scaleAnim,
+  handleMutePress,
+  handleDisconnect,
+}: any) {
+  const room = useRoomContext();
+
+  useEffect(() => {
+    // Basic mute implementation: disable/enable track playback
+    room.remoteParticipants.forEach((p) => {
+      p.audioTrackPublications.forEach((pub) => {
+        if (pub.track) {
+           pub.setSubscribed(!isMuted);
+        }
+      });
+    });
+  }, [isMuted, room, room.remoteParticipants]);
 
   return (
     <SafeAreaView style={styles.safe}>

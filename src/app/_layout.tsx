@@ -3,6 +3,10 @@ import { StatusBar } from 'expo-status-bar';
 import { SettingsProvider } from '@/context/SettingsContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { registerGlobals } from '@livekit/react-native';
+
+registerGlobals();
+
 // Import early to register the Notifee foreground service handler
 import '@/services/foregroundService';
 

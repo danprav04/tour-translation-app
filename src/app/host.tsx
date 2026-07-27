@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { LiveKitRoom, useParticipants } from '@livekit/react-native';
 import { useHost } from '@/hooks/useHost';
 import { useTTS } from '@/hooks/useTTS';
 import { useSettingsContext } from '@/context/SettingsContext';
@@ -27,7 +28,8 @@ export default function HostScreen() {
   const { settings } = useSettingsContext();
   const {
     roomCode,
-    listeners,
+    livekitToken,
+    livekitUrl,
     isMicActive,
     isTranslating,
     isEchoEnabled,
@@ -163,10 +165,19 @@ export default function HostScreen() {
     );
   }
 
+  const participants = useParticipants();
+  const activeListeners = participants.filter(p => !p.isLocal);
+
   const seekProgress = playbackDuration > 0 ? playbackPosition / playbackDuration : 0;
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <LiveKitRoom
+      serverUrl={livekitUrl || ''}
+      token={livekitToken}
+      connect={true}
+      audio={isMicActive}
+    >
+      <SafeAreaView style={styles.safe}>
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.scrollContent}
@@ -180,7 +191,7 @@ export default function HostScreen() {
               isTTSPlaying
                 ? '📡 Broadcasting TTS'
                 : isMicActive
-                  ? `Live · ${listeners.length} listeners`
+                  ? `Live · ${activeListeners.length} listeners`
                   : 'Session Active'
             }
           />
@@ -396,10 +407,10 @@ export default function HostScreen() {
         <View style={styles.section}>
           <View style={styles.listenerHeader}>
             <Text style={styles.sectionTitle}>
-              Connected Listeners ({listeners.length})
+              Connected Listeners ({activeListeners.length})
             </Text>
           </View>
-          {listeners.length === 0 ? (
+          {activeListeners.length === 0 ? (
             <GlassCard padding={32}>
               <View style={styles.emptyState}>
                 <Text style={styles.emptyIcon}>👥</Text>
@@ -412,12 +423,12 @@ export default function HostScreen() {
               </View>
             </GlassCard>
           ) : (
-            listeners.map((listener) => (
+            activeListeners.map((listener) => (
               <ListenerCard
-                key={listener.id}
-                id={listener.id}
-                name={listener.name}
-                joinedAt={listener.joinedAt}
+                key={listener.sid}
+                id={listener.sid}
+                name={listener.name || listener.identity}
+                joinedAt={new Date().toISOString()} // Livekit participant joinedAt isn't directly exposed in React Native hook easily
                 onKick={kickListener}
                 onRename={renameListener}
               />
@@ -426,6 +437,7 @@ export default function HostScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+    </LiveKitRoom>
   );
 }
 

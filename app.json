@@ -86,7 +86,9 @@
           }
         }
       ],
-      "./plugins/withNotifeeForegroundService.js"
+      "./plugins/withNotifeeForegroundService.js",
+      "@livekit/react-native-expo-plugin",
+      "@config-plugins/react-native-webrtc"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -1,18 +1,6 @@
 import { useState, useEffect } from 'react';
-import socketService from '@/services/socketService';
-import audioService from '@/services/audioService';
 import { useSettingsContext } from '@/context/SettingsContext';
 import foregroundService from '@/services/foregroundService';
-
-const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-};
 
 export const useListener = () => {
   const { settings } = useSettingsContext();
@@ -20,44 +8,37 @@ export const useListener = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  
+  const [livekitToken, setLivekitToken] = useState<string | null>(null);
+  const [livekitUrl, setLivekitUrl] = useState<string | null>(null);
 
   const connect = async (code: string) => {
     try {
-      socketService.connect(settings.serverUrl);
-      await socketService.joinRoom(code, settings.deviceName);
+      setIsReconnecting(true);
+      const deviceName = settings.deviceName || 'Listener';
+      
+      const response = await fetch(`${settings.serverUrl}/api/livekit/token?roomId=${code}&userId=${encodeURIComponent(deviceName)}&role=listener`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch LiveKit token from server');
+      }
+
+      const data = await response.json();
+      
+      if (!data.token || !data.wsUrl) {
+        throw new Error('Invalid response from server');
+      }
       
       await foregroundService.start(
         'TourCast Listener',
         `Listening to room ${code}`
       );
 
-      // Request audio mode so playback works in the background
-      await audioService.enablePlaybackMode();
-
+      setLivekitToken(data.token);
+      setLivekitUrl(data.wsUrl);
       setRoomCode(code);
       setIsConnected(true);
       setIsReconnecting(false);
-
-      socketService.onAudioData((data: ArrayBuffer, sampleRate: number, seq: number, timestamp: number) => {
-        if (!isMuted) {
-          const base64Str = arrayBufferToBase64(data);
-          audioService.playChunk(base64Str, sampleRate || 16000, seq, timestamp); // Fallback to 16000 if not provided
-        }
-      });
-
-      socketService.onRoomClosed(() => {
-        disconnect();
-      });
-
-      socketService.onKicked(() => {
-        disconnect();
-      });
-
-      socketService.onRenamed((data: { newName: string }) => {
-        if (data && data.newName) {
-          updateSettings({ deviceName: data.newName });
-        }
-      });
 
     } catch (error) {
       console.error('Failed to connect to room', error);
@@ -68,16 +49,15 @@ export const useListener = () => {
   };
 
   const disconnect = async () => {
-    socketService.disconnect();
     await foregroundService.stop();
     setIsConnected(false);
     setRoomCode(null);
+    setLivekitToken(null);
+    setLivekitUrl(null);
   };
 
   const toggleMute = () => {
-    const newMuted = !isMuted;
-    setIsMuted(newMuted);
-    audioService.setMuted(newMuted);
+    setIsMuted(!isMuted);
   };
 
   useEffect(() => {
@@ -90,6 +70,8 @@ export const useListener = () => {
     isConnected,
     isMuted,
     roomCode,
+    livekitToken,
+    livekitUrl,
     isReconnecting,
     connect,
     disconnect,

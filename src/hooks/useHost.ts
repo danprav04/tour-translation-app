@@ -1,20 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
-import socketService, { ListenerInfo } from '@/services/socketService';
-import audioService from '@/services/audioService';
 import geminiTranslateService from '@/services/geminiTranslateService';
 import { useSettingsContext } from '@/context/SettingsContext';
 import foregroundService from '@/services/foregroundService';
 import { AndroidForegroundServiceType } from '@notifee/react-native';
 
-const base64ToArrayBuffer = (base64: string): ArrayBuffer => {
-  const binaryString = atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
+const generateRoomCode = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  return bytes.buffer;
+  return code;
 };
 
 export const useHost = () => {
@@ -42,85 +39,70 @@ export const useHost = () => {
     isMicActiveRef.current = isMicActive;
   }, [isMicActive]);
 
+  const [livekitToken, setLivekitToken] = useState<string | null>(null);
+  const [livekitUrl, setLivekitUrl] = useState<string | null>(null);
+
   const startRoom = async () => {
     try {
-      socketService.connect(settings.serverUrl);
-      const { roomCode } = await socketService.createRoom();
-      setRoomCode(roomCode);
-      setIsConnected(true);
-      await updateSettings({ lastRoomCode: roomCode });
+      const code = generateRoomCode();
+      const deviceName = settings.deviceName || 'Host';
 
-      const hasPermission = await audioService.requestPermissions();
-      if (!hasPermission) {
-        throw new Error('Microphone permission is required to start a session.');
+      const response = await fetch(`${settings.serverUrl}/api/livekit/token?roomId=${code}&userId=${encodeURIComponent(deviceName)}&role=host`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch LiveKit token from server');
       }
+
+      const data = await response.json();
+      
+      if (!data.token || !data.wsUrl) {
+        throw new Error('Invalid response from server');
+      }
+
+      setLivekitToken(data.token);
+      setLivekitUrl(data.wsUrl);
+      setRoomCode(code);
+      setIsConnected(true);
+      await updateSettings({ lastRoomCode: code });
 
       await foregroundService.start(
         'TourCast Host Session',
-        `Broadcasting room ${roomCode}`,
+        `Broadcasting room ${code}`,
         [
           AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MICROPHONE,
           AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
         ]
       );
 
-      socketService.onListenerJoined((listener) => {
-        setListeners(prev => [...prev, listener]);
-      });
-
-      socketService.onListenerLeft((listenerId) => {
-        setListeners(prev => prev.filter(l => l.id !== listenerId));
-      });
-
-      socketService.onListenerRenamed(({ listenerId, newName }) => {
-        setListeners(prev => prev.map(l => l.id === listenerId ? { ...l, name: newName } : l));
-      });
-
     } catch (error) {
       console.error('Failed to start room', error);
       Alert.alert(
         'Session Failed',
-        error instanceof Error ? error.message : 'Failed to start session. Please ensure microphone permissions are granted.'
+        error instanceof Error ? error.message : 'Failed to start session.'
       );
       setIsConnected(false);
     }
   };
 
   const stopRoom = async () => {
-    if (isMicActive) {
-      await toggleMic();
-    }
     if (isTranslating) {
       geminiTranslateService.disconnect();
       setIsTranslating(false);
     }
-    socketService.disconnect();
     await foregroundService.stop();
     setIsConnected(false);
     setRoomCode(null);
-    setListeners([]);
+    setLivekitToken(null);
+    setLivekitUrl(null);
+    setIsMicActive(false);
   };
 
   const handleAudioChunk = (base64Data: string) => {
-    // Block mic audio while TTS is broadcasting
-    if (isTTSActiveRef.current) return;
-
-    if (isTranslatingRef.current) {
-      geminiTranslateService.sendAudioChunk(base64Data);
-    } else {
-      const buffer = base64ToArrayBuffer(base64Data);
-      socketService.sendAudioChunk(buffer, 16000);
-    }
+    // Translation will be handled differently with LiveKit, stubbed out for now
   };
 
   const toggleMic = async () => {
-    if (isMicActive) {
-      await audioService.stopCapture();
-      setIsMicActive(false);
-    } else {
-      await audioService.startCapture(handleAudioChunk);
-      setIsMicActive(true);
-    }
+    setIsMicActive(!isMicActive);
   };
 
   const startTranslation = async (langCode: string) => {
@@ -133,8 +115,7 @@ export const useHost = () => {
         }
         
         // Always broadcast to listeners
-        const buffer = base64ToArrayBuffer(translatedBase64);
-        socketService.sendAudioChunk(buffer, 24000);
+        // TODO: LiveKit translation broadcasting logic
       });
       setIsTranslating(true);
     } catch (error) {
@@ -169,34 +150,30 @@ export const useHost = () => {
   };
 
   const kickListener = (id: string) => {
-    socketService.kickListener(id);
+    // TODO: Implement kick via LiveKit server API or Data channel
   };
 
   const renameListener = (id: string, newName: string) => {
-    socketService.renameListener(id, newName);
+    // Handled by participant metadata in LiveKit
   };
 
   /**
    * Pause mic stream for TTS broadcast.
-   * Remembers whether mic was active so it can be restored.
    */
   const pauseForTTS = async () => {
     wasStreamingBeforeTTSRef.current = isMicActiveRef.current;
     isTTSActiveRef.current = true;
     if (isMicActiveRef.current) {
-      await audioService.stopCapture();
       setIsMicActive(false);
     }
   };
 
   /**
    * Resume mic stream after TTS broadcast ends.
-   * Only restarts mic if it was active before TTS started.
    */
   const resumeAfterTTS = async () => {
     isTTSActiveRef.current = false;
     if (wasStreamingBeforeTTSRef.current) {
-      await audioService.startCapture(handleAudioChunk);
       setIsMicActive(true);
       wasStreamingBeforeTTSRef.current = false;
     }
@@ -211,6 +188,8 @@ export const useHost = () => {
 
   return {
     roomCode,
+    livekitToken,
+    livekitUrl,
     listeners,
     isMicActive,
     isTranslating,
