@@ -195,9 +195,9 @@ class SocketService {
     return this.socket !== null && this.socket.connected;
   }
 
-  removeAllListeners(): void {
+  off(event: string): void {
     if (this.socket) {
-      this.socket.removeAllListeners();
+      this.socket.off(event);
     }
   }
 }

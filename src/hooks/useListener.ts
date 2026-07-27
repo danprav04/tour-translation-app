@@ -79,26 +79,33 @@ export const useListener = () => {
   };
 
   useEffect(() => {
-    if (settings.useLegacyWebSockets) {
+    if (settings.useLegacyWebSockets && isConnected) {
       socketService.onKicked(() => {
+        console.log('[Listener] Kicked from room');
         disconnect();
       });
       socketService.onRenamed(({ newName }) => {
+        console.log(`[Listener] Renamed to: ${newName}`);
         updateSettings({ deviceName: newName });
       });
       socketService.onRoomClosed(() => {
+        console.log('[Listener] Room closed by host');
         disconnect();
       });
       socketService.onAudioData((data, sampleRate, seq, timestamp) => {
+        // console.log(`[Listener] Received audio chunk seq=${seq}`); // too noisy
         const base64Data = btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(data))));
         audioService.playChunk(base64Data, sampleRate, seq, timestamp);
       });
     }
     return () => {
-      socketService.removeAllListeners();
+      socketService.off('kicked');
+      socketService.off('renamed');
+      socketService.off('room-closed');
+      socketService.off('audio-data');
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.useLegacyWebSockets]);
+  }, [settings.useLegacyWebSockets, isConnected]);
 
   const toggleMute = () => {
     setIsMuted(!isMuted);

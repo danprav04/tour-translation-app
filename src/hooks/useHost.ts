@@ -46,21 +46,26 @@ export const useHost = () => {
 
   // Setup legacy socket listeners
   useEffect(() => {
-    if (settings.useLegacyWebSockets) {
+    if (settings.useLegacyWebSockets && isConnected) {
       socketService.onListenerJoined((listener) => {
+        console.log(`[Host] Listener joined: ${listener.name} (${listener.id})`);
         setListeners(prev => [...prev, listener]);
       });
       socketService.onListenerLeft((listenerId) => {
+        console.log(`[Host] Listener left: ${listenerId}`);
         setListeners(prev => prev.filter(l => l.id !== listenerId));
       });
       socketService.onListenerRenamed(({ listenerId, newName }) => {
+        console.log(`[Host] Listener renamed: ${listenerId} -> ${newName}`);
         setListeners(prev => prev.map(l => l.id === listenerId ? { ...l, name: newName } : l));
       });
     }
     return () => {
-      socketService.removeAllListeners();
+      socketService.off('listener-joined');
+      socketService.off('listener-left');
+      socketService.off('listener-renamed');
     };
-  }, [settings.useLegacyWebSockets]);
+  }, [settings.useLegacyWebSockets, isConnected]);
 
   const startRoom = async () => {
     try {
