@@ -22,6 +22,13 @@ import StatusBadge from '@/components/StatusBadge';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
 import ListenerCard from '@/components/ListenerCard';
 import AudioVisualizer from '@/components/AudioVisualizer';
+import type { Participant } from 'livekit-client';
+
+function ParticipantsRenderer({ children }: { children: (activeListeners: Participant[]) => React.ReactNode }) {
+  const participants = useParticipants();
+  const activeListeners = participants.filter(p => !p.isLocal);
+  return <>{children(activeListeners)}</>;
+}
 
 export default function HostScreen() {
   const router = useRouter();
@@ -165,9 +172,6 @@ export default function HostScreen() {
     );
   }
 
-  const participants = useParticipants();
-  const activeListeners = participants.filter(p => !p.isLocal);
-
   const seekProgress = playbackDuration > 0 ? playbackPosition / playbackDuration : 0;
 
   return (
@@ -177,8 +181,10 @@ export default function HostScreen() {
       connect={true}
       audio={isMicActive}
     >
-      <SafeAreaView style={styles.safe}>
-      <ScrollView
+      <ParticipantsRenderer>
+        {(activeListeners) => (
+          <SafeAreaView style={styles.safe}>
+            <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -437,6 +443,8 @@ export default function HostScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+        )}
+      </ParticipantsRenderer>
     </LiveKitRoom>
   );
 }

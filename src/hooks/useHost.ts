@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import geminiTranslateService from '@/services/geminiTranslateService';
 import { useSettingsContext } from '@/context/SettingsContext';
 import foregroundService from '@/services/foregroundService';
+import audioService from '@/services/audioService';
 import { AndroidForegroundServiceType } from '@notifee/react-native';
 
 const generateRoomCode = () => {
@@ -64,6 +65,11 @@ export const useHost = () => {
       setRoomCode(code);
       setIsConnected(true);
       await updateSettings({ lastRoomCode: code });
+
+      const hasPermission = await audioService.requestPermissions();
+      if (!hasPermission) {
+        throw new Error('Microphone permission is required to start a session.');
+      }
 
       await foregroundService.start(
         'TourCast Host Session',
