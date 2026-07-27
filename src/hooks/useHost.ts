@@ -48,7 +48,8 @@ export const useHost = () => {
       const code = generateRoomCode();
       const deviceName = settings.deviceName || 'Host';
 
-      const response = await fetch(`${settings.serverUrl}/api/livekit/token?roomId=${code}&userId=${encodeURIComponent(deviceName)}&role=host`);
+      const baseUrl = settings.serverUrl.replace(/\/+$/, '');
+      const response = await fetch(`${baseUrl}/api/livekit/token?roomId=${code}&userId=${encodeURIComponent(deviceName)}&role=host`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch LiveKit token from server');

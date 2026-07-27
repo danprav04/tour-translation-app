@@ -21,10 +21,12 @@ export const useListener = () => {
 
       const deviceName = settings.deviceName || 'Listener';
       
-      const response = await fetch(`${settings.serverUrl}/api/livekit/token?roomId=${code}&userId=${encodeURIComponent(deviceName)}&role=listener`);
+      const baseUrl = settings.serverUrl.replace(/\/+$/, '');
+      const response = await fetch(`${baseUrl}/api/livekit/token?roomId=${code}&userId=${encodeURIComponent(deviceName)}&role=listener`);
       
       if (!response.ok) {
-        throw new Error('Failed to fetch LiveKit token from server');
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch token (${response.status}): ${errorText}`);
       }
 
       const data = await response.json();
