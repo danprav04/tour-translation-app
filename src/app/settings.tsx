@@ -9,9 +9,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   Switch,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import * as Updates from 'expo-updates';
 import { useSettingsContext } from '@/context/SettingsContext';
 import GlassCard from '@/components/GlassCard';
 
@@ -140,15 +142,28 @@ export default function SettingsScreen() {
               <Switch
                 value={useLegacy}
                 onValueChange={(val) => {
-                  setUseLegacy(val);
-                  // Need to save immediately when switch toggles since it doesn't blur
-                  updateSettings({
-                    ...settings,
-                    serverUrl: serverUrl.trim(),
-                    deviceName: deviceName.trim() || 'Listener Device',
-                    geminiApiKey: apiKey.trim(),
-                    useLegacyWebSockets: val,
-                  });
+                  Alert.alert(
+                    'Restart Required',
+                    'Changing the audio engine requires the app to restart. Continue?',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Restart',
+                        style: 'destructive',
+                        onPress: async () => {
+                          setUseLegacy(val);
+                          await updateSettings({
+                            ...settings,
+                            serverUrl: serverUrl.trim(),
+                            deviceName: deviceName.trim() || 'Listener Device',
+                            geminiApiKey: apiKey.trim(),
+                            useLegacyWebSockets: val,
+                          });
+                          await Updates.reloadAsync();
+                        },
+                      },
+                    ]
+                  );
                 }}
                 trackColor={{ false: 'rgba(255,255,255,0.1)', true: '#00D4AA' }}
                 thumbColor="#FFFFFF"
