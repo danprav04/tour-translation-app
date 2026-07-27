@@ -145,7 +145,7 @@ export const useHost = () => {
   const handleAudioChunk = (base64Data: string) => {
     if (settings.useLegacyWebSockets) {
       if (isTranslatingRef.current) {
-        geminiTranslateService.sendAudio(base64Data);
+        geminiTranslateService.sendAudioChunk(base64Data);
       } else {
         const binaryString = atob(base64Data);
         const len = binaryString.length;
