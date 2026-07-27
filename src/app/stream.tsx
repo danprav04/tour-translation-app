@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { LiveKitRoom, useRoomContext } from '@livekit/react-native';
+import { AudioSession, AndroidAudioTypePresets, LiveKitRoom, useRoomContext } from '@livekit/react-native';
 import { useListener } from '@/hooks/useListener';
 import { useSettingsContext } from '@/context/SettingsContext';
 import StatusBadge from '@/components/StatusBadge';
@@ -38,6 +38,28 @@ export default function StreamScreen() {
 
   const [pulseAnim] = useState(() => new Animated.Value(1));
   const [scaleAnim] = useState(() => new Animated.Value(1));
+
+  // Initialize Audio Session for LiveKit (required on mobile)
+  useEffect(() => {
+    if (!settings.useLegacyWebSockets) {
+      const initAudio = async () => {
+        // Configure for media playback (loudspeaker) instead of call (earpiece)
+        await AudioSession.configureAudio({
+          android: {
+            audioTypeOptions: AndroidAudioTypePresets.media,
+          },
+          ios: {
+            defaultOutput: 'speaker',
+          }
+        });
+        await AudioSession.startAudioSession();
+      };
+      initAudio();
+      return () => {
+        AudioSession.stopAudioSession();
+      };
+    }
+  }, [settings.useLegacyWebSockets]);
 
   // Connect on mount
   useEffect(() => {
@@ -181,7 +203,24 @@ function StreamContent(props: any) {
 
 function StreamContentLiveKit(props: any) {
   const room = useRoomContext();
-  const { isMuted } = props;
+  const { isMuted, handleDisconnect: originalHandleDisconnect } = props;
+
+  // Intercept disconnect to catch LiveKit race condition errors
+  const handleDisconnect = async () => {
+    try {
+      await room.disconnect();
+    } catch (e) {
+      console.warn('Caught LiveKit disconnect error:', e);
+    }
+    originalHandleDisconnect();
+  };
+
+  useEffect(() => {
+    // Catch disconnect errors when component unmounts (e.g. back button)
+    return () => {
+      room.disconnect().catch((e) => console.warn('Caught unmount disconnect error:', e));
+    };
+  }, [room]);
 
   useEffect(() => {
     // Basic mute implementation: disable/enable track playback
@@ -194,7 +233,7 @@ function StreamContentLiveKit(props: any) {
     });
   }, [isMuted, room, room.remoteParticipants]);
 
-  return <StreamContentUI {...props} />;
+  return <StreamContentUI {...props} handleDisconnect={handleDisconnect} />;
 }
 
 function StreamContentUI({

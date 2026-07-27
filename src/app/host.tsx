@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { LiveKitRoom, useParticipants } from '@livekit/react-native';
+import { AudioSession, AndroidAudioTypePresets, LiveKitRoom, useParticipants } from '@livekit/react-native';
 import { useHost } from '@/hooks/useHost';
 import { useTTS } from '@/hooks/useTTS';
 import { useSettingsContext } from '@/context/SettingsContext';
@@ -53,6 +53,18 @@ function LiveKitParticipantsRenderer({ children }: { children: (activeListeners:
   return <>{children(activeListeners)}</>;
 }
 
+import { useRoomContext } from '@livekit/react-native';
+
+function RoomDisconnectCatcher() {
+  const room = useRoomContext();
+  React.useEffect(() => {
+    return () => {
+      room.disconnect().catch((e) => console.warn('Caught unmount disconnect error:', e));
+    };
+  }, [room]);
+  return null;
+}
+
 export default function HostScreen() {
   const router = useRouter();
   const { settings } = useSettingsContext();
@@ -81,6 +93,28 @@ export default function HostScreen() {
   const onTTSStart = useCallback(async () => {
     await pauseForTTS();
   }, [pauseForTTS]);
+
+  // Initialize Audio Session for LiveKit (required on mobile)
+  React.useEffect(() => {
+    if (!settings.useLegacyWebSockets) {
+      const initAudio = async () => {
+        await AudioSession.configureAudio({
+          android: {
+            preferredOutputList: ['bluetooth', 'headset', 'speaker', 'earpiece'],
+            audioTypeOptions: AndroidAudioTypePresets.communication,
+          },
+          ios: {
+            defaultOutput: 'speaker',
+          }
+        });
+        await AudioSession.startAudioSession();
+      };
+      initAudio();
+      return () => {
+        AudioSession.stopAudioSession();
+      };
+    }
+  }, [settings.useLegacyWebSockets]);
 
   const onTTSEnd = useCallback(async () => {
     await resumeAfterTTS();
@@ -478,6 +512,7 @@ export default function HostScreen() {
       connect={true}
       audio={isMicActive}
     >
+      <RoomDisconnectCatcher />
       {content}
     </LiveKitRoom>
   );
