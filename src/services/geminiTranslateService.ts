@@ -122,14 +122,14 @@ class GeminiTranslateService {
         }
       };
 
-      ws.onerror = (error) => {
+      ws.onerror = () => {
         if (this.ws !== ws) return;
         
-        console.error('[Gemini WS] WebSocket error observed:', error);
+        console.error('[Gemini WS] WebSocket error observed (Check network/API key)');
         if (this.onErrorCallback) {
-          this.onErrorCallback(new Error('WebSocket error'));
+          this.onErrorCallback(new Error('WebSocket connection failed.'));
         }
-        reject(new Error('WebSocket connection failed'));
+        reject(new Error('WebSocket connection failed. Check your API key and network.'));
       };
 
       ws.onclose = (event) => {

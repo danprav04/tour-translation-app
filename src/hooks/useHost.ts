@@ -82,6 +82,9 @@ export const useHost = () => {
         code = res.roomCode;
       } else {
         // LIVEKIT MODE
+        if (!settings.geminiApiKey) {
+          throw new Error('Gemini API key is required for LiveKit mode.');
+        }
         code = generateRoomCode();
         const baseUrl = settings.serverUrl.replace(/\/+$/, '');
         const response = await fetch(`${baseUrl}/api/livekit/token?roomId=${code}&userId=${encodeURIComponent(deviceName)}&role=host`);
@@ -179,6 +182,9 @@ export const useHost = () => {
 
   const startTranslation = async (langCode: string) => {
     try {
+      if (!settings.geminiApiKey) {
+        throw new Error('Gemini API key is not configured. Please add it in Settings.');
+      }
       await geminiTranslateService.connect(settings.geminiApiKey, langCode);
       geminiTranslateService.onTranslatedAudio((translatedBase64) => {
         // Play locally if echo is enabled
