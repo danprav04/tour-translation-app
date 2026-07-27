@@ -14,26 +14,7 @@ export const useListener = () => {
   const [livekitToken, setLivekitToken] = useState<string | null>(null);
   const [livekitUrl, setLivekitUrl] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (settings.useLegacyWebSockets) {
-      socketService.onKicked(() => {
-        disconnect();
-      });
-      socketService.onRenamed(({ newName }) => {
-        updateSettings({ deviceName: newName });
-      });
-      socketService.onRoomClosed(() => {
-        disconnect();
-      });
-      socketService.onAudioData((data, sampleRate, seq, timestamp) => {
-        const base64Data = btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(data))));
-        audioService.playChunk(base64Data, sampleRate, seq, timestamp);
-      });
-    }
-    return () => {
-      socketService.removeAllListeners();
-    };
-  }, [settings.useLegacyWebSockets]);
+
 
   const connect = async (code: string) => {
     try {
@@ -96,6 +77,28 @@ export const useListener = () => {
     setLivekitToken(null);
     setLivekitUrl(null);
   };
+
+  useEffect(() => {
+    if (settings.useLegacyWebSockets) {
+      socketService.onKicked(() => {
+        disconnect();
+      });
+      socketService.onRenamed(({ newName }) => {
+        updateSettings({ deviceName: newName });
+      });
+      socketService.onRoomClosed(() => {
+        disconnect();
+      });
+      socketService.onAudioData((data, sampleRate, seq, timestamp) => {
+        const base64Data = btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(data))));
+        audioService.playChunk(base64Data, sampleRate, seq, timestamp);
+      });
+    }
+    return () => {
+      socketService.removeAllListeners();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.useLegacyWebSockets]);
 
   const toggleMute = () => {
     setIsMuted(!isMuted);

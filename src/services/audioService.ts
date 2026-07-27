@@ -41,6 +41,8 @@ class AudioService {
 
       this._isCapturing = true;
 
+      // eslint-disable-next-line import/namespace
+      // @ts-ignore - AudioModule.AudioStream exists at runtime but may be missing from types
       this.stream = new AudioModule.AudioStream({
         sampleRate: 16000,
         channels: 1,
@@ -184,7 +186,7 @@ class AudioService {
       this.playlist.clear();
       try {
         this.playlist.remove(); 
-      } catch (e) {}
+      } catch {}
       this.playlist = null;
     }
     this.isPlaying = false;

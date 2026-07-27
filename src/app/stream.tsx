@@ -42,16 +42,17 @@ export default function StreamScreen() {
   // Connect on mount
   useEffect(() => {
     if (roomCode) {
-      connect(roomCode).catch((error) => {
+      connect(roomCode as string).catch((error) => {
         Alert.alert('Connection Error', error.message || 'Failed to connect to room', [
-          { text: 'OK', onPress: () => router.back() }
+          { text: 'OK', onPress: () => router.canGoBack() ? router.back() : router.replace('/') }
         ]);
       });
     }
     return () => {
       disconnect();
     };
-  }, [roomCode, connect, disconnect, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomCode]);
 
   // Pulse animation when connected & unmuted
   useEffect(() => {
@@ -108,7 +109,11 @@ export default function StreamScreen() {
           style: 'destructive',
           onPress: () => {
             disconnect();
-            router.back();
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/');
+            }
           },
         },
       ]

@@ -69,7 +69,7 @@ class GeminiTranslateService {
             // Naive utf8 decode
             try {
               messageText = decodeURIComponent(escape(binary));
-            } catch (e) {
+            } catch {
               messageText = binary;
             }
           } else {
@@ -82,7 +82,7 @@ class GeminiTranslateService {
           let message;
           try {
             message = JSON.parse(messageText);
-          } catch (e) {
+          } catch {
             console.log('[Gemini WS] Parsed message is not JSON, or parse failed.');
             return;
           }

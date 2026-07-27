@@ -40,15 +40,7 @@ const uint8ArrayToBase64 = (bytes: Uint8Array): string => {
   return btoa(binary);
 };
 
-const base64ToArrayBuffer = (base64: string): ArrayBuffer => {
-  const binaryString = atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes.buffer;
-};
+
 
 const createWavHeader = (
   dataLength: number,
@@ -104,12 +96,7 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
   }, [isTTSPlaying]);
 
   // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      cleanupPlayer();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
 
   const cleanupPlayer = useCallback(() => {
     if (positionIntervalRef.current) {
@@ -119,12 +106,19 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
     if (playerRef.current) {
       try {
         playerRef.current.remove();
-      } catch (e) {
+      } catch {
         // Ignore cleanup errors
       }
       playerRef.current = null;
     }
   }, []);
+
+  useEffect(() => {
+    return () => {
+      cleanupPlayer();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cleanupPlayer]);
 
   /**
    * Generate TTS audio from the current text input.
@@ -162,6 +156,21 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
     }
   }, [ttsText, apiKey, cleanupPlayer]);
 
+
+  /**
+   * Called when playback reaches the end naturally.
+   */
+  const handlePlaybackFinished = useCallback(() => {
+    if (positionIntervalRef.current) {
+      clearInterval(positionIntervalRef.current);
+      positionIntervalRef.current = null;
+    }
+    cleanupPlayer();
+    setIsTTSPlaying(false);
+    playbackPositionRef.current = 0;
+    setPlaybackPosition(0);
+    onTTSEnd();
+  }, [cleanupPlayer, onTTSEnd]);
 
   /**
    * Start/resume TTS playback and broadcast.
@@ -226,7 +235,7 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
             }
 
             if (endByte > startByte && startByte < pcmBytes.length) {
-              const chunk = pcmBytes.slice(startByte, Math.min(endByte, pcmBytes.length));
+              // const chunk = pcmBytes.slice(startByte, Math.min(endByte, pcmBytes.length));
               // TODO: LiveKit TTS broadcasting logic
               lastByteOffsetRef.current = endByte; // Perfect continuity for next chunk
             }
@@ -246,22 +255,8 @@ export const useTTS = ({ apiKey, onTTSStart, onTTSEnd }: UseTTSOptions) => {
       setIsTTSPlaying(false);
       onTTSEnd();
     }
-  }, [ttsAudioBase64, onTTSStart, onTTSEnd, cleanupPlayer]);
+  }, [ttsAudioBase64, onTTSStart, onTTSEnd, cleanupPlayer, handlePlaybackFinished]);
 
-  /**
-   * Called when playback reaches the end naturally.
-   */
-  const handlePlaybackFinished = useCallback(() => {
-    if (positionIntervalRef.current) {
-      clearInterval(positionIntervalRef.current);
-      positionIntervalRef.current = null;
-    }
-    cleanupPlayer();
-    setIsTTSPlaying(false);
-    playbackPositionRef.current = 0;
-    setPlaybackPosition(0);
-    onTTSEnd();
-  }, [cleanupPlayer, onTTSEnd]);
 
   /**
    * Pause TTS playback. Resumes mic stream if it was active.

@@ -28,7 +28,7 @@ export const useHost = () => {
 
   const isTranslatingRef = useRef(isTranslating);
   const isEchoEnabledRef = useRef(isEchoEnabled);
-  const isTTSActiveRef = useRef(false);
+  const [isTTSActive, setIsTTSActive] = useState(false);
   const wasStreamingBeforeTTSRef = useRef(false);
   const isMicActiveRef = useRef(false);
 
@@ -239,7 +239,7 @@ export const useHost = () => {
 
   const pauseForTTS = async () => {
     wasStreamingBeforeTTSRef.current = isMicActiveRef.current;
-    isTTSActiveRef.current = true;
+    setIsTTSActive(true);
     if (isMicActiveRef.current) {
       setIsMicActive(false);
       if (settings.useLegacyWebSockets) {
@@ -252,7 +252,7 @@ export const useHost = () => {
    * Resume mic stream after TTS broadcast ends.
    */
   const resumeAfterTTS = async () => {
-    isTTSActiveRef.current = false;
+    setIsTTSActive(false);
     if (wasStreamingBeforeTTSRef.current) {
       setIsMicActive(true);
       if (settings.useLegacyWebSockets) {
@@ -290,6 +290,6 @@ export const useHost = () => {
     renameListener,
     pauseForTTS,
     resumeAfterTTS,
-    isTTSActive: isTTSActiveRef.current,
+    isTTSActive,
   };
 };
