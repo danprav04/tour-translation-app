@@ -192,6 +192,7 @@ export default function StreamScreen() {
       connect={true}
       audio={false}
       video={false}
+      connectOptions={{ autoSubscribe: false }}
     >
       {content}
     </LiveKitRoom>
