@@ -471,9 +471,7 @@ export default function HostScreen() {
       connect={true}
       audio={isMicActive}
     >
-      <ParticipantsRenderer>
-        {content}
-      </ParticipantsRenderer>
+      {content}
     </LiveKitRoom>
   );
 }
