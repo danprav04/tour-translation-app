@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { AudioSession, AndroidAudioTypePresets, LiveKitRoom, useRoomContext } from '@livekit/react-native';
+import { AudioSession, AndroidAudioTypePresets, LiveKitRoom, useRoomContext, useTracks } from '@livekit/react-native';
+import { Track } from 'livekit-client';
 import { useListener } from '@/hooks/useListener';
 import { useSettingsContext } from '@/context/SettingsContext';
 import StatusBadge from '@/components/StatusBadge';
@@ -39,6 +40,8 @@ export default function StreamScreen() {
   const [pulseAnim] = useState(() => new Animated.Value(1));
   const [scaleAnim] = useState(() => new Animated.Value(1));
 
+  const [isAudioSessionReady, setIsAudioSessionReady] = useState(false);
+
   // Initialize Audio Session for LiveKit (required on mobile)
   useEffect(() => {
     if (!settings.useLegacyWebSockets) {
@@ -53,11 +56,15 @@ export default function StreamScreen() {
           }
         });
         await AudioSession.startAudioSession();
+        setIsAudioSessionReady(true);
       };
       initAudio();
       return () => {
         AudioSession.stopAudioSession();
+        setIsAudioSessionReady(false);
       };
+    } else {
+      setIsAudioSessionReady(true);
     }
   }, [settings.useLegacyWebSockets]);
 
@@ -148,7 +155,7 @@ export default function StreamScreen() {
     ? 'connected'
     : 'disconnected';
 
-  if (!settings.useLegacyWebSockets && (!livekitToken || !livekitUrl)) {
+  if (!settings.useLegacyWebSockets && (!livekitToken || !livekitUrl || !isAudioSessionReady)) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={[styles.container, styles.center]}>
@@ -205,6 +212,19 @@ function StreamContentLiveKit(props: any) {
   const room = useRoomContext();
   const { isMuted, handleDisconnect: originalHandleDisconnect } = props;
 
+  // Grab tracks to force re-render when host publishes/unpublishes
+  const tracks = useTracks([Track.Source.Microphone]);
+
+  useEffect(() => {
+    console.log(`[Listener] Received ${tracks.length} audio tracks. Muted? ${isMuted}`);
+    // Manually ensure tracks are enabled based on our isMuted state
+    tracks.forEach(trackRef => {
+      if (trackRef.publication) {
+        trackRef.publication.setSubscribed(!isMuted);
+      }
+    });
+  }, [tracks, isMuted]);
+
   // Intercept disconnect to catch LiveKit race condition errors
   const handleDisconnect = async () => {
     try {
@@ -221,17 +241,6 @@ function StreamContentLiveKit(props: any) {
       room.disconnect().catch((e) => console.warn('Caught unmount disconnect error:', e));
     };
   }, [room]);
-
-  useEffect(() => {
-    // Basic mute implementation: disable/enable track playback
-    room.remoteParticipants.forEach((p) => {
-      p.audioTrackPublications.forEach((pub) => {
-        if (pub.track) {
-           pub.setSubscribed(!isMuted);
-        }
-      });
-    });
-  }, [isMuted, room, room.remoteParticipants]);
 
   return <StreamContentUI {...props} handleDisconnect={handleDisconnect} />;
 }

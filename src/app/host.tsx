@@ -65,6 +65,24 @@ function RoomDisconnectCatcher() {
   return null;
 }
 
+import { useLocalParticipant } from '@livekit/react-native';
+
+// Explicitly manage the local microphone track
+function LocalMicController({ isMicActive }: { isMicActive: boolean }) {
+  const { localParticipant } = useLocalParticipant();
+
+  React.useEffect(() => {
+    if (localParticipant) {
+      console.log(`[Host] Setting microphone enabled to: ${isMicActive}`);
+      localParticipant.setMicrophoneEnabled(isMicActive).catch((e) => {
+        console.error('[Host] Failed to set microphone state:', e);
+      });
+    }
+  }, [isMicActive, localParticipant]);
+
+  return null;
+}
+
 export default function HostScreen() {
   const router = useRouter();
   const { settings } = useSettingsContext();
@@ -94,6 +112,8 @@ export default function HostScreen() {
     await pauseForTTS();
   }, [pauseForTTS]);
 
+  const [isAudioSessionReady, setIsAudioSessionReady] = React.useState(false);
+
   // Initialize Audio Session for LiveKit (required on mobile)
   React.useEffect(() => {
     if (!settings.useLegacyWebSockets) {
@@ -108,11 +128,15 @@ export default function HostScreen() {
           }
         });
         await AudioSession.startAudioSession();
+        setIsAudioSessionReady(true);
       };
       initAudio();
       return () => {
         AudioSession.stopAudioSession();
+        setIsAudioSessionReady(false);
       };
+    } else {
+      setIsAudioSessionReady(true);
     }
   }, [settings.useLegacyWebSockets]);
 
@@ -505,14 +529,25 @@ export default function HostScreen() {
     return content;
   }
 
+  if (!isAudioSessionReady || !livekitToken || !livekitUrl) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={[styles.container, styles.center]}>
+          <Text style={styles.headerTitle}>Preparing Room...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <LiveKitRoom
       serverUrl={livekitUrl || ''}
       token={livekitToken}
       connect={true}
-      audio={isMicActive}
+      audio={false} // Managed manually by LocalMicController
     >
       <RoomDisconnectCatcher />
+      <LocalMicController isMicActive={isMicActive} />
       {content}
     </LiveKitRoom>
   );
