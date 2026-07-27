@@ -68,17 +68,21 @@ function RoomDisconnectCatcher() {
 import { useLocalParticipant } from '@livekit/react-native';
 
 // Explicitly manage the local microphone track
-function LocalMicController({ isMicActive }: { isMicActive: boolean }) {
+function LocalMicController({ isMicActive, isTranslating }: { isMicActive: boolean; isTranslating: boolean }) {
   const { localParticipant } = useLocalParticipant();
 
   React.useEffect(() => {
     if (localParticipant) {
-      console.log(`[Host] Setting microphone enabled to: ${isMicActive}`);
-      localParticipant.setMicrophoneEnabled(isMicActive).catch((e) => {
+      // If we are translating, LiveKit must release the microphone so expo-audio can capture it for Gemini,
+      // and so listeners don't hear the raw voice.
+      const shouldEnableMic = isMicActive && !isTranslating;
+      
+      console.log(`[Host] Setting microphone enabled to: ${shouldEnableMic}`);
+      localParticipant.setMicrophoneEnabled(shouldEnableMic).catch((e) => {
         console.error('[Host] Failed to set microphone state:', e);
       });
     }
-  }, [isMicActive, localParticipant]);
+  }, [isMicActive, isTranslating, localParticipant]);
 
   return null;
 }
@@ -547,7 +551,7 @@ export default function HostScreen() {
       audio={false} // Managed manually by LocalMicController
     >
       <RoomDisconnectCatcher />
-      <LocalMicController isMicActive={isMicActive} />
+      <LocalMicController isMicActive={isMicActive} isTranslating={isTranslating} />
       {content}
     </LiveKitRoom>
   );
