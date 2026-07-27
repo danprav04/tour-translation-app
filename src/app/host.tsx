@@ -167,7 +167,7 @@ export default function HostScreen() {
         await AudioSession.configureAudio({
           android: {
             preferredOutputList: ['bluetooth', 'headset', 'speaker', 'earpiece'],
-            audioTypeOptions: AndroidAudioTypePresets.communication,
+            audioTypeOptions: AndroidAudioTypePresets.media,
           },
           ios: {
             defaultOutput: 'speaker',
