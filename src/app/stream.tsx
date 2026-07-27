@@ -225,6 +225,8 @@ function StreamContentLiveKit(props: any) {
     });
   }, [tracks, isMuted]);
 
+  const seqRef = React.useRef(0);
+
   // Listen for LiveKit Data Channel messages containing translated audio
   useEffect(() => {
     const handleData = (payload: Uint8Array, participant?: any, kind?: any, topic?: string) => {
@@ -234,9 +236,12 @@ function StreamContentLiveKit(props: any) {
         for (let i = 0; i < payload.length; i += chunkSize) {
           binary += String.fromCharCode.apply(null, Array.from(payload.subarray(i, i + chunkSize)));
         }
-        // Play the decoded TTS chunk
+        
+        const currentSeq = seqRef.current++;
+        
+        // Play the decoded TTS chunk using the audioService JitterBuffer
         import('@/services/audioService').then((module) => {
-          module.default.playChunk(btoa(binary), 24000);
+          module.default.playChunk(btoa(binary), 24000, currentSeq);
         });
       }
     };
