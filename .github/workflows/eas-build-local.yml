@@ -26,6 +26,17 @@ jobs:
     if: ${{ github.event.inputs.platform == 'android' }}
     runs-on: ubuntu-latest
     steps:
+      - name: 🗑 Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: false # we need android sdk
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
       - name: 🏗 Setup repo
         uses: actions/checkout@v4
 
