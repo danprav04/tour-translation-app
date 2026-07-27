@@ -70,6 +70,7 @@ import { useLocalParticipant } from '@livekit/react-native';
 // Explicitly manage the local microphone track
 function LocalMicController({ isMicActive, isTranslating }: { isMicActive: boolean; isTranslating: boolean }) {
   const { localParticipant } = useLocalParticipant();
+  const pendingMicTask = React.useRef<Promise<void>>(Promise.resolve());
 
   React.useEffect(() => {
     if (localParticipant) {
@@ -77,10 +78,14 @@ function LocalMicController({ isMicActive, isTranslating }: { isMicActive: boole
       // and so listeners don't hear the raw voice.
       const shouldEnableMic = isMicActive && !isTranslating;
       
-      console.log(`[Host] Setting microphone enabled to: ${shouldEnableMic}`);
-      localParticipant.setMicrophoneEnabled(shouldEnableMic).catch((e) => {
-        console.error('[Host] Failed to set microphone state:', e);
-      });
+      pendingMicTask.current = pendingMicTask.current
+        .then(() => {
+          console.log(`[Host] Setting microphone enabled to: ${shouldEnableMic}`);
+          return localParticipant.setMicrophoneEnabled(shouldEnableMic);
+        })
+        .catch((e) => {
+          console.error('[Host] Failed to set microphone state:', e);
+        });
     }
   }, [isMicActive, isTranslating, localParticipant]);
 

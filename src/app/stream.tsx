@@ -15,6 +15,7 @@ import { AudioSession, AndroidAudioTypePresets, LiveKitRoom, useRoomContext, use
 import { Track, RoomEvent } from 'livekit-client';
 import { useListener } from '@/hooks/useListener';
 import { useSettingsContext } from '@/context/SettingsContext';
+import audioService from '@/services/audioService';
 import StatusBadge from '@/components/StatusBadge';
 import AudioVisualizer from '@/components/AudioVisualizer';
 import GlassCard from '@/components/GlassCard';
@@ -212,18 +213,25 @@ function StreamContentLiveKit(props: any) {
   const room = useRoomContext();
   const { isMuted, handleDisconnect: originalHandleDisconnect } = props;
 
-  // Grab tracks to force re-render when host publishes/unpublishes
-  const tracks = useTracks([Track.Source.Microphone]);
-
   useEffect(() => {
-    // Basic mute implementation: disable/enable track playback
-    console.log(`[Listener] Received ${tracks.length} audio tracks. Muted? ${isMuted}`);
-    tracks.forEach(trackRef => {
-      if (trackRef.publication) {
-        trackRef.publication.setSubscribed(!isMuted);
-      }
-    });
-  }, [tracks, isMuted]);
+    const applyMute = () => {
+      room.remoteParticipants.forEach(p => {
+        p.audioTrackPublications.forEach(pub => {
+          pub.setSubscribed(!isMuted);
+        });
+      });
+    };
+    
+    applyMute();
+    
+    room.on(RoomEvent.TrackPublished, applyMute);
+    room.on(RoomEvent.TrackSubscribed, applyMute);
+    
+    return () => {
+      room.off(RoomEvent.TrackPublished, applyMute);
+      room.off(RoomEvent.TrackSubscribed, applyMute);
+    };
+  }, [room, isMuted]);
 
   const seqRef = React.useRef(0);
 
@@ -240,9 +248,7 @@ function StreamContentLiveKit(props: any) {
         const currentSeq = seqRef.current++;
         
         // Play the decoded TTS chunk using the audioService JitterBuffer
-        import('@/services/audioService').then((module) => {
-          module.default.playChunk(btoa(binary), 24000, currentSeq);
-        });
+        audioService.playChunk(btoa(binary), 24000, currentSeq);
       }
     };
     room.on(RoomEvent.DataReceived, handleData);
