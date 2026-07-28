@@ -8,6 +8,7 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useNavigation } from 'expo-router';
@@ -131,28 +132,7 @@ export default function HostScreen() {
   const router = useRouter();
   const navigation = useNavigation();
 
-  React.useEffect(() => {
-    if (!roomCode) return;
 
-    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-      e.preventDefault();
-
-      Alert.alert(
-        'End Session?',
-        'Leaving this screen will disconnect all listeners and end the tour. Continue?',
-        [
-          { text: 'Cancel', style: 'cancel', onPress: () => {} },
-          {
-            text: 'End Session',
-            style: 'destructive',
-            onPress: () => navigation.dispatch(e.data.action),
-          },
-        ]
-      );
-    });
-
-    return unsubscribe;
-  }, [navigation, roomCode]);
 
   const { settings } = useSettingsContext();
   const {
@@ -178,6 +158,58 @@ export default function HostScreen() {
     isTTSActive,
     setLivekitPublisher,
   } = useHost();
+
+  React.useEffect(() => {
+    if (!roomCode) return;
+
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      // Prevent default behavior of leaving the screen
+      e.preventDefault();
+
+      Alert.alert(
+        'End Session?',
+        'Leaving this screen will disconnect all listeners and end the tour. Continue?',
+        [
+          { text: 'Cancel', style: 'cancel', onPress: () => {} },
+          {
+            text: 'End Session',
+            style: 'destructive',
+            onPress: () => {
+              // Re-dispatch the action to actually leave
+              navigation.dispatch(e.data.action);
+            },
+          },
+        ]
+      );
+    });
+
+    return unsubscribe;
+  }, [navigation, roomCode]);
+
+  React.useEffect(() => {
+    if (!roomCode) return;
+
+    const backAction = () => {
+      Alert.alert(
+        'End Session?',
+        'Leaving this screen will disconnect all listeners and end the tour. Continue?',
+        [
+          { text: 'Cancel', style: 'cancel', onPress: () => {} },
+          {
+            text: 'End Session',
+            style: 'destructive',
+            onPress: () => {
+              router.back();
+            },
+          },
+        ]
+      );
+      return true; // prevent default back button behavior
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, [roomCode, router]);
 
   const onTTSStart = useCallback(async () => {
     await pauseForTTS();
