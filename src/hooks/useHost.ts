@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Alert } from 'react-native';
+import { Alert, AppState } from 'react-native';
 import geminiTranslateService from '@/services/geminiTranslateService';
 import { useSettingsContext } from '@/context/SettingsContext';
 import foregroundService from '@/services/foregroundService';
@@ -41,6 +41,33 @@ export const useHost = () => {
   useEffect(() => {
     isMicActiveRef.current = isMicActive;
   }, [isMicActive]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      if (nextAppState === 'active' && isMicActiveRef.current) {
+        console.log('[Host] App returned to active state. Ensuring mic is capturing.');
+        if (settings.useLegacyWebSockets || isTranslatingRef.current) {
+          try {
+            await audioService.stopCapture();
+          } catch (e) {
+            console.log('[Host] Error stopping capture on resume', e);
+          }
+          
+          setTimeout(async () => {
+             if (isMicActiveRef.current) {
+               try {
+                 await audioService.startCapture();
+               } catch (e) {
+                 console.error('[Host] Failed to restart mic after interruption', e);
+               }
+             }
+          }, 500);
+        }
+      }
+    });
+
+    return () => subscription.remove();
+  }, [settings.useLegacyWebSockets]);
 
   const [livekitToken, setLivekitToken] = useState<string | null>(null);
   const [livekitUrl, setLivekitUrl] = useState<string | null>(null);

@@ -10,6 +10,7 @@ class AudioService {
   private playlist: AudioPlaylist | null = null;
   private playlistItemCount: number = 0;
   private bufferFlushTimeout: ReturnType<typeof setTimeout> | null = null;
+  private onChunkCallback: ((base64Data: string) => void) | null = null;
 
   async requestPermissions(): Promise<boolean> {
     const permission = await requestRecordingPermissionsAsync();
@@ -25,8 +26,15 @@ class AudioService {
     });
   }
 
-  async startCapture(onChunk: (base64Data: string) => void): Promise<void> {
+  async startCapture(onChunk?: (base64Data: string) => void): Promise<void> {
     if (this._isCapturing) return;
+
+    if (onChunk) {
+      this.onChunkCallback = onChunk;
+    }
+
+    const callback = this.onChunkCallback;
+    if (!callback) throw new Error('No audio chunk callback provided');
 
     try {
       const permission = await requestRecordingPermissionsAsync();
@@ -43,8 +51,8 @@ class AudioService {
 
       this._isCapturing = true;
 
-      // eslint-disable-next-line import/namespace
       // @ts-ignore - AudioModule.AudioStream exists at runtime but may be missing from types
+      // eslint-disable-next-line import/namespace
       this.stream = new AudioModule.AudioStream({
         sampleRate: 16000,
         channels: 1,
@@ -82,7 +90,7 @@ class AudioService {
             binary += String.fromCharCode.apply(null, Array.from(combined.subarray(i, i + chunkSize)));
           }
           
-          onChunk(btoa(binary));
+          callback(btoa(binary));
         }
       });
 

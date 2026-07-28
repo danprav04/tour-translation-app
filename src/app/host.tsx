@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { AudioSession, AndroidAudioTypePresets, LiveKitRoom, useParticipants } from '@livekit/react-native';
 import { useHost } from '@/hooks/useHost';
 import { useTTS } from '@/hooks/useTTS';
@@ -129,6 +129,31 @@ function TranslationDataPublisher({ setPublisher }: { setPublisher: any }) {
 
 export default function HostScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
+
+  React.useEffect(() => {
+    if (!roomCode) return;
+
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      e.preventDefault();
+
+      Alert.alert(
+        'End Session?',
+        'Leaving this screen will disconnect all listeners and end the tour. Continue?',
+        [
+          { text: 'Cancel', style: 'cancel', onPress: () => {} },
+          {
+            text: 'End Session',
+            style: 'destructive',
+            onPress: () => navigation.dispatch(e.data.action),
+          },
+        ]
+      );
+    });
+
+    return unsubscribe;
+  }, [navigation, roomCode]);
+
   const { settings } = useSettingsContext();
   const {
     roomCode,
