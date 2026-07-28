@@ -51,6 +51,18 @@ app.get('/room/:code', (req, res) => {
   }
 });
 
+app.get('/api/rooms', (req, res) => {
+  const activeRooms = [];
+  for (const [code, room] of rooms.entries()) {
+    activeRooms.push({
+      code: code,
+      listenerCount: room.listeners.size,
+      createdAt: room.createdAt
+    });
+  }
+  res.json({ rooms: activeRooms });
+});
+
 // LiveKit Token Generation
 app.get('/api/livekit/token', async (req, res) => {
   const { roomId, userId, role } = req.query;
