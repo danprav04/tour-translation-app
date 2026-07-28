@@ -112,6 +112,7 @@ io.on('connection', (socket) => {
     if (roomCode && rooms.has(roomCode)) {
       const room = rooms.get(roomCode);
       room.hostSocketId = socket.id; // Update host socket ID
+      room.lastHostDisconnect = null;
       socket.join(roomCode);
       if (typeof callback === 'function') {
         callback({ success: true, roomCode, roomId: roomCode, reconnected: true });
@@ -127,7 +128,8 @@ io.on('connection', (socket) => {
     rooms.set(roomCode, {
       hostSocketId: socket.id,
       listeners: new Map(),
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      lastHostDisconnect: null
     });
     
     socket.join(roomCode);
@@ -239,6 +241,7 @@ io.on('connection', (socket) => {
     for (const [roomId, room] of rooms.entries()) {
       if (room.hostSocketId === socket.id) {
         isHost = true;
+        room.lastHostDisconnect = Date.now();
         // Don't close immediately, give host 60 seconds to reconnect
         setTimeout(() => {
           const checkRoom = rooms.get(roomId);
@@ -282,6 +285,25 @@ io.on('connection', (socket) => {
     }
   });
 });
+
+// Garbage collection for stale rooms (runs every 5 minutes)
+setInterval(() => {
+  const now = Date.now();
+  for (const [roomId, room] of rooms.entries()) {
+    const hostSocket = io.sockets.sockets.get(room.hostSocketId);
+    if (!hostSocket) {
+      if (!room.lastHostDisconnect) {
+        room.lastHostDisconnect = now;
+      } else if (now - room.lastHostDisconnect > 10 * 60 * 1000) {
+        console.log(`[Garbage Collection] Removing stale room ${roomId}`);
+        io.to(roomId).emit('room-closed');
+        rooms.delete(roomId);
+      }
+    } else {
+      room.lastHostDisconnect = null;
+    }
+  }
+}, 5 * 60 * 1000);
 
 server.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);

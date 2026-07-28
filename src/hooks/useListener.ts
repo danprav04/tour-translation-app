@@ -32,8 +32,16 @@ export const useListener = () => {
         audioService.setMuted(isMuted);
       } else {
         const baseUrl = settings.serverUrl.replace(/\/+$/, '');
-        const response = await fetch(`${baseUrl}/api/livekit/token?roomId=${code}&userId=${encodeURIComponent(deviceName)}&role=listener`);
         
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        const response = await fetch(`${baseUrl}/api/livekit/token?roomId=${code}&userId=${encodeURIComponent(deviceName)}&role=listener`, {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(`Failed to fetch token (${response.status}): ${errorText}`);

@@ -61,17 +61,12 @@ class GeminiTranslateService {
               reader.readAsText(event.data);
             });
           } else if (event.data instanceof ArrayBuffer) {
-            // Convert ArrayBuffer to string safely
-            const bytes = new Uint8Array(event.data);
-            let binary = '';
-            for (let i = 0; i < bytes.byteLength; i++) {
-              binary += String.fromCharCode(bytes[i]);
-            }
-            // Naive utf8 decode
+            // Convert ArrayBuffer to string safely using TextDecoder
             try {
-              messageText = decodeURIComponent(escape(binary));
-            } catch {
-              messageText = binary;
+              messageText = new TextDecoder().decode(event.data);
+            } catch (err) {
+              console.error('[Gemini WS] Failed to decode ArrayBuffer:', err);
+              messageText = '';
             }
           } else {
             console.log('[Gemini WS] Received unknown object type:', Object.prototype.toString.call(event.data));

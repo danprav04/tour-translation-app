@@ -88,8 +88,16 @@ export const useHost = () => {
         }
         code = generateRoomCode();
         const baseUrl = settings.serverUrl.replace(/\/+$/, '');
-        const response = await fetch(`${baseUrl}/api/livekit/token?roomId=${code}&userId=${encodeURIComponent(deviceName)}&role=host`);
         
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        const response = await fetch(`${baseUrl}/api/livekit/token?roomId=${code}&userId=${encodeURIComponent(deviceName)}&role=host`, {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+
         if (!response.ok) {
           throw new Error('Failed to fetch LiveKit token from server');
         }
@@ -220,15 +228,17 @@ export const useHost = () => {
         if (!isTranslatingRef.current) return; // Intentional disconnect
 
         console.log('[Host] Gemini disconnected unexpectedly. Reconnecting...');
-        if (reconnectAttempts.current < 15) {
+        if (reconnectAttempts.current < 30) {
           reconnectAttempts.current += 1;
+          // Exponential backoff: 2s, 4s, 8s, up to max 30s
+          const delay = Math.min(2000 * Math.pow(2, reconnectAttempts.current - 1), 30000);
           setTimeout(() => {
             if (isTranslatingRef.current) {
               startTranslation(langCode);
             }
-          }, 2000);
+          }, delay);
         } else {
-          console.error('[Host] Gemini failed to reconnect after 15 attempts.');
+          console.error('[Host] Gemini failed to reconnect after 30 attempts.');
           Alert.alert('Translation Error', 'Lost connection to translation service.');
           setIsTranslating(false);
           isTranslatingRef.current = false;
@@ -246,11 +256,23 @@ export const useHost = () => {
       reconnectAttempts.current = 0;
       
       // If LiveKit mode and the mic is on, we need to take over the mic from LiveKit
-      // Wait a tiny bit for the LocalMicController to release the mic, then start capture
+      // Wait for the LocalMicController to release the mic, with exponential backoff retries
       if (!settings.useLegacyWebSockets && isMicActiveRef.current) {
-        setTimeout(async () => {
-          await audioService.startCapture(handleAudioChunk);
-        }, 500);
+        let attempts = 0;
+        const tryTakeover = async () => {
+          try {
+            await audioService.startCapture(handleAudioChunk);
+          } catch (e) {
+            attempts++;
+            if (attempts < 5) {
+              const delay = 200 * Math.pow(2, attempts - 1); // 200, 400, 800, 1600ms
+              setTimeout(tryTakeover, delay);
+            } else {
+              console.error('Failed to take over mic after 5 attempts', e);
+            }
+          }
+        };
+        setTimeout(tryTakeover, 200);
       }
     } catch (error) {
       console.error('Failed to start translation', error);
