@@ -8,6 +8,7 @@ class AudioService {
   private _isMuted: boolean = false;
   private isPlaying: boolean = false;
   private playlist: AudioPlaylist | null = null;
+  private playlistItemCount: number = 0;
   private bufferFlushTimeout: ReturnType<typeof setTimeout> | null = null;
 
   async requestPermissions(): Promise<boolean> {
@@ -154,7 +155,7 @@ class AudioService {
     }
     this.burstTimeout = setTimeout(() => {
       this.resetPlaylist();
-    }, 2000);
+    }, 1000);
 
     let totalBufferedBytes = 0;
     for (const item of this.jitterBuffer) {
@@ -193,6 +194,7 @@ class AudioService {
       } catch {}
       this.playlist = null;
     }
+    this.playlistItemCount = 0;
     this.isPlaying = false;
     this.jitterBuffer = [];
     this.lastPlayedSeq = -1;
@@ -266,6 +268,9 @@ class AudioService {
     }
 
     if (chunksToProcess.length > 0) {
+      if (this.playlistItemCount > 50) {
+        this.resetPlaylist();
+      }
       let totalLength = chunksToProcess.reduce((acc, val) => acc + val.length, 0);
       let combined = new Uint8Array(totalLength);
       let offset = 0;
@@ -300,10 +305,12 @@ class AudioService {
         sources: [{ uri: dataUri }],
         loop: 'none',
       });
+      this.playlistItemCount = 1;
       this.playlist.play();
       this.isPlaying = true;
     } else {
       this.playlist.add({ uri: dataUri });
+      this.playlistItemCount++;
       if (!this.playlist.playing) {
         this.playlist.play();
         this.isPlaying = true;

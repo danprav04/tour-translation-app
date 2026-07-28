@@ -220,7 +220,7 @@ export const useHost = () => {
         if (!isTranslatingRef.current) return; // Intentional disconnect
 
         console.log('[Host] Gemini disconnected unexpectedly. Reconnecting...');
-        if (reconnectAttempts.current < 3) {
+        if (reconnectAttempts.current < 15) {
           reconnectAttempts.current += 1;
           setTimeout(() => {
             if (isTranslatingRef.current) {
@@ -228,7 +228,7 @@ export const useHost = () => {
             }
           }, 2000);
         } else {
-          console.error('[Host] Gemini failed to reconnect after 3 attempts.');
+          console.error('[Host] Gemini failed to reconnect after 15 attempts.');
           Alert.alert('Translation Error', 'Lost connection to translation service.');
           setIsTranslating(false);
           isTranslatingRef.current = false;

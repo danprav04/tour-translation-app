@@ -82,7 +82,7 @@ app.get('/api/livekit/token', async (req, res) => {
     const at = new AccessToken(apiKey, apiSecret, {
       identity: userId,
       name: userId,
-      ttl: '10m', // 10 minutes
+      ttl: '4h', // 4 hours
     });
 
     const isHost = role === 'host';
@@ -239,14 +239,14 @@ io.on('connection', (socket) => {
     for (const [roomId, room] of rooms.entries()) {
       if (room.hostSocketId === socket.id) {
         isHost = true;
-        // Don't close immediately, give host 10 seconds to reconnect
+        // Don't close immediately, give host 60 seconds to reconnect
         setTimeout(() => {
           const checkRoom = rooms.get(roomId);
           if (checkRoom && checkRoom.hostSocketId === socket.id) {
             socket.to(roomId).emit('room-closed');
             rooms.delete(roomId);
           }
-        }, 10000);
+        }, 60000);
         break;
       }
     }
