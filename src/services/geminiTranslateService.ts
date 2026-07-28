@@ -2,6 +2,7 @@ class GeminiTranslateService {
   private ws: WebSocket | null = null;
   private onTranslatedAudioCallback: ((base64PcmData: string) => void) | null = null;
   private onErrorCallback: ((error: Error) => void) | null = null;
+  private onCloseCallback: (() => void) | null = null;
 
   async connect(apiKey: string, targetLanguageCode: string): Promise<void> {
     if (this.ws) {
@@ -140,6 +141,9 @@ class GeminiTranslateService {
         if (!isSetupComplete) {
           reject(new Error(`WebSocket closed before setup: ${event.reason}`));
         }
+        if (this.onCloseCallback) {
+          this.onCloseCallback();
+        }
       };
     });
   }
@@ -173,6 +177,10 @@ class GeminiTranslateService {
 
   onError(callback: (error: Error) => void): void {
     this.onErrorCallback = callback;
+  }
+
+  onClose(callback: () => void): void {
+    this.onCloseCallback = callback;
   }
 
   isConnected(): boolean {

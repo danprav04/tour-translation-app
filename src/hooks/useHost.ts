@@ -31,6 +31,7 @@ export const useHost = () => {
   const [isTTSActive, setIsTTSActive] = useState(false);
   const wasStreamingBeforeTTSRef = useRef(false);
   const isMicActiveRef = useRef(false);
+  const reconnectAttempts = useRef(0);
 
   useEffect(() => {
     isTranslatingRef.current = isTranslating;
@@ -132,6 +133,7 @@ export const useHost = () => {
 
   const stopRoom = async () => {
     if (isTranslating) {
+      isTranslatingRef.current = false;
       geminiTranslateService.disconnect();
       setIsTranslating(false);
     }
@@ -213,7 +215,35 @@ export const useHost = () => {
           livekitPublisherRef.current(translatedBase64);
         }
       });
+
+      const handleDisconnect = () => {
+        if (!isTranslatingRef.current) return; // Intentional disconnect
+
+        console.log('[Host] Gemini disconnected unexpectedly. Reconnecting...');
+        if (reconnectAttempts.current < 3) {
+          reconnectAttempts.current += 1;
+          setTimeout(() => {
+            if (isTranslatingRef.current) {
+              startTranslation(langCode);
+            }
+          }, 2000);
+        } else {
+          console.error('[Host] Gemini failed to reconnect after 3 attempts.');
+          Alert.alert('Translation Error', 'Lost connection to translation service.');
+          setIsTranslating(false);
+          isTranslatingRef.current = false;
+        }
+      };
+
+      geminiTranslateService.onClose(handleDisconnect);
+      geminiTranslateService.onError((err) => {
+        console.error('[Host] Gemini API error:', err);
+        // Error usually precedes close, handleDisconnect will manage retries.
+      });
+
       setIsTranslating(true);
+      isTranslatingRef.current = true;
+      reconnectAttempts.current = 0;
       
       // If LiveKit mode and the mic is on, we need to take over the mic from LiveKit
       // Wait a tiny bit for the LocalMicController to release the mic, then start capture
@@ -229,6 +259,7 @@ export const useHost = () => {
   };
 
   const stopTranslation = async () => {
+    isTranslatingRef.current = false;
     geminiTranslateService.disconnect();
     setIsTranslating(false);
     

@@ -45,6 +45,7 @@ class ForegroundService {
       this.isRunning = true;
     } catch (e) {
       console.error('Failed to start foreground service', e);
+      throw e;
     }
   }
 

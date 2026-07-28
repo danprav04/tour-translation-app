@@ -20,6 +20,7 @@ class AudioService {
       allowsRecording: false,
       playsInSilentMode: true,
       shouldPlayInBackground: true,
+      interruptionMode: 'mixWithOthers',
     });
   }
 
@@ -36,7 +37,7 @@ class AudioService {
         allowsRecording: true,
         playsInSilentMode: true,
         shouldPlayInBackground: true,
-        interruptionMode: 'doNotMix',
+        interruptionMode: 'mixWithOthers',
       });
 
       this._isCapturing = true;
@@ -115,6 +116,7 @@ class AudioService {
       allowsRecording: false,
       playsInSilentMode: true,
       shouldPlayInBackground: true,
+      interruptionMode: 'mixWithOthers',
     });
   }
 
