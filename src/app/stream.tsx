@@ -289,7 +289,7 @@ function StreamContentLiveKit(props: any) {
     };
   }, [room]);
 
-  return <StreamContentUI {...props} handleDisconnect={handleDisconnect} audioLevel={livekitAudioLevel} />;
+  return <StreamContentUI {...props} handleDisconnect={handleDisconnect} audioLevel={Math.max(props.audioLevel || 0, livekitAudioLevel)} />;
 }
 
 function StreamContentUI({

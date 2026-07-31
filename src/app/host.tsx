@@ -94,7 +94,7 @@ function LocalMicController({ isMicActive, isTranslating, setAudioLevel }: { isM
           // LiveKit's audioLevel is often very small, so we boost it to match legacy visuals
           const boostedLevel = Math.min(1, localParticipant.audioLevel * 5);
           setAudioLevel(boostedLevel);
-        } else {
+        } else if (!isTranslating) {
           setAudioLevel(0);
         }
       }, 100);
