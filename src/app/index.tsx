@@ -9,7 +9,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import GlassCard from '@/components/GlassCard';
-import AudioVisualizer from '@/components/AudioVisualizer';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -27,10 +26,7 @@ export default function HomeScreen() {
           <Text style={styles.tagline}>Live audio for your group</Text>
         </View>
 
-        {/* Visualizer decoration */}
-        <View style={styles.visualizerContainer}>
-          <AudioVisualizer isActive barCount={9} color="#00D4AA" height={60} />
-        </View>
+
 
         {/* Role Cards */}
         <View style={styles.cards}>
