@@ -10,11 +10,17 @@ export const useListener = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
   
   const [livekitToken, setLivekitToken] = useState<string | null>(null);
   const [livekitUrl, setLivekitUrl] = useState<string | null>(null);
 
-
+  useEffect(() => {
+    audioService.setAudioLevelCallback((level) => {
+      setAudioLevel(level);
+    });
+    return () => audioService.setAudioLevelCallback(null);
+  }, []);
 
   const connect = async (code: string) => {
     try {
@@ -137,6 +143,7 @@ export const useListener = () => {
     isReconnecting,
     connect,
     disconnect,
-    toggleMute
+    toggleMute,
+    audioLevel
   };
 };

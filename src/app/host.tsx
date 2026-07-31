@@ -157,6 +157,7 @@ export default function HostScreen() {
     resumeAfterTTS,
     isTTSActive,
     setLivekitPublisher,
+    audioLevel,
   } = useHost();
 
   React.useEffect(() => {
@@ -464,6 +465,7 @@ export default function HostScreen() {
           <GlassCard style={styles.section} padding={24}>
             <AudioVisualizer
               isActive={isMicActive}
+              audioLevel={audioLevel}
               barCount={12}
               color={isTranslating ? '#7C5CFC' : '#00D4AA'}
               height={50}

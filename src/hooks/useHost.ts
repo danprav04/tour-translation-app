@@ -24,6 +24,7 @@ export const useHost = () => {
   const [isTranslating, setIsTranslating] = useState(false);
   const [isEchoEnabled, setIsEchoEnabled] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
   const selectedLanguage = settings.targetLanguage;
 
   const isTranslatingRef = useRef(isTranslating);
@@ -71,6 +72,13 @@ export const useHost = () => {
 
   const [livekitToken, setLivekitToken] = useState<string | null>(null);
   const [livekitUrl, setLivekitUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    audioService.setAudioLevelCallback((level) => {
+      setAudioLevel(level);
+    });
+    return () => audioService.setAudioLevelCallback(null);
+  }, []);
 
   // Setup legacy socket listeners
   useEffect(() => {
@@ -405,5 +413,6 @@ export const useHost = () => {
     resumeAfterTTS,
     isTTSActive,
     setLivekitPublisher,
+    audioLevel,
   };
 };

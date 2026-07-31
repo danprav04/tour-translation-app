@@ -11,6 +11,11 @@ class AudioService {
   private playlistItemCount: number = 0;
   private bufferFlushTimeout: ReturnType<typeof setTimeout> | null = null;
   private onChunkCallback: ((base64Data: string) => void) | null = null;
+  private onAudioLevelCallback: ((level: number) => void) | null = null;
+
+  setAudioLevelCallback(callback: ((level: number) => void) | null) {
+    this.onAudioLevelCallback = callback;
+  }
 
   async requestPermissions(): Promise<boolean> {
     const permission = await requestRecordingPermissionsAsync();
@@ -69,6 +74,18 @@ class AudioService {
         const bytes = new Uint8Array(buffer.data);
         audioChunks.push(bytes);
         currentBufferSize += bytes.length;
+
+        // Calculate audio level for visualizer
+        if (this.onAudioLevelCallback) {
+          const dataView = new DataView(buffer.data);
+          let maxPeak = 0;
+          for (let i = 0; i < dataView.byteLength; i += 2) {
+            const val = Math.abs(dataView.getInt16(i, true));
+            if (val > maxPeak) maxPeak = val;
+          }
+          const level = Math.min(1, maxPeak / 32768);
+          this.onAudioLevelCallback(level);
+        }
 
         if (currentBufferSize >= TARGET_BUFFER_SIZE) {
           // Combine chunks
@@ -138,7 +155,26 @@ class AudioService {
   playChunk(base64PcmData: string, sampleRate = 24000, seq?: number, timestamp?: number): void {
     if (this._isMuted) return;
 
-    const chunkBuffer = this.base64ToUint8Array(base64PcmData);
+    let chunkBuffer = this.base64ToUint8Array(base64PcmData);
+
+    // Amplify legacy audio and calculate audio level
+    const multiplier = 3.0;
+    const dataView = new DataView(chunkBuffer.buffer, chunkBuffer.byteOffset, chunkBuffer.byteLength);
+    let maxPeak = 0;
+    for (let i = 0; i < chunkBuffer.length; i += 2) {
+      let val = dataView.getInt16(i, true);
+      // Amplify
+      val = Math.max(-32768, Math.min(32767, val * multiplier));
+      dataView.setInt16(i, val, true);
+      // Peak tracking
+      const absVal = Math.abs(val);
+      if (absVal > maxPeak) maxPeak = absVal;
+    }
+
+    if (this.onAudioLevelCallback) {
+      const level = Math.min(1, maxPeak / 32768);
+      this.onAudioLevelCallback(level);
+    }
 
     // If no sequence number (e.g. local TTS echo), play immediately
     if (seq === undefined) {

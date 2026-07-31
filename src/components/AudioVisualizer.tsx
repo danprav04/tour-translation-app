@@ -3,6 +3,7 @@ import { StyleSheet, View, Animated, Easing } from 'react-native';
 
 interface AudioVisualizerProps {
   isActive: boolean;
+  audioLevel?: number;
   barCount?: number;
   color?: string;
   height?: number;
@@ -10,6 +11,7 @@ interface AudioVisualizerProps {
 
 export default function AudioVisualizer({
   isActive,
+  audioLevel = 0,
   barCount = 5,
   color = '#00D4AA',
   height = 40,
@@ -20,37 +22,32 @@ export default function AudioVisualizer({
 
   useEffect(() => {
     if (isActive) {
-      const animations = anims.map((anim, i) =>
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(anim, {
-              toValue: 0.3 + Math.random() * 0.7,
-              duration: 300 + Math.random() * 400,
-              easing: Easing.inOut(Easing.ease),
-              useNativeDriver: true,
-              delay: i * 80,
-            }),
-            Animated.timing(anim, {
-              toValue: 0.15 + Math.random() * 0.2,
-              duration: 300 + Math.random() * 400,
-              easing: Easing.inOut(Easing.ease),
-              useNativeDriver: true,
-            }),
-          ])
-        )
-      );
-      animations.forEach((a) => a.start());
-      return () => animations.forEach((a) => a.stop());
+      // Animate based on the current audio level
+      const targetBase = Math.max(0.15, audioLevel);
+      const animations = anims.map((anim) => {
+        // Add a slight random variation so bars don't move exactly the same
+        const variation = 0.5 + Math.random() * 0.8; 
+        const toValue = Math.min(1.0, targetBase * variation);
+        
+        return Animated.timing(anim, {
+          toValue,
+          duration: 150, // quick transition for responsiveness
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        });
+      });
+      Animated.parallel(animations).start();
     } else {
-      anims.forEach((anim) => {
+      const animations = anims.map((anim) =>
         Animated.timing(anim, {
           toValue: 0.15,
           duration: 300,
           useNativeDriver: true,
-        }).start();
-      });
+        })
+      );
+      Animated.parallel(animations).start();
     }
-  }, [isActive, anims]);
+  }, [isActive, audioLevel, anims]);
 
   return (
     <View style={[styles.container, { height }]}>

@@ -36,6 +36,7 @@ export default function StreamScreen() {
     connect,
     disconnect,
     toggleMute,
+    audioLevel,
   } = useListener();
 
   const [pulseAnim] = useState(() => new Animated.Value(1));
@@ -332,6 +333,7 @@ function StreamContentUI({
           <View style={styles.visualizer}>
             <AudioVisualizer
               isActive={isConnected && !isMuted}
+              audioLevel={audioLevel}
               barCount={9}
               color={isMuted ? '#FF4757' : '#7C5CFC'}
               height={45}
