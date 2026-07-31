@@ -215,6 +215,18 @@ function StreamContent(props: any) {
 function StreamContentLiveKit(props: any) {
   const room = useRoomContext();
   const { isMuted, handleDisconnect: originalHandleDisconnect } = props;
+  const [livekitAudioLevel, setLivekitAudioLevel] = React.useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      let maxLevel = 0;
+      room.remoteParticipants.forEach(p => {
+        if (p.audioLevel > maxLevel) maxLevel = p.audioLevel;
+      });
+      setLivekitAudioLevel(maxLevel);
+    }, 100);
+    return () => clearInterval(interval);
+  }, [room]);
 
   useEffect(() => {
     const applyMute = () => {
@@ -277,7 +289,7 @@ function StreamContentLiveKit(props: any) {
     };
   }, [room]);
 
-  return <StreamContentUI {...props} handleDisconnect={handleDisconnect} />;
+  return <StreamContentUI {...props} handleDisconnect={handleDisconnect} audioLevel={livekitAudioLevel} />;
 }
 
 function StreamContentUI({

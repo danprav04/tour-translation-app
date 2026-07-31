@@ -69,7 +69,7 @@ function RoomDisconnectCatcher() {
 import { useLocalParticipant } from '@livekit/react-native';
 
 // Explicitly manage the local microphone track
-function LocalMicController({ isMicActive, isTranslating }: { isMicActive: boolean; isTranslating: boolean }) {
+function LocalMicController({ isMicActive, isTranslating, setAudioLevel }: { isMicActive: boolean; isTranslating: boolean; setAudioLevel: (val: number) => void }) {
   const { localParticipant } = useLocalParticipant();
   const pendingMicTask = React.useRef<Promise<void>>(Promise.resolve());
 
@@ -87,8 +87,21 @@ function LocalMicController({ isMicActive, isTranslating }: { isMicActive: boole
         .catch((e) => {
           console.error('[Host] Failed to set microphone state:', e);
         });
+
+      // Poll audio level
+      const interval = setInterval(() => {
+        if (shouldEnableMic) {
+          setAudioLevel(localParticipant.audioLevel);
+        } else {
+          setAudioLevel(0);
+        }
+      }, 100);
+
+      return () => clearInterval(interval);
+    } else {
+      setAudioLevel(0);
     }
-  }, [isMicActive, isTranslating, localParticipant]);
+  }, [isMicActive, isTranslating, localParticipant, setAudioLevel]);
 
   return null;
 }
@@ -158,6 +171,7 @@ export default function HostScreen() {
     isTTSActive,
     setLivekitPublisher,
     audioLevel,
+    setAudioLevel,
   } = useHost();
 
   React.useEffect(() => {
@@ -652,7 +666,7 @@ export default function HostScreen() {
       audio={false} // Managed manually by LocalMicController
     >
       <RoomDisconnectCatcher />
-      <LocalMicController isMicActive={isMicActive} isTranslating={isTranslating} />
+      <LocalMicController isMicActive={isMicActive} isTranslating={isTranslating} setAudioLevel={setAudioLevel} />
       <TranslationDataPublisher setPublisher={setLivekitPublisher} />
       {content}
     </LiveKitRoom>

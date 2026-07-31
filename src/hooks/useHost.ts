@@ -414,5 +414,6 @@ export const useHost = () => {
     isTTSActive,
     setLivekitPublisher,
     audioLevel,
+    setAudioLevel,
   };
 };

@@ -151,6 +151,7 @@ class AudioService {
   private isBuffering: boolean = false;
   private chunkFlushTimeout: ReturnType<typeof setTimeout> | null = null;
   private burstTimeout: ReturnType<typeof setTimeout> | null = null;
+  private estimatedPlaybackEnd: number = 0;
 
   playChunk(base64PcmData: string, sampleRate = 24000, seq?: number, timestamp?: number): void {
     if (this._isMuted) return;
@@ -171,10 +172,7 @@ class AudioService {
       if (absVal > maxPeak) maxPeak = absVal;
     }
 
-    if (this.onAudioLevelCallback) {
-      const level = Math.min(1, maxPeak / 32768);
-      this.onAudioLevelCallback(level);
-    }
+    // (Peak calculation happens in pushToPlaylist now to sync with actual audio playback)
 
     // If no sequence number (e.g. local TTS echo), play immediately
     if (seq === undefined) {
@@ -242,6 +240,7 @@ class AudioService {
     this.isPlaying = false;
     this.jitterBuffer = [];
     this.lastPlayedSeq = -1;
+    this.estimatedPlaybackEnd = 0;
   }
 
   private processJitterBuffer(sampleRate: number, forceFlush: boolean) {
@@ -343,6 +342,43 @@ class AudioService {
 
     const wavBase64 = this.uint8ArrayToBase64(wavBuffer);
     const dataUri = `data:audio/wav;base64,${wavBase64}`;
+
+    if (this.onAudioLevelCallback) {
+      // Synchronize visualizer timeouts with the playlist queue
+      const now = Date.now();
+      if (this.estimatedPlaybackEnd < now) {
+        // OS player takes ~150ms to initialize and start playing
+        this.estimatedPlaybackEnd = now + 150; 
+      }
+      
+      let delay = this.estimatedPlaybackEnd - now;
+      
+      // Split into 100ms chunks and schedule levels
+      const sliceDurationMs = 100;
+      const bytesPerSlice = Math.floor((sampleRate * 2 * sliceDurationMs) / 1000);
+      const alignedBytesPerSlice = bytesPerSlice % 2 !== 0 ? bytesPerSlice - 1 : bytesPerSlice;
+      
+      const totalDurationMs = (pcmBytes.length / (sampleRate * 2)) * 1000;
+      this.estimatedPlaybackEnd += totalDurationMs;
+      
+      const dataView = new DataView(pcmBytes.buffer, pcmBytes.byteOffset, pcmBytes.byteLength);
+      
+      for (let i = 0; i < pcmBytes.length; i += alignedBytesPerSlice) {
+        let maxPeak = 0;
+        const end = Math.min(i + alignedBytesPerSlice, pcmBytes.length);
+        for (let j = i; j < end - 1; j += 2) {
+          const val = Math.abs(dataView.getInt16(j, true));
+          if (val > maxPeak) maxPeak = val;
+        }
+        const level = Math.min(1, maxPeak / 32768);
+        
+        setTimeout(() => {
+          if (this.onAudioLevelCallback) this.onAudioLevelCallback(level);
+        }, delay);
+        
+        delay += sliceDurationMs;
+      }
+    }
 
     if (!this.playlist) {
       this.playlist = createAudioPlaylist({
