@@ -79,7 +79,7 @@ class AudioService {
         if (this.onAudioLevelCallback) {
           const dataView = new DataView(buffer.data);
           let maxPeak = 0;
-          for (let i = 0; i < dataView.byteLength; i += 2) {
+          for (let i = 0; i < dataView.byteLength - 1; i += 2) {
             const val = Math.abs(dataView.getInt16(i, true));
             if (val > maxPeak) maxPeak = val;
           }
@@ -161,7 +161,7 @@ class AudioService {
     const multiplier = 3.0;
     const dataView = new DataView(chunkBuffer.buffer, chunkBuffer.byteOffset, chunkBuffer.byteLength);
     let maxPeak = 0;
-    for (let i = 0; i < chunkBuffer.length; i += 2) {
+    for (let i = 0; i < chunkBuffer.length - 1; i += 2) {
       let val = dataView.getInt16(i, true);
       // Amplify
       val = Math.max(-32768, Math.min(32767, val * multiplier));

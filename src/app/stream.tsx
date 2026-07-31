@@ -178,6 +178,7 @@ export default function StreamScreen() {
       scaleAnim={scaleAnim}
       handleMutePress={handleMutePress}
       handleDisconnect={handleDisconnect}
+      audioLevel={audioLevel}
       useLegacy={settings.useLegacyWebSockets}
     />
   );
@@ -289,6 +290,7 @@ function StreamContentUI({
   scaleAnim,
   handleMutePress,
   handleDisconnect,
+  audioLevel,
 }: any) {
   return (
     <SafeAreaView style={styles.safe}>
