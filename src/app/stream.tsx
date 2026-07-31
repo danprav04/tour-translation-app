@@ -223,7 +223,7 @@ function StreamContentLiveKit(props: any) {
       room.remoteParticipants.forEach(p => {
         if (p.audioLevel > maxLevel) maxLevel = p.audioLevel;
       });
-      setLivekitAudioLevel(maxLevel);
+      setLivekitAudioLevel(Math.min(1, maxLevel * 5));
     }, 100);
     return () => clearInterval(interval);
   }, [room]);

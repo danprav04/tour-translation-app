@@ -90,8 +90,10 @@ function LocalMicController({ isMicActive, isTranslating, setAudioLevel }: { isM
 
       // Poll audio level
       const interval = setInterval(() => {
-        if (shouldEnableMic) {
-          setAudioLevel(localParticipant.audioLevel);
+        if (shouldEnableMic && localParticipant.audioLevel) {
+          // LiveKit's audioLevel is often very small, so we boost it to match legacy visuals
+          const boostedLevel = Math.min(1, localParticipant.audioLevel * 5);
+          setAudioLevel(boostedLevel);
         } else {
           setAudioLevel(0);
         }
