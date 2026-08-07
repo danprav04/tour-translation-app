@@ -16,8 +16,8 @@ class SocketService {
   private isHostRole: boolean = false;
   private backgroundPingInterval: number | null = null;
 
-  private outgoingSeq: number = 0;\r
-  public lastChunkSentAt: number = 0;\r
+  private outgoingSeq: number = 0;
+  public lastChunkSentAt: number = 0;
   public lastChunkReceivedAt: number = 0;
 
   connect(serverUrl: string): void {
@@ -204,38 +204,38 @@ class SocketService {
     }
   }
 
-  refreshConnection(): void {\r
-    if (this.socket && this.socket.connected) {\r
-      console.log('[SocketService] Refreshing connection (transport-level reconnect)...');\r
-      // Force transport-level reconnect. Socket.IO will automatically reconnect\r
-      // and the existing 'reconnect' handler will re-join the room.\r
-      (this.socket.io as any).engine?.close();\r
-    }\r
-  }\r
-\r
-  sendHealthCheck(nonce: string): void {\r
-    if (this.socket && this.socket.connected) {\r
-      this.socket.emit('health-check', { nonce });\r
-    }\r
-  }\r
-\r
-  onHealthCheckAck(callback: (data: { nonce: string; timestamp: number; roomActive: boolean }) => void): void {\r
-    if (this.socket) {\r
-      this.socket.on('health-check-ack', callback);\r
-    }\r
-  }\r
-\r
-  requestResync(roomCode: string): Promise<{ hostConnected: boolean; hostStreaming: boolean; listenerCount: number }> {\r
-    return new Promise((resolve, reject) => {\r
-      if (!this.socket) return reject(new Error('Socket not connected'));\r
-      const timeout = setTimeout(() => reject(new Error('Resync request timed out')), 10000);\r
-      this.socket.emit('request-resync', { roomCode }, (response: { hostConnected: boolean; hostStreaming: boolean; listenerCount: number }) => {\r
-        clearTimeout(timeout);\r
-        resolve(response);\r
-      });\r
-    });\r
-  }\r
-\r
+  refreshConnection(): void {
+    if (this.socket && this.socket.connected) {
+      console.log('[SocketService] Refreshing connection (transport-level reconnect)...');
+      // Force transport-level reconnect. Socket.IO will automatically reconnect
+      // and the existing 'reconnect' handler will re-join the room.
+      (this.socket.io as any).engine?.close();
+    }
+  }
+
+  sendHealthCheck(nonce: string): void {
+    if (this.socket && this.socket.connected) {
+      this.socket.emit('health-check', { nonce });
+    }
+  }
+
+  onHealthCheckAck(callback: (data: { nonce: string; timestamp: number; roomActive: boolean }) => void): void {
+    if (this.socket) {
+      this.socket.on('health-check-ack', callback);
+    }
+  }
+
+  requestResync(roomCode: string): Promise<{ hostConnected: boolean; hostStreaming: boolean; listenerCount: number }> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket) return reject(new Error('Socket not connected'));
+      const timeout = setTimeout(() => reject(new Error('Resync request timed out')), 10000);
+      this.socket.emit('request-resync', { roomCode }, (response: { hostConnected: boolean; hostStreaming: boolean; listenerCount: number }) => {
+        clearTimeout(timeout);
+        resolve(response);
+      });
+    });
+  }
+
   isConnected(): boolean {
     return this.socket !== null && this.socket.connected;
   }
