@@ -110,6 +110,7 @@ export const useHost = () => {
       if (!settings.serverUrl) {
         throw new Error('Server URL is not configured.');
       }
+      audioService.setMuted(false); // Ensure host isn't muted from a previous listener session
       const deviceName = settings.deviceName || 'Host';
       let code = '';
 
@@ -235,6 +236,9 @@ export const useHost = () => {
     livekitPublisherRef.current = publisher;
   };
 
+  const echoSeqRef = useRef(0);
+
+
   const startTranslation = async (langCode: string) => {
     try {
       if (!settings.geminiApiKey) {
@@ -244,7 +248,8 @@ export const useHost = () => {
       geminiTranslateService.onTranslatedAudio((translatedBase64) => {
         // Play locally if echo is enabled
         if (isEchoEnabledRef.current) {
-          audioService.playChunk(translatedBase64, 24000);
+          echoSeqRef.current += 1;
+          audioService.playChunk(translatedBase64, 24000, echoSeqRef.current, Date.now());
         }
         
         // Broadcast to listeners (Legacy)

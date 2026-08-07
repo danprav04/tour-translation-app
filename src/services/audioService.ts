@@ -28,6 +28,7 @@ class AudioService {
       playsInSilentMode: true,
       shouldPlayInBackground: true,
       interruptionMode: 'mixWithOthers',
+      shouldRouteThroughEarpiece: false,
     });
   }
 
@@ -52,6 +53,7 @@ class AudioService {
         playsInSilentMode: true,
         shouldPlayInBackground: true,
         interruptionMode: 'mixWithOthers',
+        shouldRouteThroughEarpiece: false,
       });
 
       this._isCapturing = true;
@@ -143,6 +145,7 @@ class AudioService {
       playsInSilentMode: true,
       shouldPlayInBackground: true,
       interruptionMode: 'mixWithOthers',
+      shouldRouteThroughEarpiece: false,
     });
   }
 
