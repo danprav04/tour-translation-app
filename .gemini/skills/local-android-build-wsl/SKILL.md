@@ -1,49 +1,47 @@
 ---
-name: local-android-build-wsl
+name: local-android-build
 description: >-
-  Instructions for performing a local Android EAS or Gradle build on a Windows machine by utilizing WSL to bypass Windows-specific CMake/Ninja errors and EAS limitations.
+  Instructions for performing local Android builds (both production and development variants). Includes workarounds for Windows-specific CMake/Ninja errors (using WSL) and ADB port collisions.
 ---
 
-# Local Android Build in WSL
+# Local Android Build & Dev Variants
+
+## 🚨 STRICT SYSTEM RULE 🚨
+**NEVER** propose or run commands to restart, shut down, or log off the user's computer (e.g., `Restart-Computer`, `Stop-Computer`, `shutdown /r`). Under no circumstances should you interrupt the user's workflow by rebooting their machine.
 
 ## Overview
-This skill provides the exact workflow required to successfully build an Android APK (using Expo EAS or Gradle) on a Windows host. It bypasses the common `ninja: error: manifest 'build.ninja' still dirty after 100 tries` C++ compilation bug in `react-native-reanimated` and the EAS CLI limitation that prevents local Android builds on Windows.
+This skill provides the exact workflow required to successfully build an Android APK (using Expo EAS or Gradle) on this machine. It covers both Production builds (via WSL to bypass CMake issues) and Development builds (configuring app variants and bypassing ADB collisions).
 
-## Workflow
+## Development Build Configuration
 
-### 1. Identify Windows Environment
-If the user requests a local Android build (`eas build --local` or `gradlew assembleRelease`) and the OS is Windows, immediately inform them that Windows direct builds may fail due to C++ compilation issues and EAS limitations. Switch to using WSL (Windows Subsystem for Linux).
+When creating a development build, it MUST be installable alongside the main app.
+1. Use `app.config.js` to modify the app's `name` to include "(Dev)" and append `.dev` to the Android `package` when `APP_VARIANT=development` is set.
+2. Use `package.json` scripts to run it: `"android:dev": "cross-env APP_VARIANT=development expo run:android"`.
 
-### 2. Verify WSL Android SDK Setup
-Before building, ensure WSL has the Android SDK installed.
-- Check Java: `wsl java -version`
-- Check Android SDK: `wsl bash -ic "echo \$ANDROID_HOME"`
-If the SDK is missing, you must install the Android Command Line Tools, platform-tools, platforms, build-tools, cmake, and ndk inside WSL, and add `ANDROID_HOME` to `~/.bashrc`.
+## Workflow: Building the App
 
-### 3. Disable Android Lint
-Android Lint often crashes or fails the release build unnecessarily.
-Modify `android/app/build.gradle` to add:
-```gradle
-android {
-    ...
-    lintOptions {
-        abortOnError false
-    }
-}
-```
+### Scenario A: Building the Dev Variant (Windows)
+Run `npm run android:dev` in PowerShell. This runs Expo's prebuild and attempts to compile and install via ADB.
+- **ADB Port Collision Issue**: If the build fails at the very end with `protocol fault` or `start-server exited with non-zero code`, it is because WSL or another background service has locked port 5037. 
+  **DO NOT RESTART THE COMPUTER.** 
+  The `android/` directory was already generated successfully. Instead, compile manually:
+  1. `cd android`
+  2. `.\gradlew.bat assembleDebug`
+  3. The resulting APK is at `android/app/build/outputs/apk/debug/app-debug.apk`.
 
-### 4. Trigger the Build in WSL
-Run the build command entirely within WSL. Ensure you use an interactive shell so `~/.bashrc` is sourced (which contains `ANDROID_HOME`).
-Example for EAS:
-```powershell
-wsl bash -ic "npx eas-cli build --platform android --profile production --local"
-```
-Example for standard gradle build:
-```powershell
-wsl bash -ic "cd android && ./gradlew assembleRelease"
-```
+### Scenario B: Building Production / Release (WSL)
+If the user requests a local production Android build (`eas build --local` or `gradlew assembleRelease`) and the host OS is Windows, switch to using WSL (Windows Subsystem for Linux) immediately to bypass the `ninja: error: manifest 'build.ninja' still dirty after 100 tries` C++ compilation bug.
+
+1. **Verify WSL Setup**: 
+   Ensure `wsl bash -ic "echo \$ANDROID_HOME"` returns the path.
+2. **Disable Android Lint**: 
+   Lint often crashes in WSL. In `android/app/build.gradle`, set `abortOnError false`.
+3. **Trigger Build**:
+   ```powershell
+   wsl bash -ic "cd android && ./gradlew assembleRelease"
+   ```
 
 ## Common Mistakes
+- **Restarting the PC**: Do not try to fix ADB locks or locked directories by rebooting.
 - **Running `eas build --local` in PowerShell**: EAS CLI explicitly blocks Android local builds on Windows.
-- **Ignoring the Ninja dirty manifest error**: Do not try to repeatedly `clean` the gradle build on Windows if you hit the Ninja timestamp bug; switch to WSL immediately.
-- **Forgetting `-ic` in WSL**: If you just run `wsl bash -c`, it won't load `ANDROID_HOME` from `~/.bashrc`, causing the build to fail with "SDK location not found".
+- **Ignoring the Ninja dirty manifest error**: Do not repeatedly `clean` the gradle build on Windows if you hit the Ninja timestamp bug; switch to WSL immediately.
