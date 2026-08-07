@@ -12,12 +12,14 @@
     "expo": "~57.0.8",
     "expo-asset": "^57.0.7",
     "expo-audio": "~57.0.3",
+    "expo-battery": "~57.0.1",
     "expo-build-properties": "~57.0.7",
     "expo-camera": "^57.0.3",
     "expo-clipboard": "^57.0.1",
     "expo-constants": "~57.0.7",
     "expo-dev-client": "~57.0.9",
     "expo-file-system": "^57.0.1",
+    "expo-intent-launcher": "~57.0.1",
     "expo-linking": "~57.0.4",
     "expo-router": "~57.0.8",
     "expo-splash-screen": "~57.0.5",
@@ -41,6 +43,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "cross-env": "^10.1.0",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.0",
     "typescript": "~6.0.3"
@@ -49,7 +52,9 @@
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
+    "android:dev": "cross-env APP_VARIANT=development expo run:android",
     "ios": "expo run:ios",
+    "ios:dev": "cross-env APP_VARIANT=development expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint"
   },

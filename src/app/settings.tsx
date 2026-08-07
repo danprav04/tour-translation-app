@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -27,6 +27,38 @@ export default function SettingsScreen() {
   const [deviceName, setDeviceName] = useState(settings.deviceName);
   const [useLegacy, setUseLegacy] = useState(settings.useLegacyWebSockets);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [isBatteryOptimized, setIsBatteryOptimized] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      import('expo-battery').then((Battery) => {
+        Battery.isBatteryOptimizationEnabledAsync().then((enabled) => {
+          setIsBatteryOptimized(enabled);
+        });
+      });
+    }
+  }, []);
+
+  const handleOpenBatterySettings = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const IntentLauncher = await import('expo-intent-launcher');
+        await IntentLauncher.startActivityAsync(
+          IntentLauncher.ActivityAction.IGNORE_BATTERY_OPTIMIZATION_SETTINGS
+        );
+        // We re-check after returning from settings
+        setTimeout(() => {
+          import('expo-battery').then((Battery) => {
+            Battery.isBatteryOptimizationEnabledAsync().then((enabled) => {
+              setIsBatteryOptimized(enabled);
+            });
+          });
+        }, 2000);
+      } catch (error) {
+        console.error('Failed to open battery settings', error);
+      }
+    }
+  };
 
   const handleSave = () => {
     updateSettings({
@@ -176,6 +208,27 @@ export default function SettingsScreen() {
             </View>
           </GlassCard>
 
+          {/* Battery Optimization (Android only) */}
+          {Platform.OS === 'android' && (
+            <GlassCard style={styles.section}>
+              <View style={styles.switchRow}>
+                <View style={styles.switchTextContainer}>
+                  <Text style={styles.sectionTitle}>🔋 Battery Optimization</Text>
+                  <Text style={styles.sectionDesc}>
+                    {isBatteryOptimized === false
+                      ? 'App is unrestricted. Audio will run perfectly in background.'
+                      : 'App is restricted. Audio may drop when screen is off.'}
+                  </Text>
+                </View>
+                {isBatteryOptimized !== false && (
+                  <Pressable style={styles.batteryBtn} onPress={handleOpenBatterySettings}>
+                    <Text style={styles.batteryBtnText}>Fix</Text>
+                  </Pressable>
+                )}
+              </View>
+            </GlassCard>
+          )}
+
           {/* About */}
           <GlassCard style={styles.section}>
             <Text style={styles.sectionTitle}>ℹ️ About</Text>
@@ -298,5 +351,16 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.5)',
     fontSize: 14,
     lineHeight: 22,
+  },
+  batteryBtn: {
+    backgroundColor: '#00D4AA',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  batteryBtnText: {
+    color: '#0A0E1A',
+    fontWeight: '700',
+    fontSize: 14,
   },
 });
