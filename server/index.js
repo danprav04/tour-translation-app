@@ -70,6 +70,37 @@ const BUG_REPORTS_FILE = path.join(__dirname, 'bug-reports.json');
 app.post('/api/bug-reports', (req, res) => {
   try {
     const report = req.body;
+    
+    // Enrich with server's internal state of the room
+    let serverRoomState = null;
+    let targetCode = null;
+    
+    if (report.debugData?.state?.host?.roomCode) targetCode = report.debugData.state.host.roomCode;
+    else if (report.debugData?.state?.listener?.roomCode) targetCode = report.debugData.state.listener.roomCode;
+    else if (report.settings?.lastRoomCode) targetCode = report.settings.lastRoomCode;
+    
+    if (targetCode) {
+      targetCode = targetCode.toUpperCase();
+      if (rooms.has(targetCode)) {
+        const r = rooms.get(targetCode);
+        serverRoomState = {
+          roomCode: targetCode,
+          hostSocketId: r.hostSocketId,
+          architecture: r.architecture,
+          createdAt: r.createdAt,
+          lastHostDisconnect: r.lastHostDisconnect,
+          listenersCount: r.listeners.size,
+          listeners: Array.from(r.listeners.entries()).map(([sid, l]) => ({
+            socketId: sid,
+            id: l.id,
+            name: l.name,
+            joinedAt: l.joinedAt
+          }))
+        };
+      }
+    }
+    report.serverRoomState = serverRoomState;
+
     let reports = [];
     if (fs.existsSync(BUG_REPORTS_FILE)) {
       reports = JSON.parse(fs.readFileSync(BUG_REPORTS_FILE, 'utf8'));

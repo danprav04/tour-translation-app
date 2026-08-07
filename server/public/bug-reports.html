@@ -106,13 +106,27 @@
           return;
         }
 
-        container.innerHTML = data.reports.map(report => `
+        container.innerHTML = data.reports.map(report => {
+          const events = report.debugData?.events || [];
+          const eventHtml = events.length > 0 
+            ? `
+              <div class="details-section" style="grid-column: 1 / -1; margin-bottom: 1.5rem;">
+                <h3>Event Timeline</h3>
+                <ul style="margin: 0; padding-left: 1.5rem; color: var(--text-muted); font-size: 0.9rem;">
+                  ${events.map(e => `<li><strong>${new Date(e.timestamp).toLocaleTimeString()}:</strong> ${escapeHtml(e.event)}</li>`).join('')}
+                </ul>
+              </div>
+              `
+            : '';
+
+          return `
           <div class="report-card">
             <div class="report-header">
               <strong>ID: ${report.id}</strong>
               <span class="timestamp">${new Date(report.timestamp).toLocaleString()}</span>
             </div>
             <div class="description">${escapeHtml(report.description)}</div>
+            ${eventHtml}
             <div class="details-grid">
               <div class="details-section">
                 <h3>Device Info</h3>
@@ -122,9 +136,17 @@
                 <h3>Settings State</h3>
                 <pre>${escapeHtml(JSON.stringify(report.settings || {}, null, 2))}</pre>
               </div>
+              <div class="details-section">
+                <h3>Client App State (Host/Listener)</h3>
+                <pre>${escapeHtml(JSON.stringify(report.debugData?.state || {}, null, 2))}</pre>
+              </div>
+              <div class="details-section">
+                <h3>Server Internal State</h3>
+                <pre>${escapeHtml(JSON.stringify(report.serverRoomState || { error: 'Room not found in server memory' }, null, 2))}</pre>
+              </div>
             </div>
           </div>
-        `).join('');
+        `}).join('');
       } catch (error) {
         document.getElementById('loading').innerText = 'Failed to load reports. ' + error.message;
       }

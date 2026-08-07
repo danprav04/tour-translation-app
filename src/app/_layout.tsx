@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SettingsProvider } from '@/context/SettingsContext';
+import { DebugProvider } from '@/context/DebugContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import BugReportButton from '@/components/BugReportButton';
 
@@ -15,15 +16,17 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <SettingsProvider>
-        <StatusBar style="light" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: '#0A0E1A' },
-            animation: 'fade',
-          }}
-        />
-        <BugReportButton />
+        <DebugProvider>
+          <StatusBar style="light" />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: '#0A0E1A' },
+              animation: 'fade',
+            }}
+          />
+          <BugReportButton />
+        </DebugProvider>
       </SettingsProvider>
     </SafeAreaProvider>
   );

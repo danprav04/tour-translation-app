@@ -15,6 +15,7 @@ import { AudioSession, AndroidAudioTypePresets, LiveKitRoom, useRoomContext, use
 import { Track, RoomEvent } from 'livekit-client';
 import { useListener } from '@/hooks/useListener';
 import { useSettingsContext } from '@/context/SettingsContext';
+import { useDebugContext } from '@/context/DebugContext';
 import audioService from '@/services/audioService';
 import StatusBadge from '@/components/StatusBadge';
 import AudioVisualizer from '@/components/AudioVisualizer';
@@ -41,6 +42,30 @@ export default function StreamScreen() {
 
   const [pulseAnim] = useState(() => new Animated.Value(1));
   const [scaleAnim] = useState(() => new Animated.Value(1));
+
+  const { setDebugState, addDebugEvent } = useDebugContext();
+
+  useEffect(() => {
+    setDebugState('listener', {
+      roomCode, isConnected, isMuted, isReconnecting, audioLevel
+    });
+  }, [roomCode, isConnected, isMuted, isReconnecting, audioLevel, setDebugState]);
+
+  const prevMute = useRef(isMuted);
+  useEffect(() => {
+    if (prevMute.current !== isMuted) {
+      addDebugEvent(`Listener muted: ${isMuted}`);
+      prevMute.current = isMuted;
+    }
+  }, [isMuted, addDebugEvent]);
+
+  const prevConnect = useRef(isConnected);
+  useEffect(() => {
+    if (prevConnect.current !== isConnected) {
+      addDebugEvent(`Listener connected: ${isConnected}`);
+      prevConnect.current = isConnected;
+    }
+  }, [isConnected, addDebugEvent]);
 
   const [isAudioSessionReady, setIsAudioSessionReady] = useState(false);
 
@@ -73,7 +98,9 @@ export default function StreamScreen() {
   // Connect on mount
   useEffect(() => {
     if (roomCode) {
+      addDebugEvent(`Listener attempting to connect to room: ${roomCode}`);
       connect(roomCode as string).catch((error) => {
+        addDebugEvent(`Listener connection failed: ${error.message}`);
         Alert.alert('Connection Error', error.message || 'Failed to connect to room', [
           { text: 'OK', onPress: () => router.canGoBack() ? router.back() : router.replace('/') }
         ]);
@@ -139,6 +166,7 @@ export default function StreamScreen() {
           text: 'Disconnect',
           style: 'destructive',
           onPress: () => {
+            addDebugEvent('Listener manually disconnected');
             disconnect();
             if (router.canGoBack()) {
               router.back();

@@ -12,11 +12,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useSettingsContext } from '@/context/SettingsContext';
+import { useDebugContext } from '@/context/DebugContext';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 
 export default function BugReportButton() {
   const { settings, isLoaded } = useSettingsContext();
+  const { getDebugData } = useDebugContext();
   const [modalVisible, setModalVisible] = useState(false);
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,6 +43,7 @@ export default function BugReportButton() {
       const payload = {
         description: description.trim(),
         settings: settings,
+        debugData: getDebugData(),
         deviceInfo: {
           brand: Device.brand,
           modelName: Device.modelName,

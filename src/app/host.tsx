@@ -16,6 +16,7 @@ import { AudioSession, AndroidAudioTypePresets, LiveKitRoom, useParticipants } f
 import { useHost } from '@/hooks/useHost';
 import { useTTS } from '@/hooks/useTTS';
 import { useSettingsContext } from '@/context/SettingsContext';
+import { useDebugContext } from '@/context/DebugContext';
 import { SUPPORTED_LANGUAGES } from '@/constants/languages';
 import GlassCard from '@/components/GlassCard';
 import ToggleCard from '@/components/ToggleCard';
@@ -175,6 +176,24 @@ export default function HostScreen() {
     audioLevel,
     setAudioLevel,
   } = useHost();
+  const { setDebugState, addDebugEvent } = useDebugContext();
+
+  React.useEffect(() => {
+    setDebugState('host', {
+      roomCode, isMicActive, isTranslating, isEchoEnabled, isConnected,
+      selectedLanguage, isTTSActive, audioLevel,
+      listenersCount: listeners.length,
+      listeners: listeners.map((l: any) => ({ id: l.id || l.sid, name: l.name || l.identity }))
+    });
+  }, [roomCode, isMicActive, isTranslating, isEchoEnabled, isConnected, selectedLanguage, isTTSActive, audioLevel, listeners, setDebugState]);
+
+  const prevMic = React.useRef(isMicActive);
+  React.useEffect(() => {
+    if (prevMic.current !== isMicActive) {
+      addDebugEvent(`Host microphone active: ${isMicActive}`);
+      prevMic.current = isMicActive;
+    }
+  }, [isMicActive, addDebugEvent]);
 
   React.useEffect(() => {
     if (!roomCode) return;
@@ -291,6 +310,7 @@ export default function HostScreen() {
       return;
     }
     try {
+      addDebugEvent('Host starting room');
       await startRoom();
     } catch (error: any) {
       Alert.alert('Failed to Start', error.message || 'Could not start the session. Check your server connection.');
@@ -307,6 +327,7 @@ export default function HostScreen() {
           text: 'End Session', 
           style: 'destructive', 
           onPress: () => {
+            addDebugEvent('Host ended room');
             clear();
             stopRoom();
           }
@@ -323,6 +344,7 @@ export default function HostScreen() {
       );
       return;
     }
+    addDebugEvent(`Host toggled translation to: ${value}`);
     toggleTranslation();
   };
 
