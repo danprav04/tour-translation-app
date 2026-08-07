@@ -111,17 +111,17 @@ export const useHost = () => {
       const deviceName = settings.deviceName || 'Host';
       let code = '';
 
-      if (settings.useLegacyWebSockets) {
-        // LEGACY SOCKET.IO MODE
-        socketService.connect(settings.serverUrl);
-        const res = await socketService.createRoom();
-        code = res.roomCode;
-      } else {
+      socketService.connect(settings.serverUrl);
+      const res = await socketService.createRoom({ 
+        architecture: settings.useLegacyWebSockets ? 'legacy' : 'webrtc' 
+      });
+      code = res.roomCode;
+
+      if (!settings.useLegacyWebSockets) {
         // LIVEKIT MODE
         if (!settings.geminiApiKey) {
           throw new Error('Gemini API key is required for LiveKit mode.');
         }
-        code = generateRoomCode();
         const baseUrl = settings.serverUrl.replace(/\/+$/, '');
         
         const controller = new AbortController();

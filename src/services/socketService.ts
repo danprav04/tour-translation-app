@@ -12,6 +12,7 @@ class SocketService {
   private currentRoomCode: string | null = null;
   private currentListenerId: string | null = null;
   private currentDeviceName: string | null = null;
+  private currentArchitecture: string | null = null;
   private isHostRole: boolean = false;
   private backgroundPingInterval: number | null = null;
 
@@ -41,7 +42,10 @@ class SocketService {
     this.socket.io.on('reconnect', () => {
       // Automatically rejoin or recreate room on socket reconnect
       if (this.isHostRole && this.currentRoomCode) {
-        this.socket?.emit('create-room', { existingRoomCode: this.currentRoomCode });
+        this.socket?.emit('create-room', { 
+          existingRoomCode: this.currentRoomCode,
+          architecture: this.currentArchitecture
+        });
       } else if (!this.isHostRole && this.currentRoomCode && this.currentListenerId) {
         this.socket?.emit('join-room', { 
           roomCode: this.currentRoomCode, 
@@ -81,16 +85,17 @@ class SocketService {
     this.outgoingSeq = 0;
   }
 
-  createRoom(): Promise<{ roomCode: string; roomId: string }> {
+  createRoom(options?: { architecture?: string }): Promise<{ roomCode: string; roomId: string }> {
     return new Promise((resolve, reject) => {
       if (!this.socket) return reject(new Error('Socket not connected'));
       
       const timeout = setTimeout(() => reject(new Error('Connection timed out. Check your server URL and network.')), 10000);
 
-      this.socket.emit('create-room', {}, (response: { success: boolean; roomCode: string; roomId: string; error?: string }) => {
+      this.socket.emit('create-room', { architecture: options?.architecture || 'legacy' }, (response: { success: boolean; roomCode: string; roomId: string; error?: string }) => {
         clearTimeout(timeout);
         if (response.success) {
           this.currentRoomCode = response.roomCode;
+          this.currentArchitecture = options?.architecture || 'legacy';
           this.isHostRole = true;
           this.outgoingSeq = 0;
           resolve({ roomCode: response.roomCode, roomId: response.roomId });

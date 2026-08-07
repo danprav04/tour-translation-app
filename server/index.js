@@ -71,6 +71,17 @@ app.get('/api/livekit/token', async (req, res) => {
     return res.status(400).json({ error: 'Missing required parameters: roomId, userId, role' });
   }
 
+  if (role === 'listener') {
+    const code = roomId.toUpperCase();
+    const room = rooms.get(code);
+    if (!room) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+    if (room.architecture === 'legacy') {
+      return res.status(403).json({ error: 'Host is using Legacy WebSockets. Please turn on Legacy Socket.io Mode in settings.' });
+    }
+  }
+
   const apiKey = process.env.LIVEKIT_API_KEY;
   const apiSecret = process.env.LIVEKIT_API_SECRET;
 
@@ -105,13 +116,16 @@ app.get('/api/livekit/token', async (req, res) => {
 // Socket.IO Events
 io.on('connection', (socket) => {
   
-  socket.on('create-room', ({ existingRoomCode } = {}, callback) => {
+  socket.on('create-room', ({ existingRoomCode, architecture } = {}, callback) => {
     let roomCode = existingRoomCode;
     
     // Reconnection case: host re-creates the same room
     if (roomCode && rooms.has(roomCode)) {
       const room = rooms.get(roomCode);
       room.hostSocketId = socket.id; // Update host socket ID
+      if (architecture) {
+        room.architecture = architecture;
+      }
       room.lastHostDisconnect = null;
       socket.join(roomCode);
       if (typeof callback === 'function') {
@@ -127,6 +141,7 @@ io.on('connection', (socket) => {
     
     rooms.set(roomCode, {
       hostSocketId: socket.id,
+      architecture: architecture || 'legacy',
       listeners: new Map(),
       createdAt: Date.now(),
       lastHostDisconnect: null
@@ -138,7 +153,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('join-room', ({ roomCode, deviceName, existingListenerId }, callback) => {
+  socket.on('join-room', ({ roomCode, deviceName, existingListenerId, architecture }, callback) => {
     if (!roomCode) {
       if (typeof callback === 'function') callback({ success: false, error: 'Missing room code' });
       return;
@@ -149,6 +164,11 @@ io.on('connection', (socket) => {
     
     if (!room) {
       if (typeof callback === 'function') callback({ success: false, error: 'Room not found' });
+      return;
+    }
+
+    if (room.architecture && room.architecture !== 'legacy') {
+      if (typeof callback === 'function') callback({ success: false, error: 'Host is using WebRTC. Please turn off Legacy Socket.io Mode in settings.' });
       return;
     }
 
