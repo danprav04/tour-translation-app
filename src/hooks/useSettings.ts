@@ -9,6 +9,7 @@ export interface Settings {
   lastRoomCode: string;
   deviceName: string;
   useLegacyWebSockets: boolean;
+  showBugReportButton: boolean;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -18,6 +19,7 @@ const DEFAULT_SETTINGS: Settings = {
   lastRoomCode: '',
   deviceName: Constants.deviceName || 'Listener Device',
   useLegacyWebSockets: false,
+  showBugReportButton: true,
 };
 
 const SETTINGS_KEY = '@tour_settings';

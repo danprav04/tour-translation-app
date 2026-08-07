@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bug Reports</title>
+  <style>
+    :root {
+      --bg: #0A0E1A;
+      --card-bg: #1E2336;
+      --text: #FFFFFF;
+      --text-muted: rgba(255, 255, 255, 0.6);
+      --accent: #00D4AA;
+      --border: rgba(255, 255, 255, 0.1);
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 2rem;
+    }
+    h1 {
+      color: var(--accent);
+      margin-bottom: 2rem;
+    }
+    .report-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .report-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+    }
+    .timestamp {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+    .description {
+      font-size: 1.1rem;
+      line-height: 1.5;
+      margin-bottom: 1.5rem;
+    }
+    .details-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+    .details-section {
+      background-color: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    .details-section h3 {
+      margin-top: 0;
+      font-size: 1rem;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+    }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    #loading {
+      text-align: center;
+      color: var(--text-muted);
+    }
+    .empty-state {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 3rem;
+      background-color: var(--card-bg);
+      border-radius: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🐞 Bug Reports</h1>
+  
+  <div id="loading">Loading reports...</div>
+  <div id="reports-container" style="display: none;"></div>
+
+  <script>
+    async function loadReports() {
+      try {
+        const response = await fetch('/api/bug-reports');
+        const data = await response.json();
+        const container = document.getElementById('reports-container');
+        const loading = document.getElementById('loading');
+        
+        loading.style.display = 'none';
+        container.style.display = 'block';
+
+        if (!data.reports || data.reports.length === 0) {
+          container.innerHTML = '<div class="empty-state">No bug reports found.</div>';
+          return;
+        }
+
+        container.innerHTML = data.reports.map(report => `
+          <div class="report-card">
+            <div class="report-header">
+              <strong>ID: ${report.id}</strong>
+              <span class="timestamp">${new Date(report.timestamp).toLocaleString()}</span>
+            </div>
+            <div class="description">${escapeHtml(report.description)}</div>
+            <div class="details-grid">
+              <div class="details-section">
+                <h3>Device Info</h3>
+                <pre>${escapeHtml(JSON.stringify(report.deviceInfo || {}, null, 2))}</pre>
+              </div>
+              <div class="details-section">
+                <h3>Settings State</h3>
+                <pre>${escapeHtml(JSON.stringify(report.settings || {}, null, 2))}</pre>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      } catch (error) {
+        document.getElementById('loading').innerText = 'Failed to load reports. ' + error.message;
+      }
+    }
+
+    function escapeHtml(unsafe) {
+      if (!unsafe) return '';
+      return unsafe
+        .toString()
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    loadReports();
+  </script>
+</body>
+</html>

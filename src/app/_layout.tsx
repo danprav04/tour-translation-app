@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SettingsProvider } from '@/context/SettingsContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import BugReportButton from '@/components/BugReportButton';
 
 import { registerGlobals } from '@livekit/react-native';
 
@@ -22,6 +23,7 @@ export default function RootLayout() {
             animation: 'fade',
           }}
         />
+        <BugReportButton />
       </SettingsProvider>
     </SafeAreaProvider>
   );

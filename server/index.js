@@ -4,10 +4,12 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
+const fs = require('fs');
 const { AccessToken } = require('livekit-server-sdk');
 
 const app = express();
 app.use(cors());
+app.use(express.json({ limit: '50mb' }));
 
 // Serve static files from the public directory (for the landing page)
 app.use(express.static(path.join(__dirname, 'public')));
@@ -45,7 +47,7 @@ app.get('/room/:code', (req, res) => {
   const code = req.params.code.toUpperCase();
   const room = rooms.get(code);
   if (room) {
-    res.json({ exists: true, listenerCount: room.listeners.size });
+    res.json({ exists: true, listenerCount: room.listeners.size, architecture: room.architecture || 'legacy' });
   } else {
     res.json({ exists: false, listenerCount: 0 });
   }
@@ -61,6 +63,42 @@ app.get('/api/rooms', (req, res) => {
     });
   }
   res.json({ rooms: activeRooms });
+});
+
+const BUG_REPORTS_FILE = path.join(__dirname, 'bug-reports.json');
+
+app.post('/api/bug-reports', (req, res) => {
+  try {
+    const report = req.body;
+    let reports = [];
+    if (fs.existsSync(BUG_REPORTS_FILE)) {
+      reports = JSON.parse(fs.readFileSync(BUG_REPORTS_FILE, 'utf8'));
+    }
+    report.id = uuidv4();
+    if (!report.timestamp) report.timestamp = new Date().toISOString();
+    
+    // add to beginning of array so newest is first
+    reports.unshift(report);
+    
+    fs.writeFileSync(BUG_REPORTS_FILE, JSON.stringify(reports, null, 2));
+    res.json({ success: true, id: report.id });
+  } catch (error) {
+    console.error('Error saving bug report:', error);
+    res.status(500).json({ error: 'Failed to save bug report' });
+  }
+});
+
+app.get('/api/bug-reports', (req, res) => {
+  try {
+    let reports = [];
+    if (fs.existsSync(BUG_REPORTS_FILE)) {
+      reports = JSON.parse(fs.readFileSync(BUG_REPORTS_FILE, 'utf8'));
+    }
+    res.json({ reports });
+  } catch (error) {
+    console.error('Error reading bug reports:', error);
+    res.status(500).json({ error: 'Failed to read bug reports' });
+  }
 });
 
 // LiveKit Token Generation

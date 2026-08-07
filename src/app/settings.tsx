@@ -26,6 +26,7 @@ export default function SettingsScreen() {
   const [apiKey, setApiKey] = useState(settings.geminiApiKey);
   const [deviceName, setDeviceName] = useState(settings.deviceName);
   const [useLegacy, setUseLegacy] = useState(settings.useLegacyWebSockets);
+  const [showBugReport, setShowBugReport] = useState(settings.showBugReportButton ?? true);
   const [showApiKey, setShowApiKey] = useState(false);
   const [isBatteryOptimized, setIsBatteryOptimized] = useState<boolean | null>(null);
 
@@ -66,6 +67,7 @@ export default function SettingsScreen() {
       geminiApiKey: apiKey.trim(),
       deviceName: deviceName.trim() || 'Listener Device',
       useLegacyWebSockets: useLegacy,
+      showBugReportButton: showBugReport,
     });
   };
 
@@ -201,6 +203,34 @@ export default function SettingsScreen() {
                       },
                     ]
                   );
+                }}
+                trackColor={{ false: 'rgba(255,255,255,0.1)', true: '#00D4AA' }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+          </GlassCard>
+
+          {/* Bug Report Button Toggle */}
+          <GlassCard style={styles.section}>
+            <View style={styles.switchRow}>
+              <View style={styles.switchTextContainer}>
+                <Text style={styles.sectionTitle}>🐞 Bug Report Button</Text>
+                <Text style={styles.sectionDesc}>
+                  Show a floating button to easily report bugs and submit logs.
+                </Text>
+              </View>
+              <Switch
+                value={showBugReport}
+                onValueChange={(val) => {
+                  setShowBugReport(val);
+                  updateSettings({
+                    ...settings,
+                    serverUrl: serverUrl.trim(),
+                    deviceName: deviceName.trim() || 'Listener Device',
+                    geminiApiKey: apiKey.trim(),
+                    useLegacyWebSockets: useLegacy,
+                    showBugReportButton: val,
+                  });
                 }}
                 trackColor={{ false: 'rgba(255,255,255,0.1)', true: '#00D4AA' }}
                 thumbColor="#FFFFFF"
