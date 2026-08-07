@@ -2,7 +2,7 @@
   "expo": {
     "name": "TourCast",
     "slug": "tour-translation-app",
-    "version": "1.5.1",
+    "version": "1.5.2",
     "runtimeVersion": {
       "policy": "appVersion"
     },
