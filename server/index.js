@@ -410,19 +410,34 @@ async function sendToTelegram(report) {
   if (!token || !chatId) return;
 
   const device = report.deviceInfo ? `${report.deviceInfo.brand} ${report.deviceInfo.modelName}` : 'Unknown Device';
-  const text = `🐛 *New Bug Report*\n\n*ID:* ${report.id}\n*Description:* ${report.description}\n*Device:* ${device}\n\n[View Full Report](http://your-server-ip:3000/bug-reports.html)`;
+  const serverUrl = report.settings?.serverUrl ? report.settings.serverUrl.replace(/\/$/, '') : 'http://your-server-ip:3000';
+  const text = `🐛 *New Bug Report*\n\n*ID:* ${report.id}\n*Description:* ${report.description}\n*Device:* ${device}\n\n[View Full Report](${serverUrl}/bug-reports.html)`;
   
-  const url = `https://api.telegram.org/bot${token}/sendMessage`;
-  const body = JSON.stringify({
-    chat_id: chatId,
-    text: text,
-    parse_mode: 'Markdown'
-  });
+  const url = `https://api.telegram.org/bot${token}/sendDocument`;
+  
+  const boundary = '----WebKitFormBoundary' + Math.random().toString(16).slice(2);
+  const jsonPayload = JSON.stringify(report, null, 2);
+  
+  let body = '';
+  body += `--${boundary}\r\n`;
+  body += `Content-Disposition: form-data; name="chat_id"\r\n\r\n`;
+  body += `${chatId}\r\n`;
+  body += `--${boundary}\r\n`;
+  body += `Content-Disposition: form-data; name="caption"\r\n\r\n`;
+  body += `${text}\r\n`;
+  body += `--${boundary}\r\n`;
+  body += `Content-Disposition: form-data; name="parse_mode"\r\n\r\n`;
+  body += `Markdown\r\n`;
+  body += `--${boundary}\r\n`;
+  body += `Content-Disposition: form-data; name="document"; filename="report-${report.id.substring(0,8)}.json"\r\n`;
+  body += `Content-Type: application/json\r\n\r\n`;
+  body += `${jsonPayload}\r\n`;
+  body += `--${boundary}--\r\n`;
 
   if (typeof fetch !== 'undefined') {
     await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
       body: body
     });
   } else {
@@ -430,7 +445,7 @@ async function sendToTelegram(report) {
       const req = https.request(url, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': `multipart/form-data; boundary=${boundary}`,
           'Content-Length': Buffer.byteLength(body)
         }
       }, (res) => {
