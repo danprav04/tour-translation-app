@@ -32,14 +32,65 @@ export default function ListenerScreen() {
     }, [])
   );
 
-  const handleConnect = (code: string) => {
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const handleConnect = async (code: string) => {
     const trimmed = code.trim().toUpperCase();
     if (trimmed.length < 4) {
       Alert.alert('Invalid Code', 'Please enter a valid room code.');
       return;
     }
-    updateSettings({ lastRoomCode: trimmed });
-    router.push(`/stream?roomCode=${trimmed}`);
+    
+    if (!settings.serverUrl) {
+      Alert.alert('Configuration Error', 'Please set the server URL in settings first.');
+      return;
+    }
+
+    setIsConnecting(true);
+    try {
+      const baseUrl = settings.serverUrl.replace(/\/+$/, '');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      const res = await fetch(`${baseUrl}/room/${trimmed}`, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
+      if (!res.ok) {
+        throw new Error('Server error');
+      }
+      
+      const data = await res.json();
+      
+      if (!data.exists) {
+        Alert.alert('Room Not Found', 'The room code you entered does not exist or has been closed.');
+        setIsConnecting(false);
+        return;
+      }
+      
+      const isHostLegacy = data.architecture === 'legacy';
+      
+      if (settings.useLegacyWebSockets && !isHostLegacy) {
+        Alert.alert('Architecture Mismatch', 'The host is using WebRTC. Please turn off Legacy Socket.io Mode in settings to join this room.');
+        setIsConnecting(false);
+        return;
+      }
+      
+      if (!settings.useLegacyWebSockets && isHostLegacy) {
+        Alert.alert('Architecture Mismatch', 'The host is using Legacy WebSockets. Please turn on Legacy Socket.io Mode in settings to join this room.');
+        setIsConnecting(false);
+        return;
+      }
+      
+      updateSettings({ lastRoomCode: trimmed });
+      router.push(`/stream?roomCode=${trimmed}`);
+    } catch (err) {
+      console.error('Preflight check failed:', err);
+      // Fallback: if preflight fails due to network, we can still try to connect and let stream.tsx handle it.
+      updateSettings({ lastRoomCode: trimmed });
+      router.push(`/stream?roomCode=${trimmed}`);
+    } finally {
+      setIsConnecting(false);
+    }
   };
 
   const handleBarcodeScan = ({ data }: { data: string }) => {
