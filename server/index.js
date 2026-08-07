@@ -1,5 +1,6 @@
 const express = require('express');
 const http = require('http');
+const https = require('https');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
@@ -112,6 +113,10 @@ app.post('/api/bug-reports', (req, res) => {
     reports.unshift(report);
     
     fs.writeFileSync(BUG_REPORTS_FILE, JSON.stringify(reports, null, 2));
+
+    // Forward to Telegram asynchronously
+    sendToTelegram(report).catch(e => console.error('Telegram forwarding error:', e));
+
     res.json({ success: true, id: report.id });
   } catch (error) {
     console.error('Error saving bug report:', error);
@@ -397,3 +402,43 @@ setInterval(() => {
 server.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
+
+// Helper: Send Bug Report to Telegram
+async function sendToTelegram(report) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) return;
+
+  const device = report.deviceInfo ? `${report.deviceInfo.brand} ${report.deviceInfo.modelName}` : 'Unknown Device';
+  const text = `🐛 *New Bug Report*\n\n*ID:* ${report.id}\n*Description:* ${report.description}\n*Device:* ${device}\n\n[View Full Report](http://your-server-ip:3000/bug-reports.html)`;
+  
+  const url = `https://api.telegram.org/bot${token}/sendMessage`;
+  const body = JSON.stringify({
+    chat_id: chatId,
+    text: text,
+    parse_mode: 'Markdown'
+  });
+
+  if (typeof fetch !== 'undefined') {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: body
+    });
+  } else {
+    return new Promise((resolve, reject) => {
+      const req = https.request(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body)
+        }
+      }, (res) => {
+        resolve();
+      });
+      req.on('error', reject);
+      req.write(body);
+      req.end();
+    });
+  }
+}
