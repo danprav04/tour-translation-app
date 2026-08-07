@@ -14,6 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Updates from 'expo-updates';
+import Constants from 'expo-constants';
+import packageJson from '../../package.json';
 import { useSettingsContext } from '@/context/SettingsContext';
 import GlassCard from '@/components/GlassCard';
 
@@ -34,6 +36,9 @@ export default function SettingsScreen() {
       useLegacyWebSockets: useLegacy,
     });
   };
+
+  const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? packageJson.version ?? '1.0.0';
+  const appName = Constants.expoConfig?.name ?? 'TourCast';
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -175,7 +180,7 @@ export default function SettingsScreen() {
           <GlassCard style={styles.section}>
             <Text style={styles.sectionTitle}>ℹ️ About</Text>
             <Text style={styles.aboutText}>
-              TourCast v1.0.0{'\n'}
+              {appName} v{appVersion}{'\n'}
               Real-time audio broadcasting for tour groups.{'\n'}
               Powered by Gemini Live Translate.
             </Text>
