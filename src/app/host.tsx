@@ -175,6 +175,7 @@ export default function HostScreen() {
     setLivekitPublisher,
     audioLevel,
     setAudioLevel,
+    connectionHealth,
   } = useHost();
   const { setDebugState, addDebugEvent } = useDebugContext();
 
@@ -412,13 +413,21 @@ export default function HostScreen() {
         {/* Header */}
         <View style={styles.header}>
           <StatusBadge
-            status={isTTSPlaying ? 'broadcasting' : isMicActive ? 'broadcasting' : 'connected'}
+            status={
+              connectionHealth === 'degraded' || connectionHealth === 'critical'
+                ? 'degraded'
+                : isTTSPlaying ? 'broadcasting' : isMicActive ? 'broadcasting' : 'connected'
+            }
             label={
-              isTTSPlaying
-                ? '📡 Broadcasting TTS'
-                : isMicActive
-                  ? `Live · ${activeListeners.length} listeners`
-                  : 'Session Active'
+              connectionHealth === 'critical'
+                ? '⚠️ Connection Issues'
+                : connectionHealth === 'degraded'
+                  ? '⚠️ Weak Connection'
+                  : isTTSPlaying
+                    ? '📡 Broadcasting TTS'
+                    : isMicActive
+                      ? `Live · ${activeListeners.length} listeners`
+                      : 'Session Active'
             }
           />
           <Pressable onPress={handleStop} hitSlop={8}>

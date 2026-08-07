@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, Text, Animated, Easing } from 'react-native';
 
-type StatusType = 'connected' | 'disconnected' | 'reconnecting' | 'broadcasting';
+type StatusType = 'connected' | 'disconnected' | 'reconnecting' | 'broadcasting' | 'degraded' | 'host-paused';
 
 interface StatusBadgeProps {
   status: StatusType;
@@ -13,13 +13,15 @@ const STATUS_CONFIG: Record<StatusType, { color: string; label: string }> = {
   disconnected: { color: '#FF4757', label: 'Disconnected' },
   reconnecting: { color: '#FFA502', label: 'Reconnecting...' },
   broadcasting: { color: '#00D4AA', label: 'Broadcasting' },
+  degraded: { color: '#FFA502', label: 'Connection Weak' },
+  'host-paused': { color: '#8B9DC3', label: 'Host Paused' },
 };
 
 export default function StatusBadge({ status, label }: StatusBadgeProps) {
   const [pulseAnim] = useState(() => new Animated.Value(1));
 
   useEffect(() => {
-    if (status === 'broadcasting' || status === 'reconnecting') {
+    if (status === 'broadcasting' || status === 'reconnecting' || status === 'degraded') {
       const pulse = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {

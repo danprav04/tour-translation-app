@@ -16,7 +16,9 @@ class SocketService {
   private isHostRole: boolean = false;
   private backgroundPingInterval: number | null = null;
 
-  private outgoingSeq: number = 0;
+  private outgoingSeq: number = 0;\r
+  public lastChunkSentAt: number = 0;\r
+  public lastChunkReceivedAt: number = 0;
 
   connect(serverUrl: string): void {
     if (this.socket) {
@@ -83,6 +85,8 @@ class SocketService {
     this.currentListenerId = null;
     this.isHostRole = false;
     this.outgoingSeq = 0;
+    this.lastChunkSentAt = 0;
+    this.lastChunkReceivedAt = 0;
   }
 
   createRoom(options?: { architecture?: string }): Promise<{ roomCode: string; roomId: string }> {
@@ -130,6 +134,7 @@ class SocketService {
   sendAudioChunk(data: ArrayBuffer, sampleRate: number, isReliable: boolean = false): void {
     if (this.socket && this.socket.connected) {
       this.outgoingSeq += 1;
+      this.lastChunkSentAt = Date.now();
       const timestamp = Date.now();
       
       if (isReliable) {
@@ -154,7 +159,10 @@ class SocketService {
 
   onAudioData(callback: (data: ArrayBuffer, sampleRate: number, seq: number, timestamp: number) => void): void {
     if (this.socket) {
-      this.socket.on('audio-data', callback);
+      this.socket.on('audio-data', (data: ArrayBuffer, sampleRate: number, seq: number, timestamp: number) => {
+        this.lastChunkReceivedAt = Date.now();
+        callback(data, sampleRate, seq, timestamp);
+      });
     }
   }
 
@@ -196,6 +204,38 @@ class SocketService {
     }
   }
 
+  refreshConnection(): void {\r
+    if (this.socket && this.socket.connected) {\r
+      console.log('[SocketService] Refreshing connection (transport-level reconnect)...');\r
+      // Force transport-level reconnect. Socket.IO will automatically reconnect\r
+      // and the existing 'reconnect' handler will re-join the room.\r
+      (this.socket.io as any).engine?.close();\r
+    }\r
+  }\r
+\r
+  sendHealthCheck(nonce: string): void {\r
+    if (this.socket && this.socket.connected) {\r
+      this.socket.emit('health-check', { nonce });\r
+    }\r
+  }\r
+\r
+  onHealthCheckAck(callback: (data: { nonce: string; timestamp: number; roomActive: boolean }) => void): void {\r
+    if (this.socket) {\r
+      this.socket.on('health-check-ack', callback);\r
+    }\r
+  }\r
+\r
+  requestResync(roomCode: string): Promise<{ hostConnected: boolean; hostStreaming: boolean; listenerCount: number }> {\r
+    return new Promise((resolve, reject) => {\r
+      if (!this.socket) return reject(new Error('Socket not connected'));\r
+      const timeout = setTimeout(() => reject(new Error('Resync request timed out')), 10000);\r
+      this.socket.emit('request-resync', { roomCode }, (response: { hostConnected: boolean; hostStreaming: boolean; listenerCount: number }) => {\r
+        clearTimeout(timeout);\r
+        resolve(response);\r
+      });\r
+    });\r
+  }\r
+\r
   isConnected(): boolean {
     return this.socket !== null && this.socket.connected;
   }

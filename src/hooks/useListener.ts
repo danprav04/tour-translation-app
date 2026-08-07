@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSettingsContext } from '@/context/SettingsContext';
 import foregroundService from '@/services/foregroundService';
 import audioService from '@/services/audioService';
 import socketService from '@/services/socketService';
+import connectionHealthService from '@/services/connectionHealthService';
 
 export const useListener = () => {
   const { settings, updateSettings } = useSettingsContext();
@@ -14,6 +15,8 @@ export const useListener = () => {
   
   const [livekitToken, setLivekitToken] = useState<string | null>(null);
   const [livekitUrl, setLivekitUrl] = useState<string | null>(null);
+  const [isHostStreaming, setIsHostStreaming] = useState(true);
+  const isMutedRef = useRef(false);
 
   useEffect(() => {
     audioService.setAudioLevelCallback((level) => {
@@ -21,6 +24,11 @@ export const useListener = () => {
     });
     return () => audioService.setAudioLevelCallback(null);
   }, []);
+
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+    connectionHealthService.updateMuteState(isMuted);
+  }, [isMuted]);
 
   const connect = async (code: string) => {
     try {
@@ -81,6 +89,7 @@ export const useListener = () => {
   };
 
   const disconnect = async () => {
+    connectionHealthService.stop();
     if (settings.useLegacyWebSockets) {
       socketService.disconnect();
       audioService.setMuted(true); // Effectively pauses/clears playlist
@@ -121,6 +130,31 @@ export const useListener = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.useLegacyWebSockets, isConnected]);
 
+  // Connection health monitoring
+  useEffect(() => {
+    if (!isConnected || !roomCode) return;
+
+    connectionHealthService.registerCallbacks({
+      onRefreshSocket: () => {
+        console.log('[HealthMonitor] Refreshing listener socket...');
+        socketService.refreshConnection();
+      },
+      onHostStreamingChanged: (streaming) => {
+        setIsHostStreaming(streaming);
+      },
+      onHealthStatusChanged: (status) => {
+        console.log('[HealthMonitor] Listener health status:', status);
+      },
+    });
+
+    connectionHealthService.startListenerMonitoring(roomCode, settings.useLegacyWebSockets);
+
+    return () => {
+      connectionHealthService.stop();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, roomCode]);
+
   const toggleMute = () => {
     setIsMuted(!isMuted);
     if (settings.useLegacyWebSockets) {
@@ -141,6 +175,7 @@ export const useListener = () => {
     livekitToken,
     livekitUrl,
     isReconnecting,
+    isHostStreaming,
     connect,
     disconnect,
     toggleMute,

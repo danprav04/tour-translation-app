@@ -17,6 +17,7 @@ import { useListener } from '@/hooks/useListener';
 import { useSettingsContext } from '@/context/SettingsContext';
 import { useDebugContext } from '@/context/DebugContext';
 import audioService from '@/services/audioService';
+import connectionHealthService from '@/services/connectionHealthService';
 import StatusBadge from '@/components/StatusBadge';
 import AudioVisualizer from '@/components/AudioVisualizer';
 import GlassCard from '@/components/GlassCard';
@@ -32,6 +33,7 @@ export default function StreamScreen() {
     isConnected,
     isMuted,
     isReconnecting,
+    isHostStreaming,
     livekitToken,
     livekitUrl,
     connect,
@@ -182,7 +184,7 @@ export default function StreamScreen() {
   const connectionStatus = isReconnecting
     ? 'reconnecting'
     : isConnected
-    ? 'connected'
+    ? (!isHostStreaming ? 'host-paused' : 'connected')
     : 'disconnected';
 
   if (!settings.useLegacyWebSockets && (!livekitToken || !livekitUrl || !isAudioSessionReady)) {
@@ -290,6 +292,7 @@ function StreamContentLiveKit(props: any) {
         
         const currentSeq = seqRef.current++;
         
+        connectionHealthService.recordLivekitDataReceived();
         // Play the decoded TTS chunk using the audioService JitterBuffer
         audioService.playChunk(btoa(binary), 24000, currentSeq);
       }
@@ -387,7 +390,9 @@ function StreamContentUI({
             {isReconnecting
               ? 'Attempting to reconnect...'
               : isConnected
-              ? isMuted
+              ? connectionStatus === 'host-paused'
+                ? 'Waiting for host to resume...'
+                : isMuted
                 ? 'Audio is muted. Tap to listen.'
                 : 'Receiving audio from host'
               : 'Connecting...'}

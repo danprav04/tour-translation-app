@@ -218,7 +218,8 @@ io.on('connection', (socket) => {
       architecture: architecture || 'legacy',
       listeners: new Map(),
       createdAt: Date.now(),
-      lastHostDisconnect: null
+      lastHostDisconnect: null,
+      lastAudioTimestamp: null
     });
     
     socket.join(roomCode);
@@ -288,6 +289,7 @@ io.on('connection', (socket) => {
     for (const [id, room] of rooms.entries()) {
       if (room.hostSocketId === socket.id) {
         targetRoomId = id;
+        room.lastAudioTimestamp = Date.now();
         break;
       }
     }
@@ -325,6 +327,42 @@ io.on('connection', (socket) => {
           }
         }
       }
+    }
+  });
+
+  socket.on('health-check', ({ nonce }) => {
+    let roomActive = false;
+    for (const room of rooms.values()) {
+      if (room.hostSocketId === socket.id || room.listeners.has(socket.id)) {
+        roomActive = true;
+        break;
+      }
+    }
+    socket.emit('health-check-ack', { nonce, timestamp: Date.now(), roomActive });
+  });
+
+  socket.on('request-resync', ({ roomCode }, callback) => {
+    if (!roomCode) {
+      if (typeof callback === 'function') callback({ hostConnected: false, hostStreaming: false, listenerCount: 0 });
+      return;
+    }
+    const code = roomCode.toUpperCase();
+    const room = rooms.get(code);
+    
+    if (!room) {
+      if (typeof callback === 'function') callback({ hostConnected: false, hostStreaming: false, listenerCount: 0 });
+      return;
+    }
+    
+    const hostConnected = io.sockets.sockets.has(room.hostSocketId);
+    const hostStreaming = Boolean(room.lastAudioTimestamp && (Date.now() - room.lastAudioTimestamp) < 10000);
+    
+    if (typeof callback === 'function') {
+      callback({
+        hostConnected,
+        hostStreaming,
+        listenerCount: room.listeners.size
+      });
     }
   });
 

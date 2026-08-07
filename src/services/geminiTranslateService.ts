@@ -3,11 +3,17 @@ class GeminiTranslateService {
   private onTranslatedAudioCallback: ((base64PcmData: string) => void) | null = null;
   private onErrorCallback: ((error: Error) => void) | null = null;
   private onCloseCallback: (() => void) | null = null;
+  public lastTranslatedAudioAt: number = 0;
+  public currentApiKey: string | null = null;
+  public currentLangCode: string | null = null;
 
   async connect(apiKey: string, targetLanguageCode: string): Promise<void> {
     if (this.ws) {
       this.disconnect();
     }
+    this.currentApiKey = apiKey;
+    this.currentLangCode = targetLanguageCode;
+    this.lastTranslatedAudioAt = 0;
 
     const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
 
@@ -96,6 +102,7 @@ class GeminiTranslateService {
               for (const part of parts) {
                 if (part.inlineData && part.inlineData.data) {
                   // console.log('[Gemini WS] Received audio chunk of length', part.inlineData.data.length);
+                  this.lastTranslatedAudioAt = Date.now();
                   if (this.onTranslatedAudioCallback) {
                     this.onTranslatedAudioCallback(part.inlineData.data);
                   }
@@ -164,6 +171,7 @@ class GeminiTranslateService {
       this.ws.close();
       this.ws = null;
     }
+    this.lastTranslatedAudioAt = 0;
   }
 
   onTranslatedAudio(callback: (base64PcmData: string) => void): void {
@@ -176,6 +184,26 @@ class GeminiTranslateService {
 
   onClose(callback: () => void): void {
     this.onCloseCallback = callback;
+  }
+
+  async connectOverlap(apiKey: string, targetLanguageCode: string): Promise<void> {
+    // Create a new WS connection without closing the old one.
+    // The caller is responsible for swapping and closing the old connection.
+    const oldWs = this.ws;
+    this.ws = null; // Temporarily clear so connect() doesn't close old one
+    try {
+      await this.connect(apiKey, targetLanguageCode);
+    } catch (error) {
+      // If new connection fails, restore old one
+      if (!this.ws && oldWs && oldWs.readyState === WebSocket.OPEN) {
+        this.ws = oldWs;
+      }
+      throw error;
+    }
+    // New connection succeeded. Close old one.
+    if (oldWs) {
+      try { oldWs.close(); } catch (e) { /* ignore */ }
+    }
   }
 
   isConnected(): boolean {

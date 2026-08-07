@@ -6,6 +6,7 @@ import foregroundService from '@/services/foregroundService';
 import audioService from '@/services/audioService';
 import socketService, { ListenerInfo } from '@/services/socketService';
 import { AndroidForegroundServiceType } from '@notifee/react-native';
+import connectionHealthService from '@/services/connectionHealthService';
 
 const generateRoomCode = () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -25,6 +26,7 @@ export const useHost = () => {
   const [isEchoEnabled, setIsEchoEnabled] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [connectionHealth, setConnectionHealth] = useState<'healthy' | 'degraded' | 'critical'>('healthy');
   const selectedLanguage = settings.targetLanguage;
 
   const isTranslatingRef = useRef(isTranslating);
@@ -175,6 +177,7 @@ export const useHost = () => {
   };
 
   const stopRoom = async () => {
+    connectionHealthService.stop();
     if (isTranslating) {
       isTranslatingRef.current = false;
       geminiTranslateService.disconnect();
@@ -315,6 +318,59 @@ export const useHost = () => {
     }
   };
 
+  // Connection health monitoring
+  useEffect(() => {
+    if (!isConnected || !roomCode) return;
+
+    connectionHealthService.registerCallbacks({
+      onRestartMic: async () => {
+        console.log('[HealthMonitor] Restarting mic capture...');
+        try {
+          await audioService.stopCapture();
+          await new Promise(resolve => setTimeout(resolve, 500));
+          if (isMicActiveRef.current) {
+            await audioService.startCapture(handleAudioChunk);
+          }
+        } catch (e) {
+          console.error('[HealthMonitor] Mic restart failed:', e);
+        }
+      },
+      onReconnectGemini: async () => {
+        if (!isTranslatingRef.current) return;
+        console.log('[HealthMonitor] Reconnecting Gemini...');
+        try {
+          geminiTranslateService.disconnect();
+          await startTranslation(settings.targetLanguage);
+        } catch (e) {
+          console.error('[HealthMonitor] Gemini reconnect failed:', e);
+        }
+      },
+      onRefreshSocket: () => {
+        console.log('[HealthMonitor] Refreshing socket...');
+        socketService.refreshConnection();
+      },
+      onHealthStatusChanged: (status) => {
+        setConnectionHealth(status);
+      },
+    });
+
+    connectionHealthService.startHostMonitoring(roomCode, settings.useLegacyWebSockets);
+
+    return () => {
+      connectionHealthService.stop();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, roomCode]);
+
+  // Keep health monitor in sync with streaming state
+  useEffect(() => {
+    connectionHealthService.updateMicState(isMicActive);
+  }, [isMicActive]);
+
+  useEffect(() => {
+    connectionHealthService.updateTranslationState(isTranslating);
+  }, [isTranslating]);
+
   const stopTranslation = async () => {
     isTranslatingRef.current = false;
     geminiTranslateService.disconnect();
@@ -415,5 +471,6 @@ export const useHost = () => {
     setLivekitPublisher,
     audioLevel,
     setAudioLevel,
+    connectionHealth,
   };
 };
