@@ -26,6 +26,7 @@ class SocketService {
     }
     this.outgoingSeq = 0;
     this.socket = io(serverUrl, {
+      transports: ['websocket'],
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: Infinity,
