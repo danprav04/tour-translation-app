@@ -105,7 +105,7 @@ export const useHost = () => {
     };
   }, [settings.useLegacyWebSockets, isConnected]);
 
-  const startRoom = async () => {
+  const startRoom = async (customRoomCode?: string) => {
     try {
       if (!settings.serverUrl) {
         throw new Error('Server URL is not configured.');
@@ -116,7 +116,8 @@ export const useHost = () => {
 
       socketService.connect(settings.serverUrl);
       const res = await socketService.createRoom({ 
-        architecture: settings.useLegacyWebSockets ? 'legacy' : 'webrtc' 
+        architecture: settings.useLegacyWebSockets ? 'legacy' : 'webrtc',
+        existingRoomCode: customRoomCode ? customRoomCode.trim().toUpperCase() : undefined
       });
       code = res.roomCode;
 

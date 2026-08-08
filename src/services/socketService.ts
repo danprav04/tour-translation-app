@@ -90,13 +90,16 @@ class SocketService {
     this.lastChunkReceivedAt = 0;
   }
 
-  createRoom(options?: { architecture?: string }): Promise<{ roomCode: string; roomId: string }> {
+  createRoom(options?: { architecture?: string; existingRoomCode?: string }): Promise<{ roomCode: string; roomId: string }> {
     return new Promise((resolve, reject) => {
       if (!this.socket) return reject(new Error('Socket not connected'));
       
       const timeout = setTimeout(() => reject(new Error('Connection timed out. Check your server URL and network.')), 10000);
 
-      this.socket.emit('create-room', { architecture: options?.architecture || 'legacy' }, (response: { success: boolean; roomCode: string; roomId: string; error?: string }) => {
+      this.socket.emit('create-room', { 
+        architecture: options?.architecture || 'legacy',
+        existingRoomCode: options?.existingRoomCode
+      }, (response: { success: boolean; roomCode: string; roomId: string; error?: string }) => {
         clearTimeout(timeout);
         if (response.success) {
           this.currentRoomCode = response.roomCode;

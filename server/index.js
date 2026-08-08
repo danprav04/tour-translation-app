@@ -26,9 +26,45 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 3000;
 
+const DATA_DIR = path.join(__dirname, 'data');
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
 // Rooms are stored in-memory as a Map
 // Key: roomCode, Value: { hostSocketId, listeners: Map<socketId, {id, name, joinedAt}>, createdAt }
 const rooms = new Map();
+
+const USED_ROOM_CODES_FILE = path.join(DATA_DIR, 'used-room-codes.json');
+const recentRoomCodes = new Map();
+if (fs.existsSync(USED_ROOM_CODES_FILE)) {
+  try {
+    const data = JSON.parse(fs.readFileSync(USED_ROOM_CODES_FILE, 'utf8'));
+    for (const [code, timestamp] of Object.entries(data)) {
+      recentRoomCodes.set(code, timestamp);
+    }
+  } catch (e) {
+    console.error('Error reading used-room-codes.json:', e);
+  }
+}
+
+function saveRecentRoomCodes() {
+  const data = Object.fromEntries(recentRoomCodes);
+  fs.writeFileSync(USED_ROOM_CODES_FILE, JSON.stringify(data, null, 2));
+}
+
+function markRoomCodeUsed(code) {
+  recentRoomCodes.set(code, Date.now());
+  saveRecentRoomCodes();
+}
+
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+function isCodeRecentlyUsed(code) {
+  const timestamp = recentRoomCodes.get(code);
+  if (!timestamp) return false;
+  return (Date.now() - timestamp) < SEVEN_DAYS_MS;
+}
 
 function generateRoomCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -66,7 +102,7 @@ app.get('/api/rooms', (req, res) => {
   res.json({ rooms: activeRooms });
 });
 
-const BUG_REPORTS_FILE = path.join(__dirname, 'bug-reports.json');
+const BUG_REPORTS_FILE = path.join(DATA_DIR, 'bug-reports.json');
 
 app.post('/api/bug-reports', (req, res) => {
   try {
@@ -193,24 +229,28 @@ io.on('connection', (socket) => {
   socket.on('create-room', ({ existingRoomCode, architecture } = {}, callback) => {
     let roomCode = existingRoomCode;
     
-    // Reconnection case: host re-creates the same room
-    if (roomCode && rooms.has(roomCode)) {
-      const room = rooms.get(roomCode);
-      room.hostSocketId = socket.id; // Update host socket ID
-      if (architecture) {
-        room.architecture = architecture;
+    if (roomCode) {
+      roomCode = roomCode.toUpperCase();
+      // Reconnection case: host re-creates the same room
+      if (rooms.has(roomCode)) {
+        const room = rooms.get(roomCode);
+        room.hostSocketId = socket.id; // Update host socket ID
+        if (architecture) {
+          room.architecture = architecture;
+        }
+        room.lastHostDisconnect = null;
+        socket.join(roomCode);
+        markRoomCodeUsed(roomCode);
+        if (typeof callback === 'function') {
+          callback({ success: true, roomCode, roomId: roomCode, reconnected: true });
+        }
+        return;
       }
-      room.lastHostDisconnect = null;
-      socket.join(roomCode);
-      if (typeof callback === 'function') {
-        callback({ success: true, roomCode, roomId: roomCode, reconnected: true });
-      }
-      return;
-    }
-
-    roomCode = generateRoomCode();
-    while (rooms.has(roomCode)) {
+    } else {
       roomCode = generateRoomCode();
+      while (rooms.has(roomCode) || isCodeRecentlyUsed(roomCode)) {
+        roomCode = generateRoomCode();
+      }
     }
     
     rooms.set(roomCode, {
@@ -223,6 +263,7 @@ io.on('connection', (socket) => {
     });
     
     socket.join(roomCode);
+    markRoomCodeUsed(roomCode);
     if (typeof callback === 'function') {
       callback({ success: true, roomCode, roomId: roomCode, reconnected: false });
     }

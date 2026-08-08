@@ -151,6 +151,7 @@ export default function HostScreen() {
 
 
   const { settings } = useSettingsContext();
+  const [customCode, setCustomCode] = React.useState(settings.lastRoomCode || '');
   const {
     roomCode,
     livekitToken,
@@ -312,7 +313,7 @@ export default function HostScreen() {
     }
     try {
       addDebugEvent('Host starting room');
-      await startRoom();
+      await startRoom(customCode);
     } catch (error: any) {
       Alert.alert('Failed to Start', error.message || 'Could not start the session. Check your server connection.');
     }
@@ -385,6 +386,20 @@ export default function HostScreen() {
             <Text style={styles.startDesc}>
               Create a session and share the QR code with your group to start broadcasting audio.
             </Text>
+            
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputLabel}>Room Code (Optional)</Text>
+              <TextInput
+                style={styles.roomInput}
+                placeholder="Auto-generate"
+                placeholderTextColor="rgba(255,255,255,0.3)"
+                value={customCode}
+                onChangeText={(text) => setCustomCode(text.toUpperCase())}
+                autoCapitalize="characters"
+                maxLength={10}
+              />
+            </View>
+
             <Pressable
               onPress={handleStart}
               style={({ pressed }) => [styles.startBtn, pressed && styles.pressed]}
@@ -863,7 +878,31 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: 32,
+    marginBottom: 24,
+  },
+  inputWrapper: {
+    width: '100%',
     marginBottom: 32,
+    alignItems: 'center',
+  },
+  inputLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  roomInput: {
+    width: '80%',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '800',
+    textAlign: 'center',
+    paddingVertical: 14,
+    letterSpacing: 2,
   },
   startBtn: {
     backgroundColor: '#00D4AA',
