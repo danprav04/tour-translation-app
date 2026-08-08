@@ -41,6 +41,8 @@ export const useListener = () => {
       if (!settings.serverUrl) {
         throw new Error('Server URL is not configured. Please set it in Settings first.');
       }
+      
+      setIsHostStreaming(true);
 
       const deviceName = settings.deviceName || 'Listener';
       
