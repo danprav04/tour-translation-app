@@ -20,6 +20,7 @@ interface HealthState {
   pendingHealthCheckNonce: string | null;
   isHostStreaming: boolean;
   lastListenerResyncAt: number;
+  lastMicActivityAt: number;
 }
 
 const HEALTH_CHECK_INTERVAL = 30_000;       // Check socket health every 30s
@@ -46,6 +47,7 @@ class ConnectionHealthService {
     pendingHealthCheckNonce: null,
     isHostStreaming: true,
     lastListenerResyncAt: 0,
+    lastMicActivityAt: 0,
   };
 
   private healthCheckInterval: number | null = null;
@@ -137,6 +139,13 @@ class ConnectionHealthService {
 
   updateMicState(active: boolean): void {
     this.isMicActive = active;
+    if (active) {
+      this.state.lastMicActivityAt = Date.now();
+    }
+  }
+
+  recordMicActivity(): void {
+    this.state.lastMicActivityAt = Date.now();
   }
 
   updateTranslationState(active: boolean): void {
@@ -233,13 +242,10 @@ class ConnectionHealthService {
   private checkHostDataFlow(now: number): void {
     // Check 1: Mic capture health
     if (this.isMicActive && !this.isMuted) {
-      const lastSent = socketService.lastChunkSentAt;
+      const lastSent = this.state.lastMicActivityAt;
       if (lastSent > 0 && (now - lastSent) > HOST_MIC_SILENCE_THRESHOLD) {
-        // Also check if we're translating — in that case, check Gemini send instead
-        if (!this.isTranslating) {
-          console.log(`[HealthMonitor] Host mic silent for ${now - lastSent}ms, restarting capture...`);
-          this.callbacks.onRestartMic?.();
-        }
+        console.log(`[HealthMonitor] Host mic silent for ${now - lastSent}ms, restarting capture...`);
+        this.callbacks.onRestartMic?.();
       }
     }
 
@@ -417,6 +423,7 @@ class ConnectionHealthService {
       pendingHealthCheckNonce: null,
       isHostStreaming: true,
       lastListenerResyncAt: 0,
+      lastMicActivityAt: 0,
     };
     this.isMicActive = false;
     this.isTranslating = false;

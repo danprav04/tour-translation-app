@@ -201,6 +201,7 @@ export const useHost = () => {
   };
 
   const handleAudioChunk = (base64Data: string) => {
+    connectionHealthService.recordMicActivity();
     if (isTranslatingRef.current) {
       // In both legacy and LiveKit mode, if translating, send to Gemini
       geminiTranslateService.sendAudioChunk(base64Data);

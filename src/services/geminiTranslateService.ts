@@ -200,8 +200,9 @@ class GeminiTranslateService {
       }
       throw error;
     }
-    // New connection succeeded. Close old one.
+    // New connection succeeded. Close old one safely without triggering callbacks.
     if (oldWs) {
+      oldWs.onclose = null;
       try { oldWs.close(); } catch (e) { /* ignore */ }
     }
   }

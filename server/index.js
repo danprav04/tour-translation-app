@@ -324,19 +324,23 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('audio-chunk', (data, sampleRate, seq, timestamp) => {
+  socket.on('audio-chunk', (data, seq, timestamp, sampleRate) => {
     // Broadcast audio-data to all other sockets in the room, volatile
-    let targetRoomId;
-    for (const [id, room] of rooms.entries()) {
+    // (Volatile means if the connection is slow, the packet can be dropped rather than buffered)
+    let targetRoomId = null;
+    
+    // Find which room this host belongs to
+    for (const [roomId, room] of rooms.entries()) {
       if (room.hostSocketId === socket.id) {
-        targetRoomId = id;
+        targetRoomId = roomId;
         room.lastAudioTimestamp = Date.now();
         break;
       }
     }
+    
     if (targetRoomId) {
-      // Passing seq and timestamp to listeners
-      socket.volatile.to(targetRoomId).emit('audio-data', data, sampleRate, seq, timestamp);
+      // Passing seq, timestamp, and sampleRate to listeners
+      socket.volatile.to(targetRoomId).emit('audio-data', data, seq, timestamp, sampleRate);
     }
   });
 
@@ -415,14 +419,14 @@ io.on('connection', (socket) => {
       if (room.hostSocketId === socket.id) {
         isHost = true;
         room.lastHostDisconnect = Date.now();
-        // Don't close immediately, give host 60 seconds to reconnect
+        // Don't close immediately, give host 5 minutes to reconnect
         setTimeout(() => {
           const checkRoom = rooms.get(roomId);
           if (checkRoom && checkRoom.hostSocketId === socket.id) {
             socket.to(roomId).emit('room-closed');
             rooms.delete(roomId);
           }
-        }, 60000);
+        }, 300000);
         break;
       }
     }

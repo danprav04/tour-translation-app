@@ -135,18 +135,21 @@ class SocketService {
     });
   }
 
-  sendAudioChunk(data: ArrayBuffer, sampleRate: number, isReliable: boolean = false): void {
-    if (this.socket && this.socket.connected) {
-      this.outgoingSeq += 1;
-      this.lastChunkSentAt = Date.now();
-      const timestamp = Date.now();
-      
-      if (isReliable) {
-        this.socket.emit('audio-chunk', data, sampleRate, this.outgoingSeq, timestamp);
-      } else {
-        this.socket.volatile.emit('audio-chunk', data, sampleRate, this.outgoingSeq, timestamp);
-      }
+  sendAudioChunk(data: ArrayBuffer, sampleRate: number, isReliable: boolean = false) {
+    if (!this.socket || !this.currentRoomCode) return;
+    
+    this.lastChunkSentAt = Date.now();
+    const timestamp = Date.now();
+    
+    // We send (data, seq, timestamp, sampleRate) to maintain backwards compatibility 
+    // with older listener clients that expect seq as the 2nd argument.
+    if (isReliable) {
+      this.socket.emit('audio-chunk', data, this.outgoingSeq, timestamp, sampleRate);
+    } else {
+      this.socket.volatile.emit('audio-chunk', data, this.outgoingSeq, timestamp, sampleRate);
     }
+    
+    this.outgoingSeq++;
   }
 
   kickListener(listenerId: string): void {
@@ -162,12 +165,14 @@ class SocketService {
   }
 
   onAudioData(callback: (data: ArrayBuffer, sampleRate: number, seq: number, timestamp: number) => void): void {
-    if (this.socket) {
-      this.socket.on('audio-data', (data: ArrayBuffer, sampleRate: number, seq: number, timestamp: number) => {
-        this.lastChunkReceivedAt = Date.now();
-        callback(data, sampleRate, seq, timestamp);
-      });
-    }
+    if (!this.socket) return;
+    
+    // Listeners receive (data, seq, timestamp, sampleRate) to maintain compatibility with older clients
+    this.socket.on('audio-data', (data: ArrayBuffer, seq: number, timestamp: number, sampleRate: number) => {
+      this.lastChunkReceivedAt = Date.now();
+      // Re-order arguments for the internal callback
+      callback(data, sampleRate || 16000, seq, timestamp);
+    });
   }
 
   onListenerJoined(callback: (listener: ListenerInfo) => void): void {

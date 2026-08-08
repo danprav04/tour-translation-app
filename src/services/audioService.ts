@@ -77,16 +77,30 @@ class AudioService {
         audioChunks.push(bytes);
         currentBufferSize += bytes.length;
 
-        // Calculate audio level for visualizer
+        // Calculate audio level for visualizer and amplify for Gemini
         if (this.onAudioLevelCallback) {
           const dataView = new DataView(buffer.data);
           let maxPeak = 0;
+          const multiplier = 3.0; // Amplify by 3.0x to help Gemini silence detection
           for (let i = 0; i < dataView.byteLength - 1; i += 2) {
-            const val = Math.abs(dataView.getInt16(i, true));
-            if (val > maxPeak) maxPeak = val;
+            let val = dataView.getInt16(i, true);
+            val = Math.max(-32768, Math.min(32767, val * multiplier));
+            dataView.setInt16(i, val, true); // Write amplified value back
+            
+            const absVal = Math.abs(val);
+            if (absVal > maxPeak) maxPeak = absVal;
           }
           const level = Math.min(1, maxPeak / 32768);
           this.onAudioLevelCallback(level);
+        } else {
+          // Even if no visualizer callback, still amplify
+          const dataView = new DataView(buffer.data);
+          const multiplier = 3.0;
+          for (let i = 0; i < dataView.byteLength - 1; i += 2) {
+            let val = dataView.getInt16(i, true);
+            val = Math.max(-32768, Math.min(32767, val * multiplier));
+            dataView.setInt16(i, val, true);
+          }
         }
 
         if (currentBufferSize >= TARGET_BUFFER_SIZE) {
