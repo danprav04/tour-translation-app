@@ -3,6 +3,7 @@
     "name": "TourCast",
     "slug": "tour-translation-app",
     "version": "1.5.3",
+    "newArchEnabled": false,
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -82,7 +83,7 @@
             },
             "extraProguardRules": "-keep class com.danprav.tourcast.** { *; }",
             "enableShrinkResourcesInReleaseBuilds": false,
-            "newArchEnabled": true,
+            "newArchEnabled": false,
             "reactNativeArchitectures": ["arm64-v8a"]
           }
         }

@@ -71,6 +71,9 @@ class AudioService {
       let currentBufferSize = 0;
       const TARGET_BUFFER_SIZE = 8000; // ~250ms at 16kHz 16-bit mono
 
+      let globalMaxPeak = 0;
+      let lastVisualizerUpdate = 0;
+
       this.streamSubscription = this.stream.addListener('audioStreamBuffer', (buffer) => {
         if (!this._isCapturing) return;
         
@@ -81,7 +84,7 @@ class AudioService {
         // Calculate audio level for visualizer and amplify for Gemini
         if (this.onAudioLevelCallback) {
           const dataView = new DataView(buffer.data);
-          let maxPeak = 0;
+          let localMaxPeak = 0;
           const multiplier = 3.0; // Amplify by 3.0x to help Gemini silence detection
           for (let i = 0; i < dataView.byteLength - 1; i += 2) {
             let val = dataView.getInt16(i, true);
@@ -89,10 +92,22 @@ class AudioService {
             dataView.setInt16(i, val, true); // Write amplified value back
             
             const absVal = Math.abs(val);
-            if (absVal > maxPeak) maxPeak = absVal;
+            if (absVal > localMaxPeak) localMaxPeak = absVal;
           }
-          const level = Math.min(1, maxPeak / 32768);
-          this.onAudioLevelCallback(level);
+          
+          if (localMaxPeak > globalMaxPeak) globalMaxPeak = localMaxPeak;
+          
+          const now = Date.now();
+          // Throttle updates to ~100ms to allow AudioVisualizer animations to complete
+          if (now - lastVisualizerUpdate >= 100) {
+            // Apply a square-root (logarithmic-like) scale and boost to make it highly sensitive
+            const rawLevel = globalMaxPeak / 32768;
+            const level = Math.min(1, Math.sqrt(rawLevel) * 1.5);
+            this.onAudioLevelCallback(level);
+            
+            globalMaxPeak = 0;
+            lastVisualizerUpdate = now;
+          }
         } else {
           // Even if no visualizer callback, still amplify
           const dataView = new DataView(buffer.data);
@@ -382,7 +397,9 @@ class AudioService {
           const val = Math.abs(dataView.getInt16(j, true));
           if (val > maxPeak) maxPeak = val;
         }
-        const level = Math.min(1, maxPeak / 32768);
+        
+        const rawLevel = maxPeak / 32768;
+        const level = Math.min(1, Math.sqrt(rawLevel) * 1.5);
         
         setTimeout(() => {
           if (this.onAudioLevelCallback) this.onAudioLevelCallback(level);

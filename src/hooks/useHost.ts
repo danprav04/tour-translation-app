@@ -88,7 +88,10 @@ export const useHost = () => {
     if (settings.useLegacyWebSockets && isConnected) {
       socketService.onListenerJoined((listener) => {
         console.log(`[Host] Listener joined: ${listener.name} (${listener.id})`);
-        setListeners(prev => [...prev, listener]);
+        setListeners(prev => {
+          if (prev.some(l => l.id === listener.id)) return prev;
+          return [...prev, listener];
+        });
       });
       socketService.onListenerLeft((listenerId) => {
         console.log(`[Host] Listener left: ${listenerId}`);

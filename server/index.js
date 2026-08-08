@@ -241,6 +241,12 @@ io.on('connection', (socket) => {
         room.lastHostDisconnect = null;
         socket.join(roomCode);
         markRoomCodeUsed(roomCode);
+
+        // Send existing listeners to the reconnected host
+        for (const listener of room.listeners.values()) {
+          socket.emit('listener-joined', listener);
+        }
+
         if (typeof callback === 'function') {
           callback({ success: true, roomCode, roomId: roomCode, reconnected: true });
         }
