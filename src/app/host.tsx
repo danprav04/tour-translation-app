@@ -182,18 +182,24 @@ export default function HostScreen() {
   // Audio Route Picker State
   const [isRoutePickerVisible, setIsRoutePickerVisible] = React.useState(false);
   const [availableAudioOutputs, setAvailableAudioOutputs] = React.useState<string[]>([]);
+  const [isLoadingOutputs, setIsLoadingOutputs] = React.useState(false);
 
   const handleOpenRoutePicker = async () => {
     try {
       if (Platform.OS === 'ios') {
         await AudioSession.showAudioRoutePicker();
       } else {
-        const outputs = await AudioSession.getAudioOutputs();
-        setAvailableAudioOutputs(outputs);
         setIsRoutePickerVisible(true);
+        setIsLoadingOutputs(true);
+        await AudioSession.startAudioSession();
+        const outputs = await AudioSession.getAudioOutputs();
+        setAvailableAudioOutputs(outputs || []);
       }
     } catch (e) {
       console.error('Failed to get audio outputs', e);
+      Alert.alert('Error', 'Failed to retrieve audio devices.');
+    } finally {
+      setIsLoadingOutputs(false);
     }
   };
 
@@ -742,8 +748,12 @@ export default function HostScreen() {
                 Note: On Android, this will also route your microphone to the selected device if it has one (like a Bluetooth headset).
               </Text>
               
-              {availableAudioOutputs.length === 0 ? (
+              {isLoadingOutputs ? (
                 <ActivityIndicator color="#00D4AA" style={{ marginVertical: 20 }} />
+              ) : availableAudioOutputs.length === 0 ? (
+                <Text style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginVertical: 20 }}>
+                  No alternate audio outputs found.
+                </Text>
               ) : (
                 availableAudioOutputs.map((deviceId) => (
                   <Pressable
