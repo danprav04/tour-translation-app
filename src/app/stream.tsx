@@ -10,7 +10,8 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { uint8ArrayToBase64 } from '@/utils/base64';
 import { AudioSession, AndroidAudioTypePresets, LiveKitRoom, useRoomContext, useTracks } from '@livekit/react-native';
 import { Track, RoomEvent } from 'livekit-client';
 import { useListener } from '@/hooks/useListener';
@@ -40,6 +41,7 @@ export default function StreamScreen() {
     disconnect,
     toggleMute,
     audioLevel,
+    isStandby,
   } = useListener();
 
   const [pulseAnim] = useState(() => new Animated.Value(1));
@@ -191,13 +193,15 @@ export default function StreamScreen() {
     : 'disconnected';
 
   if (!settings.useLegacyWebSockets && (!livekitToken || !livekitUrl || !isAudioSessionReady)) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={[styles.container, styles.center]}>
-          <Text style={styles.statusText}>Connecting...</Text>
-        </View>
-      </SafeAreaView>
-    );
+    if (!isStandby) {
+      return (
+        <SafeAreaView style={styles.safe}>
+          <View style={[styles.container, styles.center]}>
+            <Text style={styles.statusText}>Connecting...</Text>
+          </View>
+        </SafeAreaView>
+      );
+    }
   }
 
   const content = (
@@ -206,6 +210,7 @@ export default function StreamScreen() {
       isMuted={isMuted}
       isConnected={isConnected}
       isReconnecting={isReconnecting}
+      isStandby={isStandby}
       connectionStatus={connectionStatus}
       pulseAnim={pulseAnim}
       scaleAnim={scaleAnim}
@@ -226,7 +231,6 @@ export default function StreamScreen() {
       token={livekitToken}
       connect={true}
       audio={false}
-      video={false}
       connectOptions={{ autoSubscribe: false }}
     >
       {content}
@@ -287,17 +291,11 @@ function StreamContentLiveKit(props: any) {
   useEffect(() => {
     const handleData = (payload: Uint8Array, participant?: any, kind?: any, topic?: string) => {
       if (topic === 'translation-audio' && !isMuted) {
-        let binary = '';
-        const chunkSize = 8192;
-        for (let i = 0; i < payload.length; i += chunkSize) {
-          binary += String.fromCharCode.apply(null, Array.from(payload.subarray(i, i + chunkSize)));
-        }
-        
         const currentSeq = seqRef.current++;
         
         connectionHealthService.recordLivekitDataReceived();
         // Play the decoded TTS chunk using the audioService JitterBuffer
-        audioService.playChunk(btoa(binary), 24000, currentSeq);
+        audioService.playChunk(uint8ArrayToBase64(payload), 24000, currentSeq);
       }
     };
     room.on(RoomEvent.DataReceived, handleData);
@@ -331,6 +329,7 @@ function StreamContentUI({
   isMuted,
   isConnected,
   isReconnecting,
+  isStandby,
   connectionStatus,
   pulseAnim,
   scaleAnim,
@@ -340,6 +339,15 @@ function StreamContentUI({
 }: any) {
   return (
     <SafeAreaView style={styles.safe}>
+      {isStandby && (
+        <View style={[StyleSheet.absoluteFill, styles.standbyOverlay]}>
+          <Text style={[styles.standbyIcon, { fontSize: 48 }]}>⚠️</Text>
+          <Text style={styles.standbyTitle}>Host Disconnected</Text>
+          <Text style={styles.standbyText}>
+            Waiting for host to recreate room {roomCode}...
+          </Text>
+        </View>
+      )}
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -508,5 +516,27 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.7,
     transform: [{ scale: 0.97 }],
+  },
+  standbyOverlay: {
+    backgroundColor: 'rgba(10, 14, 26, 0.95)',
+    zIndex: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 30,
+  },
+  standbyIcon: {
+    marginBottom: 20,
+  },
+  standbyTitle: {
+    color: '#FF9800',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  standbyText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
   },
 });

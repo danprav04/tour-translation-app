@@ -1,5 +1,6 @@
 import { AudioModule, setAudioModeAsync, requestRecordingPermissionsAsync, createAudioPlaylist } from 'expo-audio';
 import type { AudioPlaylist, AudioStream } from 'expo-audio';
+import { base64ToUint8Array, uint8ArrayToBase64 } from '@/utils/base64';
 
 class AudioService {
   private stream: AudioStream | null = null;
@@ -117,13 +118,7 @@ class AudioService {
           currentBufferSize = 0;
 
           // Fast base64 encoding for the combined PCM chunk
-          let binary = '';
-          const chunkSize = 8192;
-          for (let i = 0; i < combined.length; i += chunkSize) {
-            binary += String.fromCharCode.apply(null, Array.from(combined.subarray(i, i + chunkSize)));
-          }
-          
-          callback(btoa(binary));
+          callback(uint8ArrayToBase64(combined));
         }
       });
 
@@ -431,21 +426,11 @@ class AudioService {
   }
 
   private base64ToUint8Array(base64: string): Uint8Array {
-    const binaryString = atob(base64);
-    const len = binaryString.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes;
+    return base64ToUint8Array(base64);
   }
 
   private uint8ArrayToBase64(bytes: Uint8Array): string {
-    let binary = '';
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary);
+    return uint8ArrayToBase64(bytes);
   }
 
   private createWavHeader(

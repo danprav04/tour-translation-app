@@ -10,6 +10,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { createAudioPlayer } from 'expo-audio';
 import type { AudioPlayer } from 'expo-audio';
 import ttsService from '@/services/ttsService';
+import { base64ToUint8Array, uint8ArrayToBase64 } from '@/utils/base64';
 
 // PCM format constants for Gemini TTS output
 const TTS_SAMPLE_RATE = 24000;
@@ -21,24 +22,6 @@ interface UseTTSOptions {
   onTTSStart: () => void;
   onTTSEnd: () => void;
 }
-
-const base64ToUint8Array = (base64: string): Uint8Array => {
-  const binaryString = atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
-};
-
-const uint8ArrayToBase64 = (bytes: Uint8Array): string => {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-};
 
 
 

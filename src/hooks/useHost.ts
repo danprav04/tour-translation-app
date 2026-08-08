@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Alert, AppState } from 'react-native';
+import { base64ToUint8Array } from '@/utils/base64';
 import geminiTranslateService from '@/services/geminiTranslateService';
 import { useSettingsContext } from '@/context/SettingsContext';
 import foregroundService from '@/services/foregroundService';
@@ -254,14 +255,11 @@ export const useHost = () => {
           audioService.playChunk(translatedBase64, 24000, echoSeqRef.current, Date.now());
         }
         
+
+
         // Broadcast to listeners (Legacy)
         if (settings.useLegacyWebSockets) {
-          const binaryString = atob(translatedBase64);
-          const len = binaryString.length;
-          const bytes = new Uint8Array(len);
-          for (let i = 0; i < len; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
+          const bytes = base64ToUint8Array(translatedBase64);
           socketService.sendAudioChunk(bytes.buffer, 24000, true);
         } else if (livekitPublisherRef.current) {
           // Broadcast to LiveKit data channel

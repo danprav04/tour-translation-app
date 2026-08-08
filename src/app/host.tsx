@@ -109,18 +109,15 @@ function LocalMicController({ isMicActive, isTranslating, setAudioLevel }: { isM
   return null;
 }
 
+import { base64ToUint8Array } from '@/utils/base64';
+
 function TranslationDataPublisher({ setPublisher }: { setPublisher: any }) {
   const { localParticipant } = useLocalParticipant();
   
   React.useEffect(() => {
     setPublisher((base64Data: string) => {
       if (localParticipant) {
-        const binaryString = atob(base64Data);
-        const len = binaryString.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
+        const bytes = base64ToUint8Array(base64Data);
         
         // WebRTC Data Channels have a 64KB hard limit and LiveKit recommends <15KB for reliability.
         // We slice the raw PCM bytes into 10KB chunks (must be an even number for 16-bit PCM).

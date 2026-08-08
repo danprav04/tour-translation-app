@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSettingsContext } from '@/context/SettingsContext';
 import foregroundService from '@/services/foregroundService';
+import { uint8ArrayToBase64 } from '@/utils/base64';
 import audioService from '@/services/audioService';
 import socketService from '@/services/socketService';
 import connectionHealthService from '@/services/connectionHealthService';
@@ -11,6 +12,7 @@ export const useListener = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [isStandby, setIsStandby] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
   
   const [livekitToken, setLivekitToken] = useState<string | null>(null);
@@ -93,6 +95,20 @@ export const useListener = () => {
     }
   };
 
+  const enterStandby = async () => {
+    if (!roomCode) return;
+    console.log('[Listener] Entering standby mode...');
+    connectionHealthService.stop();
+    if (settings.useLegacyWebSockets) {
+      socketService.disconnect();
+      audioService.setMuted(true);
+    }
+    setLivekitToken(null);
+    setLivekitUrl(null);
+    setIsConnected(false);
+    setIsStandby(true);
+  };
+
   const disconnect = async () => {
     connectionHealthService.stop();
     if (settings.useLegacyWebSockets) {
@@ -101,6 +117,7 @@ export const useListener = () => {
     }
     await foregroundService.stop();
     setIsConnected(false);
+    setIsStandby(false);
     setRoomCode(null);
     setLivekitToken(null);
     setLivekitUrl(null);
@@ -118,11 +135,11 @@ export const useListener = () => {
       });
       socketService.onRoomClosed(() => {
         console.log('[Listener] Room closed by host');
-        disconnect();
+        enterStandby();
       });
       socketService.onAudioData((data, sampleRate, seq, timestamp) => {
         // console.log(`[Listener] Received audio chunk seq=${seq}`); // too noisy
-        const base64Data = btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(data))));
+        const base64Data = uint8ArrayToBase64(new Uint8Array(data));
         audioService.playChunk(base64Data, sampleRate, seq, timestamp);
       });
     }
@@ -160,6 +177,33 @@ export const useListener = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, roomCode]);
 
+  // Standby and Room Health Polling
+  useEffect(() => {
+    if (!roomCode || !settings.serverUrl) return;
+    
+    const interval = setInterval(async () => {
+      try {
+        const baseUrl = settings.serverUrl.replace(/\/+$/, '');
+        const res = await fetch(`${baseUrl}/room/${roomCode}`);
+        const data = await res.json();
+        
+        if (isConnected && !data.exists) {
+          console.log('[Listener] Room no longer exists on server. Entering standby...');
+          enterStandby();
+        } else if (isStandby && data.exists) {
+          console.log('[Listener] Host recreated room! Reconnecting...');
+          setIsStandby(false);
+          connect(roomCode);
+        }
+      } catch (e) {
+        // Ignore network errors
+      }
+    }, 4000);
+    
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomCode, isConnected, isStandby, settings.serverUrl]);
+
   const toggleMute = () => {
     setIsMuted(!isMuted);
     if (settings.useLegacyWebSockets) {
@@ -180,6 +224,7 @@ export const useListener = () => {
     livekitToken,
     livekitUrl,
     isReconnecting,
+    isStandby,
     isHostStreaming,
     connect,
     disconnect,
