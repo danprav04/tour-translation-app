@@ -413,7 +413,7 @@ function StreamContentUI({
 
         {/* Disconnect */}
         <View style={styles.footer}>
-          <View style={{ marginBottom: 20 }}>
+          <View style={{ marginBottom: 24, width: '100%' }}>
             <AudioRoutePicker />
           </View>
           <Pressable

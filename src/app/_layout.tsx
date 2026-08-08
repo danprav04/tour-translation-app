@@ -19,6 +19,8 @@ LogBox.ignoreLogs([
 // Import early to register the Notifee foreground service handler
 import '@/services/foregroundService';
 
+import VersionCheck from '@/components/VersionCheck';
+
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
@@ -33,6 +35,7 @@ export default function RootLayout() {
             }}
           />
           <BugReportButton />
+          <VersionCheck />
         </DebugProvider>
       </SettingsProvider>
     </SafeAreaProvider>

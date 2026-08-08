@@ -63,9 +63,11 @@ afterEach(() => {
 
 describe('Express Endpoints', () => {
   it('should return health status', async () => {
+    process.env.MIN_SUPPORTED_VERSION = '1.5.3';
     const res = await request(app).get('/health');
     expect(res.statusCode).toEqual(200);
     expect(res.body.status).toEqual('ok');
+    expect(res.body.minSupportedVersion).toEqual('1.5.3');
   });
 
   it('should get api rooms', async () => {

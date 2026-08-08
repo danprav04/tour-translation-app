@@ -77,7 +77,12 @@ function generateRoomCode() {
 
 // HTTP endpoints
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', rooms: rooms.size, uptime: process.uptime() });
+  res.json({
+    status: 'ok',
+    rooms: rooms.size,
+    uptime: process.uptime(),
+    minSupportedVersion: process.env.MIN_SUPPORTED_VERSION || '1.5.3'
+  });
 });
 
 app.get('/room/:code', (req, res) => {
