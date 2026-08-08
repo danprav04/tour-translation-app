@@ -22,6 +22,7 @@ import connectionHealthService from '@/services/connectionHealthService';
 import StatusBadge from '@/components/StatusBadge';
 import AudioVisualizer from '@/components/AudioVisualizer';
 import GlassCard from '@/components/GlassCard';
+import AudioDeviceSelector from '@/components/AudioDeviceSelector';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const MUTE_BTN_SIZE = Math.min(SCREEN_WIDTH * 0.45, 180);
@@ -304,22 +305,13 @@ function StreamContentLiveKit(props: any) {
     };
   }, [room, isMuted]);
 
-  // Intercept disconnect to catch LiveKit race condition errors
-  const handleDisconnect = async () => {
-    try {
-      await room.disconnect();
-    } catch (e) {
-      console.warn('Caught LiveKit disconnect error:', e);
-    }
+  // Handle disconnect without manually calling room.disconnect()
+  // to avoid racing with LiveKitRoom's internal cleanup
+  const handleDisconnect = () => {
     originalHandleDisconnect();
   };
 
-  useEffect(() => {
-    // Catch disconnect errors when component unmounts (e.g. back button)
-    return () => {
-      room.disconnect().catch((e) => console.warn('Caught unmount disconnect error:', e));
-    };
-  }, [room]);
+
 
   return <StreamContentUI {...props} handleDisconnect={handleDisconnect} audioLevel={Math.max(props.audioLevel || 0, livekitAudioLevel)} />;
 }
@@ -394,6 +386,10 @@ function StreamContentUI({
               color={isMuted ? '#FF4757' : '#7C5CFC'}
               height={45}
             />
+          </View>
+
+          <View style={{ width: '100%', marginBottom: 20 }}>
+            <AudioDeviceSelector />
           </View>
 
           {/* Status text */}
