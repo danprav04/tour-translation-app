@@ -272,6 +272,12 @@ class ConnectionHealthService {
       console.log(`[HealthMonitor] Listener has received no audio for ${silenceDuration}ms, requesting resync...`);
       this.state.lastListenerResyncAt = now;
       this.performListenerResync();
+    } else {
+      // Data is flowing normally, ensure host streaming state is true
+      if (!this.state.isHostStreaming) {
+        this.state.isHostStreaming = true;
+        this.callbacks.onHostStreamingChanged?.(true);
+      }
     }
   }
 
