@@ -29,8 +29,11 @@ export const useListener = () => {
     isMutedRef.current = isMuted;
     connectionHealthService.updateMuteState(isMuted);
   }, [isMuted]);
+  const isConnectingRef = useRef(false);
 
   const connect = async (code: string) => {
+    if (isConnectingRef.current) return;
+    isConnectingRef.current = true;
     try {
       setIsReconnecting(true);
       if (!settings.serverUrl) {
@@ -85,6 +88,8 @@ export const useListener = () => {
       setIsConnected(false);
       setIsReconnecting(false);
       throw error;
+    } finally {
+      isConnectingRef.current = false;
     }
   };
 

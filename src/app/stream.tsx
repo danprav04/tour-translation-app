@@ -99,9 +99,11 @@ export default function StreamScreen() {
 
   // Connect on mount
   useEffect(() => {
+    let mounted = true;
     if (roomCode) {
       addDebugEvent(`Listener attempting to connect to room: ${roomCode}`);
       connect(roomCode as string).catch((error) => {
+        if (!mounted) return;
         addDebugEvent(`Listener connection failed: ${error.message}`);
         Alert.alert('Connection Error', error.message || 'Failed to connect to room', [
           { text: 'OK', onPress: () => router.canGoBack() ? router.back() : router.replace('/') }
@@ -109,6 +111,7 @@ export default function StreamScreen() {
       });
     }
     return () => {
+      mounted = false;
       disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

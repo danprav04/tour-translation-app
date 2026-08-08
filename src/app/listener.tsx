@@ -46,6 +46,7 @@ export default function ListenerScreen() {
       return;
     }
 
+    if (isConnecting) return;
     setIsConnecting(true);
     try {
       const baseUrl = settings.serverUrl.replace(/\/+$/, '');
