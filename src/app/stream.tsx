@@ -22,6 +22,7 @@ import connectionHealthService from '@/services/connectionHealthService';
 import StatusBadge from '@/components/StatusBadge';
 import AudioVisualizer from '@/components/AudioVisualizer';
 import GlassCard from '@/components/GlassCard';
+import AudioRoutePicker from '@/components/AudioRoutePicker';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const MUTE_BTN_SIZE = Math.min(SCREEN_WIDTH * 0.45, 180);
@@ -412,6 +413,9 @@ function StreamContentUI({
 
         {/* Disconnect */}
         <View style={styles.footer}>
+          <View style={{ marginBottom: 20 }}>
+            <AudioRoutePicker />
+          </View>
           <Pressable
             onPress={handleDisconnect}
             style={({ pressed }) => [
