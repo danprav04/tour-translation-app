@@ -24,7 +24,6 @@ import StatusBadge from '@/components/StatusBadge';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
 import ListenerCard from '@/components/ListenerCard';
 import AudioVisualizer from '@/components/AudioVisualizer';
-import AudioDeviceSelector from '@/components/AudioDeviceSelector';
 import type { Participant } from 'livekit-client';
 
 function ParticipantsRenderer({
@@ -56,17 +55,27 @@ function LiveKitParticipantsRenderer({ children }: { children: (activeListeners:
   return <>{children(activeListeners)}</>;
 }
 
-import { useRoomContext, useLocalParticipant, useConnectionState } from '@livekit/react-native';
-import { ConnectionState } from 'livekit-client';
+import { useRoomContext } from '@livekit/react-native';
+
+function RoomDisconnectCatcher() {
+  const room = useRoomContext();
+  React.useEffect(() => {
+    return () => {
+      room.disconnect().catch((e) => console.warn('Caught unmount disconnect error:', e));
+    };
+  }, [room]);
+  return null;
+}
+
+import { useLocalParticipant } from '@livekit/react-native';
 
 // Explicitly manage the local microphone track
 function LocalMicController({ isMicActive, isTranslating, setAudioLevel }: { isMicActive: boolean; isTranslating: boolean; setAudioLevel: (val: number) => void }) {
   const { localParticipant } = useLocalParticipant();
-  const roomState = useConnectionState();
   const pendingMicTask = React.useRef<Promise<void>>(Promise.resolve());
 
   React.useEffect(() => {
-    if (localParticipant && roomState === ConnectionState.Connected) {
+    if (localParticipant) {
       // If we are translating, LiveKit must release the microphone so expo-audio can capture it for Gemini,
       // and so listeners don't hear the raw voice.
       const shouldEnableMic = isMicActive && !isTranslating;
@@ -92,13 +101,10 @@ function LocalMicController({ isMicActive, isTranslating, setAudioLevel }: { isM
       }, 100);
 
       return () => clearInterval(interval);
-    } else if (roomState !== ConnectionState.Connected) {
-      // If not connected, keep level 0 but don't error
-      setAudioLevel(0);
     } else {
       setAudioLevel(0);
     }
-  }, [isMicActive, isTranslating, localParticipant, roomState, setAudioLevel]);
+  }, [isMicActive, isTranslating, localParticipant, setAudioLevel]);
 
   return null;
 }
@@ -107,11 +113,10 @@ import { base64ToUint8Array } from '@/utils/base64';
 
 function TranslationDataPublisher({ setPublisher }: { setPublisher: any }) {
   const { localParticipant } = useLocalParticipant();
-  const roomState = useConnectionState();
   
   React.useEffect(() => {
     setPublisher((base64Data: string) => {
-      if (localParticipant && roomState === ConnectionState.Connected) {
+      if (localParticipant) {
         const bytes = base64ToUint8Array(base64Data);
         
         // WebRTC Data Channels have a 64KB hard limit and LiveKit recommends <15KB for reliability.
@@ -131,7 +136,7 @@ function TranslationDataPublisher({ setPublisher }: { setPublisher: any }) {
       }
     });
     return () => setPublisher(undefined);
-  }, [localParticipant, roomState, setPublisher]);
+  }, [localParticipant, setPublisher]);
   
   return null;
 }
@@ -452,7 +457,6 @@ export default function HostScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Audio Controls</Text>
           <View style={styles.controlsGap}>
-            <AudioDeviceSelector />
             <ToggleCard
               icon="🎤"
               label="Microphone"
@@ -706,6 +710,7 @@ export default function HostScreen() {
       connect={true}
       audio={false} // Managed manually by LocalMicController
     >
+      <RoomDisconnectCatcher />
       <LocalMicController isMicActive={isMicActive} isTranslating={isTranslating} setAudioLevel={setAudioLevel} />
       <TranslationDataPublisher setPublisher={setLivekitPublisher} />
       {content}
