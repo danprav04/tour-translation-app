@@ -419,14 +419,14 @@ io.on('connection', (socket) => {
       if (room.hostSocketId === socket.id) {
         isHost = true;
         room.lastHostDisconnect = Date.now();
-        // Don't close immediately, give host 5 minutes to reconnect
+        // Don't close immediately, give host 30 seconds to reconnect
         setTimeout(() => {
           const checkRoom = rooms.get(roomId);
           if (checkRoom && checkRoom.hostSocketId === socket.id) {
             socket.to(roomId).emit('room-closed');
             rooms.delete(roomId);
           }
-        }, 300000);
+        }, 30000);
         break;
       }
     }
@@ -482,9 +482,13 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
-server.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
+if (require.main === module) {
+  server.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT}`);
+  });
+}
+
+module.exports = { app, server, io };
 
 // Helper: Send Bug Report to Telegram
 async function sendToTelegram(report) {
