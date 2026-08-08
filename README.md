@@ -1,42 +1,49 @@
 <div align="center">
   <h1>🎙️ TourCast</h1>
-  <p>Live Audio Broadcasting App for Tour Guides and Audiences</p>
+  <p>Live Audio Broadcasting & AI Translation App for Tour Guides and Audiences</p>
 </div>
 
 ---
 
 ## 📖 Overview
 
-**TourCast** is a real-time audio broadcasting application built with React Native (Expo) and a Node.js/Socket.IO backend. It empowers tour guides, translators, or presenters to seamlessly stream live audio to their audience's devices with ultra-low latency. 
+**TourCast** is a real-time audio broadcasting application built with React Native (Expo). It empowers tour guides, translators, or presenters to seamlessly stream live audio to their audience's devices with ultra-low latency. 
 
-Listeners can simply join a session by scanning a QR code or entering a unique 6-character room code, completely bypassing the need for specialized radio hardware.
+Recently supercharged with **AI Real-Time Translation** powered by the Gemini 3.5 Live Translate API, the app allows listeners to hear the tour in their preferred language natively using on-device Text-to-Speech (TTS). Listeners can simply join a session by scanning a QR code or entering a unique 6-character room code, completely bypassing the need for specialized radio hardware.
 
 ---
 
 ## ✨ Features
 
-- **📡 Live Audio Streaming:** Broadcast crisp, low-latency audio using WebSockets (Socket.IO).
+- **🤖 AI Real-Time Translation:** Powered by the Gemini 3.5 Live API, seamlessly translating the host's live speech into the listener's target language.
+- **🗣️ Native Text-to-Speech (TTS):** Translated text is played back to the listener using native device TTS for a natural listening experience.
+- **📡 Dual-Mode Streaming:** 
+  - **LiveKit (Default):** Ultra-low latency WebRTC audio streaming for robust global delivery.
+  - **Socket.IO (Legacy):** WebSocket-based streaming as a fallback mechanism.
 - **🔒 Room-based Sessions:** Securely create distinct rooms with unique 6-character access codes.
 - **📷 QR Code Onboarding:** Frictionless joining experience for listeners via in-app QR code scanning.
-- **👥 Audience Management:** Hosts can view connected listeners, rename devices for clarity, or kick disruptive users.
+- **👥 Audience Management:** Hosts can view connected listeners, monitor connection health, rename devices, or kick disruptive users.
 - **🎵 Background Playback:** Listeners can keep hearing the broadcast even while using other apps or locking their screens.
-- **📱 Cross-Platform:** High-performance mobile client for both iOS and Android platforms built with Expo.
+- **📱 Cross-Platform:** High-performance mobile client for both iOS and Android platforms built with Expo and React Native.
 
 ---
 
 ## 🛠️ Tech Stack
 
 ### Mobile Client (Frontend)
-- **Framework:** React Native / Expo
+- **Framework:** React Native 0.86 / Expo 57
 - **Routing:** Expo Router (File-based navigation)
-- **Audio:** `expo-audio` (Capture and background playback)
+- **Streaming:** `@livekit/react-native` (WebRTC) and `socket.io-client` (Legacy)
+- **AI Translation:** Google Gemini API (`models/gemini-3.5-live-translate-preview`)
+- **Audio & TTS:** `expo-audio` (Capture and background playback), Native TTS
 - **Camera/Scanning:** `expo-camera` / `react-native-qrcode-svg`
-- **Styling:** NativeWind / TailwindCSS (or similar via `global.css`)
+- **Styling:** NativeWind / TailwindCSS
 - **Language:** TypeScript
 
 ### Signaling Server (Backend)
 - **Framework:** Node.js / Express.js
 - **Real-time Engine:** Socket.IO
+- **Functions:** LiveKit token generation, legacy audio relay, and room management.
 - **Containerization:** Docker & Docker Compose
 
 ---
@@ -45,16 +52,16 @@ Listeners can simply join a session by scanning a QR code or entering a unique 6
 
 ```text
 tour-translation-app/
-├── server/                 # Express & Socket.IO backend for signaling
+├── server/                 # Express backend (LiveKit auth & Socket.IO signaling)
 │   ├── index.js            # Main server entrypoint
 │   ├── Dockerfile          # Docker configuration for production deployment
 │   └── docker-compose.yml  # Docker Compose for local orchestration
 ├── src/                    # Mobile app source code
-│   ├── app/                # Expo Router screens (index, host, listener, settings)
-│   ├── components/         # Reusable React components
+│   ├── app/                # Expo Router screens (index, host, listener, stream, settings)
+│   ├── components/         # Reusable React components (UI, StatusBadge, AudioVisualizer)
 │   ├── context/            # Global state management
-│   ├── hooks/              # Custom React hooks
-│   └── services/           # Socket and API services
+│   ├── hooks/              # Custom React hooks (useHost, useListener, useTTS)
+│   └── services/           # LiveKit, Socket, Audio, and Gemini Translation services
 ├── app.json                # Expo configuration file
 └── package.json            # Project dependencies and scripts
 ```
@@ -70,7 +77,7 @@ tour-translation-app/
 
 ### 1. Setup the Backend Server
 
-You can run the server natively or via Docker.
+The backend is required for generating LiveKit tokens and handling legacy Socket.IO streaming.
 
 **Option A: Run Locally (Node)**
 ```bash
@@ -100,6 +107,13 @@ npx expo start
 
 Press `a` to open the app on an Android Emulator, `i` for an iOS Simulator, or scan the QR code in the terminal using the Expo Go app on your physical device.
 
+### 3. Configure Gemini AI Translation
+
+To use the live AI translation features:
+1. Open the app and navigate to **Settings**.
+2. Enter your **Google Gemini API Key**.
+3. (Optional) Toggle between LiveKit and Legacy WebSockets if needed.
+
 *(Note: Real-time audio capture requires a physical device for the host. Ensure the mobile app is pointing to your local machine's IP address if testing on a physical phone.)*
 
 ---
@@ -110,7 +124,8 @@ Press `a` to open the app on an Android Emulator, `i` for an iOS Simulator, or s
 2. **Join a Tour:** 
    - Tap "Join a Tour".
    - Either enter the 6-letter room code manually or use your camera to scan the host's QR code.
-3. **Manage Listeners:** As a host, tap on any listener in your audience list to rename them or remove them from the session.
+   - Listeners can select their desired target language for real-time translation.
+3. **Manage Listeners:** As a host, tap on any listener in your audience list to rename them or remove them from the session. You can also monitor their connection health.
 4. **End Session:** The host can disconnect at any time, which will automatically close the room for all listeners.
 
 ---

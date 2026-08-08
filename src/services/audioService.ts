@@ -28,7 +28,7 @@ class AudioService {
       allowsRecording: false,
       playsInSilentMode: true,
       shouldPlayInBackground: true,
-      interruptionMode: 'mixWithOthers',
+      interruptionMode: 'duckOthers',
       shouldRouteThroughEarpiece: false,
     });
   }
@@ -168,7 +168,7 @@ class AudioService {
       allowsRecording: false,
       playsInSilentMode: true,
       shouldPlayInBackground: true,
-      interruptionMode: 'mixWithOthers',
+      interruptionMode: 'duckOthers',
       shouldRouteThroughEarpiece: false,
     });
   }
@@ -421,6 +421,9 @@ class AudioService {
       this.playlist.add({ uri: dataUri });
       this.playlistItemCount++;
       if (!this.playlist.playing) {
+        if (this.playlist.currentIndex < this.playlistItemCount - 1) {
+          this.playlist.next();
+        }
         this.playlist.play();
         this.isPlaying = true;
       }

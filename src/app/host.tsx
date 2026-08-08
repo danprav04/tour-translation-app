@@ -9,6 +9,8 @@ import {
   Alert,
   ActivityIndicator,
   BackHandler,
+  Platform,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useNavigation } from 'expo-router';
@@ -176,6 +178,34 @@ export default function HostScreen() {
     connectionHealth,
   } = useHost();
   const { setDebugState, addDebugEvent } = useDebugContext();
+
+  // Audio Route Picker State
+  const [isRoutePickerVisible, setIsRoutePickerVisible] = React.useState(false);
+  const [availableAudioOutputs, setAvailableAudioOutputs] = React.useState<string[]>([]);
+
+  const handleOpenRoutePicker = async () => {
+    try {
+      if (Platform.OS === 'ios') {
+        await AudioSession.showAudioRoutePicker();
+      } else {
+        const outputs = await AudioSession.getAudioOutputs();
+        setAvailableAudioOutputs(outputs);
+        setIsRoutePickerVisible(true);
+      }
+    } catch (e) {
+      console.error('Failed to get audio outputs', e);
+    }
+  };
+
+  const handleSelectRoute = async (deviceId: string) => {
+    try {
+      await AudioSession.selectAudioOutput(deviceId);
+      setIsRoutePickerVisible(false);
+    } catch (e) {
+      console.error('Failed to set audio output', e);
+      Alert.alert('Error', 'Failed to change audio route.');
+    }
+  };
 
   React.useEffect(() => {
     setDebugState('host', {
@@ -516,6 +546,20 @@ export default function HostScreen() {
                 </ToggleCard>
               </View>
             </ToggleCard>
+            
+            <Pressable
+              onPress={handleOpenRoutePicker}
+            >
+              <GlassCard style={{ padding: 16, flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(255, 255, 255, 0.08)', alignItems: 'center', justifyContent: 'center', marginRight: 16 }}>
+                  <Text style={{ fontSize: 22 }}>🎧</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '600', marginBottom: 4 }}>Audio Routing</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>Choose bluetooth, speaker, or headphones</Text>
+                </View>
+              </GlassCard>
+            </Pressable>
           </View>
         </View>
 
@@ -683,6 +727,56 @@ export default function HostScreen() {
             ))
           )}
         </View>
+
+        {/* Audio Route Picker Modal (Android) */}
+        <Modal
+          visible={isRoutePickerVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setIsRoutePickerVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Select Audio Output</Text>
+              <Text style={styles.modalDesc}>
+                Note: On Android, this will also route your microphone to the selected device if it has one (like a Bluetooth headset).
+              </Text>
+              
+              {availableAudioOutputs.length === 0 ? (
+                <ActivityIndicator color="#00D4AA" style={{ marginVertical: 20 }} />
+              ) : (
+                availableAudioOutputs.map((deviceId) => (
+                  <Pressable
+                    key={deviceId}
+                    style={({ pressed }) => [
+                      styles.routeItem,
+                      pressed && styles.pressed
+                    ]}
+                    onPress={() => handleSelectRoute(deviceId)}
+                  >
+                    <Text style={styles.routeItemIcon}>
+                      {deviceId === 'speaker' ? '🔊' : 
+                       deviceId === 'earpiece' ? '📱' : 
+                       deviceId === 'bluetooth' ? '🎧' : 
+                       deviceId === 'headset' ? '🎧' : '🔈'}
+                    </Text>
+                    <Text style={styles.routeItemText}>
+                      {deviceId.charAt(0).toUpperCase() + deviceId.slice(1)}
+                    </Text>
+                  </Pressable>
+                ))
+              )}
+              
+              <Pressable
+                style={styles.modalCancelBtn}
+                onPress={() => setIsRoutePickerVisible(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+
       </ScrollView>
     </SafeAreaView>
       )}
@@ -1064,5 +1158,61 @@ const styles = StyleSheet.create({
     color: TTS_ACCENT,
     fontSize: 12,
     fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: '#1E2336',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  modalTitle: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  modalDesc: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
+    marginBottom: 20,
+    lineHeight: 18,
+  },
+  routeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  routeItemIcon: {
+    fontSize: 24,
+    marginRight: 16,
+  },
+  routeItemText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalCancelBtn: {
+    marginTop: 12,
+    padding: 16,
+    alignItems: 'center',
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,71,87,0.1)',
+  },
+  modalCancelText: {
+    color: '#FF4757',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
