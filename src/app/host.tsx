@@ -25,7 +25,6 @@ import QRCodeDisplay from '@/components/QRCodeDisplay';
 import ListenerCard from '@/components/ListenerCard';
 import AudioVisualizer from '@/components/AudioVisualizer';
 import AudioDeviceSelector from '@/components/AudioDeviceSelector';
-import MicDeviceSelector from '@/components/MicDeviceSelector';
 import type { Participant } from 'livekit-client';
 
 function ParticipantsRenderer({
@@ -454,7 +453,6 @@ export default function HostScreen() {
           <Text style={styles.sectionTitle}>Audio Controls</Text>
           <View style={styles.controlsGap}>
             <AudioDeviceSelector />
-            {!settings.useLegacyWebSockets && <MicDeviceSelector />}
             <ToggleCard
               icon="🎤"
               label="Microphone"
