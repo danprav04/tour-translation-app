@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Alert, AppState } from 'react-native';
+import { Alert, AppState, Platform, ToastAndroid } from 'react-native';
 import { base64ToUint8Array } from '@/utils/base64';
 import geminiTranslateService from '@/services/geminiTranslateService';
 import { useSettingsContext } from '@/context/SettingsContext';
@@ -69,7 +69,11 @@ export const useHost = () => {
 
   useEffect(() => {
     audioService.setAudioRouteFallbackCallback(() => {
-      Alert.alert('Audio Route Failed', 'Could not route audio to preferred device. Falling back to default.');
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('Audio route dropped, falling back to default.', ToastAndroid.SHORT);
+      } else {
+        Alert.alert('Audio Route Failed', 'Could not route audio to preferred device. Falling back to default.');
+      }
       addDebugEvent('Audio route fallback triggered');
       updateSettings({ preferredAudioOutput: 'speaker' });
     });
