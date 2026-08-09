@@ -10,6 +10,7 @@ import {
   Platform,
   Switch,
   Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -303,6 +304,14 @@ export default function SettingsScreen() {
               Real-time audio broadcasting for tour groups.{'\n'}
               Powered by Gemini Live Translate.
             </Text>
+            <Pressable 
+              onPress={() => Linking.openURL('https://github.com/danprav04/tour-translation-app')}
+              style={{ marginTop: 12 }}
+            >
+              <Text style={[styles.aboutText, { color: '#00D4AA', textDecorationLine: 'underline' }]}>
+                View on GitHub
+              </Text>
+            </Pressable>
           </GlassCard>
         </ScrollView>
       </KeyboardAvoidingView>
