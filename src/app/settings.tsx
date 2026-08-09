@@ -75,6 +75,8 @@ export default function SettingsScreen() {
   };
 
   const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? packageJson.version ?? '1.0.0';
+  const appSubversion = '01';
+  const fullVersion = `${appVersion}.${appSubversion}`;
   const appName = Constants.expoConfig?.name ?? 'TourCast';
 
   return (
@@ -300,7 +302,7 @@ export default function SettingsScreen() {
           <GlassCard style={styles.section}>
             <Text style={styles.sectionTitle}>ℹ️ About</Text>
             <Text style={styles.aboutText}>
-              {appName} v{appVersion}{'\n'}
+              {appName} v{fullVersion}{'\n'}
               Real-time audio broadcasting for tour groups.{'\n'}
               Powered by Gemini Live Translate.
             </Text>
