@@ -22,6 +22,7 @@ describe('useSettings Hook', () => {
     expect(result.current.isLoaded).toBe(true);
     expect(result.current.settings.targetLanguage).toBe('en');
     expect(result.current.settings.preferredAudioOutput).toBe('');
+    expect(result.current.settings.micAmplification).toBe(3.0);
   });
 
   it('should load stored settings', async () => {

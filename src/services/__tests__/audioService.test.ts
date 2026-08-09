@@ -58,6 +58,18 @@ describe('AudioService', () => {
     expect(audioService.getPreferredAudioOutput()).toBe('speaker1');
   });
 
+  it('should set mic amplification', () => {
+    audioService.setMicAmplification(4.0);
+    expect((audioService as any)._micAmplification).toBe(4.0);
+    
+    // Test boundaries
+    audioService.setMicAmplification(6.0);
+    expect((audioService as any)._micAmplification).toBe(5.0);
+    
+    audioService.setMicAmplification(0.5);
+    expect((audioService as any)._micAmplification).toBe(1.0);
+  });
+
   it('should enable playback mode', async () => {
     audioService.setPreferredAudioOutput('speaker1');
     await audioService.enablePlaybackMode();

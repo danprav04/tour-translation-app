@@ -142,12 +142,12 @@ describe('useHost Hook', () => {
     expect(connectionHealthService.updateTranslationStartTime).toHaveBeenCalled();
   });
 
-  it('should show low audio warning when audio level is low for 10 seconds while mic is active', () => {
+  it('should show low audio warning when audio level is low for 10 seconds while mic is active', async () => {
     jest.useFakeTimers();
     const { result } = renderHook(() => useHost(), { wrapper });
 
-    act(() => {
-      result.current.toggleMic();
+    await act(async () => {
+      await result.current.toggleMic();
     });
 
     expect(result.current.isMicActive).toBe(true);
