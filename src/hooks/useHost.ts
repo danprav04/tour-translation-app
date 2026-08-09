@@ -277,8 +277,17 @@ export const useHost = () => {
   const toggleMic = async () => {
     if (isMicActive) {
       setIsMicActive(false);
+      
+      const wasTranslating = isTranslatingRef.current;
+      if (wasTranslating) {
+        stopTranslation();
+      }
+      if (isEchoEnabledRef.current) {
+        setIsEchoEnabled(false);
+      }
+
       // Stop expo-audio capture if we were using legacy websockets OR translating in LiveKit
-      if (settings.useLegacyWebSockets || isTranslatingRef.current) {
+      if (settings.useLegacyWebSockets || wasTranslating) {
         await audioService.stopCapture();
       }
     } else {
