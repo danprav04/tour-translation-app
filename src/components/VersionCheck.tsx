@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Linking, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Linking, TouchableOpacity, Modal } from 'react-native';
 import Constants from 'expo-constants';
 import { useSettingsContext } from '@/context/SettingsContext';
 
@@ -52,24 +52,24 @@ export default function VersionCheck() {
   };
 
   return (
-    <View style={styles.container} testID="version-check-screen">
-      <Text style={styles.title}>Update Required</Text>
-      <Text style={styles.message}>
-        This app version is no longer supported by the server. Please update the app.
-      </Text>
-      <TouchableOpacity style={styles.button} onPress={handleUpdate}>
-        <Text style={styles.buttonText}>Go to Server Landing Page</Text>
-      </TouchableOpacity>
-    </View>
+    <Modal visible={true} transparent={true} animationType="fade">
+      <View style={styles.container} testID="version-check-screen">
+        <Text style={styles.title}>Update Required</Text>
+        <Text style={styles.message}>
+          This app version is no longer supported by the server. Please update the app.
+        </Text>
+        <TouchableOpacity style={styles.button} onPress={handleUpdate}>
+          <Text style={styles.buttonText}>Go to Server Landing Page</Text>
+        </TouchableOpacity>
+      </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
     backgroundColor: '#0A0E1A',
-    zIndex: 9999,
-    elevation: 99,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
