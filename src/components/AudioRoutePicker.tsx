@@ -11,8 +11,13 @@ import {
 } from 'react-native';
 import { AudioSession } from '@livekit/react-native';
 import GlassCard from './GlassCard';
+import audioService from '@/services/audioService';
 
-export default function AudioRoutePicker() {
+interface AudioRoutePickerProps {
+  onRouteChanged?: (deviceId: string) => void;
+}
+
+export default function AudioRoutePicker({ onRouteChanged }: AudioRoutePickerProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [availableOutputs, setAvailableOutputs] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -39,6 +44,8 @@ export default function AudioRoutePicker() {
   const handleSelect = async (deviceId: string) => {
     try {
       await AudioSession.selectAudioOutput(deviceId);
+      audioService.setPreferredAudioOutput(deviceId);
+      onRouteChanged?.(deviceId);
       setIsVisible(false);
     } catch (e) {
       console.error('Failed to set audio output', e);

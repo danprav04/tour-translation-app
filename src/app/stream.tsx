@@ -29,7 +29,7 @@ const MUTE_BTN_SIZE = Math.min(SCREEN_WIDTH * 0.45, 180);
 
 export default function StreamScreen() {
   const router = useRouter();
-  const { settings } = useSettingsContext();
+  const { settings, updateSettings } = useSettingsContext();
   const { roomCode } = useLocalSearchParams<{ roomCode: string }>();
   const {
     isConnected,
@@ -414,7 +414,7 @@ function StreamContentUI({
         {/* Disconnect */}
         <View style={styles.footer}>
           <View style={{ marginBottom: 24, width: '100%' }}>
-            <AudioRoutePicker />
+            <AudioRoutePicker onRouteChanged={(deviceId) => updateSettings({ preferredAudioOutput: deviceId })} />
           </View>
           <Pressable
             onPress={handleDisconnect}

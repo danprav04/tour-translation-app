@@ -115,6 +115,9 @@ export const useHost = () => {
         throw new Error('Server URL is not configured.');
       }
       audioService.setMuted(false); // Ensure host isn't muted from a previous listener session
+      if (settings.preferredAudioOutput) {
+        audioService.setPreferredAudioOutput(settings.preferredAudioOutput);
+      }
       const deviceName = settings.deviceName || 'Host';
       let code = '';
 

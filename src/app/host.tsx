@@ -149,7 +149,7 @@ export default function HostScreen() {
 
 
 
-  const { settings } = useSettingsContext();
+  const { settings, updateSettings } = useSettingsContext();
   const [customCode, setCustomCode] = React.useState(settings.lastRoomCode || '');
   const {
     roomCode,
@@ -519,7 +519,7 @@ export default function HostScreen() {
               </View>
             </ToggleCard>
             
-            <AudioRoutePicker />
+            <AudioRoutePicker onRouteChanged={(deviceId) => updateSettings({ preferredAudioOutput: deviceId })} />
           </View>
         </View>
 

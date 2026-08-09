@@ -1,5 +1,6 @@
 import { AudioModule, setAudioModeAsync, requestRecordingPermissionsAsync, createAudioPlaylist } from 'expo-audio';
 import type { AudioPlaylist, AudioStream } from 'expo-audio';
+import { AudioSession } from '@livekit/react-native';
 import { base64ToUint8Array, uint8ArrayToBase64 } from '@/utils/base64';
 
 class AudioService {
@@ -13,9 +14,33 @@ class AudioService {
   private bufferFlushTimeout: ReturnType<typeof setTimeout> | null = null;
   private onChunkCallback: ((base64Data: string) => void) | null = null;
   private onAudioLevelCallback: ((level: number) => void) | null = null;
+  private _preferredAudioOutput: string | null = null;
 
   setAudioLevelCallback(callback: ((level: number) => void) | null) {
     this.onAudioLevelCallback = callback;
+  }
+
+  setPreferredAudioOutput(deviceId: string | null): void {
+    this._preferredAudioOutput = deviceId || null;
+  }
+
+  getPreferredAudioOutput(): string | null {
+    return this._preferredAudioOutput;
+  }
+
+  /**
+   * Re-apply the user's preferred audio output route.
+   * This must be called after every setAudioModeAsync() because
+   * expo-audio resets the OS audio route when reconfiguring the session.
+   */
+  private async applyAudioRoute(): Promise<void> {
+    if (this._preferredAudioOutput) {
+      try {
+        await AudioSession.selectAudioOutput(this._preferredAudioOutput);
+      } catch (e) {
+        console.warn('[AudioService] Failed to re-apply audio route:', e);
+      }
+    }
   }
 
   async requestPermissions(): Promise<boolean> {
@@ -31,6 +56,7 @@ class AudioService {
       interruptionMode: 'duckOthers',
       shouldRouteThroughEarpiece: false,
     });
+    await this.applyAudioRoute();
   }
 
   async startCapture(onChunk?: (base64Data: string) => void): Promise<void> {
@@ -56,6 +82,7 @@ class AudioService {
         interruptionMode: 'mixWithOthers',
         shouldRouteThroughEarpiece: false,
       });
+      await this.applyAudioRoute();
 
       this._isCapturing = true;
 
@@ -171,6 +198,7 @@ class AudioService {
       interruptionMode: 'duckOthers',
       shouldRouteThroughEarpiece: false,
     });
+    await this.applyAudioRoute();
   }
 
   private jitterBuffer: { seq: number, buffer: Uint8Array, sampleRate: number }[] = [];

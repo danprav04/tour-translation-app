@@ -247,6 +247,14 @@ io.on('connection', (socket) => {
         socket.join(roomCode);
         markRoomCodeUsed(roomCode);
 
+        // Clean stale listener entries before re-emitting
+        for (const [socketId, listener] of room.listeners.entries()) {
+          if (!io.sockets.sockets.has(socketId)) {
+            room.listeners.delete(socketId);
+            console.log(`[Room ${roomCode}] Removed stale listener ${listener.id} (socket ${socketId} no longer connected)`);
+          }
+        }
+
         // Send existing listeners to the reconnected host
         for (const listener of room.listeners.values()) {
           socket.emit('listener-joined', listener);
@@ -464,6 +472,12 @@ io.on('connection', (socket) => {
                    checkRoom.listeners.delete(socket.id);
                 }
                 io.to(checkRoom.hostSocketId).emit('listener-left', { listenerId: listener.id });
+              } else {
+                // Reconnected with a new socket — clean up old entry if it's still there
+                if (checkRoom.listeners.has(socket.id)) {
+                  checkRoom.listeners.delete(socket.id);
+                  console.log(`[Room] Cleaned up old socket entry for reconnected listener ${listener.id}`);
+                }
               }
             }
           }, 10000);

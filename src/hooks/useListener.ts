@@ -44,6 +44,11 @@ export const useListener = () => {
       
       setIsHostStreaming(true);
 
+      // Restore persisted audio output preference
+      if (settings.preferredAudioOutput) {
+        audioService.setPreferredAudioOutput(settings.preferredAudioOutput);
+      }
+
       const deviceName = settings.deviceName || 'Listener';
       
       if (settings.useLegacyWebSockets) {

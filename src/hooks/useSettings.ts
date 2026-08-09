@@ -10,6 +10,7 @@ export interface Settings {
   deviceName: string;
   useLegacyWebSockets: boolean;
   showBugReportButton: boolean;
+  preferredAudioOutput: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -20,6 +21,7 @@ const DEFAULT_SETTINGS: Settings = {
   deviceName: Constants.deviceName || 'Listener Device',
   useLegacyWebSockets: false,
   showBugReportButton: true,
+  preferredAudioOutput: '',
 };
 
 const SETTINGS_KEY = '@tour_settings';
