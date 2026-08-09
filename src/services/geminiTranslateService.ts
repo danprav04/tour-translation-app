@@ -49,10 +49,9 @@ class GeminiTranslateService {
             },
             realtimeInputConfig: {
               automaticActivityDetection: {
-                vad: {
-                  maxInterruptionDurationMs: 3000,
-                  silenceDurationMs: 1200
-                }
+                disabled: false,
+                prefixPaddingMs: 100,
+                silenceDurationMs: 1200
               }
             }
           }
