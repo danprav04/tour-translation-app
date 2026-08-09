@@ -3,6 +3,7 @@ import type { AudioPlaylist, AudioStream } from 'expo-audio';
 import { AudioSession } from '@livekit/react-native';
 import { base64ToUint8Array, uint8ArrayToBase64 } from '@/utils/base64';
 import BackgroundTimer from 'react-native-background-timer';
+import { Platform } from 'react-native';
 
 class AudioService {
   private stream: AudioStream | null = null;
@@ -49,6 +50,14 @@ class AudioService {
   private async applyAudioRoute(): Promise<boolean> {
     if (this._preferredAudioOutput) {
       try {
+        if (Platform.OS === 'android') {
+          const availableOutputs = await AudioSession.getAudioOutputs();
+          if (availableOutputs && availableOutputs.length > 0 && !availableOutputs.includes(this._preferredAudioOutput)) {
+            console.warn(`[AudioService] Preferred output ${this._preferredAudioOutput} is not in available outputs: ${availableOutputs.join(',')}`);
+            throw new Error(`Output ${this._preferredAudioOutput} is unavailable`);
+          }
+        }
+        
         await AudioSession.selectAudioOutput(this._preferredAudioOutput);
         return true;
       } catch (e) {
@@ -79,7 +88,21 @@ class AudioService {
     // We use a small silent WAV buffer played through the existing pipeline
     const silentPcm = new Uint8Array(16000 * 2 * 0.05); // 50ms at 16kHz 16-bit mono
     
-    this.keepAliveInterval = BackgroundTimer.setInterval(() => {
+    this.keepAliveInterval = BackgroundTimer.setInterval(async () => {
+      // Periodic check for audio route availability on Android
+      if (Platform.OS === 'android' && this._preferredAudioOutput) {
+        try {
+          const outputs = await AudioSession.getAudioOutputs();
+          if (outputs && outputs.length > 0 && !outputs.includes(this._preferredAudioOutput)) {
+            console.log(`[AudioService] Keep-alive detected preferred output ${this._preferredAudioOutput} dropped. Triggering fallback.`);
+            await this.applyAudioRoute(); // This will fail the availability check and trigger the fallback!
+            return; // Skip playing silence this tick since we're re-routing
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+
       this.pushToPlaylist(silentPcm, 16000);
     }, 8000) as any;
   }
