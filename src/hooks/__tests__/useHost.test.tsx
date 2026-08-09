@@ -5,6 +5,7 @@ import React from 'react';
 import socketService from '@/services/socketService';
 import foregroundService from '@/services/foregroundService';
 import audioService from '@/services/audioService';
+import connectionHealthService from '@/services/connectionHealthService';
 
 jest.mock('@/services/socketService', () => ({
   connect: jest.fn(),
@@ -24,10 +25,29 @@ jest.mock('@/services/foregroundService', () => ({
 
 jest.mock('@/services/audioService', () => ({
   setAudioLevelCallback: jest.fn(),
+  setPreferredAudioOutput: jest.fn(),
   setMuted: jest.fn(),
   requestPermissions: jest.fn().mockResolvedValue(true),
   startCapture: jest.fn().mockResolvedValue(true),
   stopCapture: jest.fn().mockResolvedValue(true),
+}));
+
+jest.mock('@/services/connectionHealthService', () => ({
+  updateTranslationStartTime: jest.fn(),
+  updateMicState: jest.fn(),
+  updateTranslationState: jest.fn(),
+  startHostMonitoring: jest.fn(),
+  stop: jest.fn(),
+  registerCallbacks: jest.fn(),
+  recordMicActivity: jest.fn(),
+}));
+
+jest.mock('@/services/geminiTranslateService', () => ({
+  connect: jest.fn().mockResolvedValue(true),
+  disconnect: jest.fn(),
+  onTranslatedAudio: jest.fn(),
+  onClose: jest.fn(),
+  onError: jest.fn(),
 }));
 
 const mockSettings = {
@@ -73,6 +93,7 @@ describe('useHost Hook', () => {
     expect(result.current.roomCode).toBe('ABCDEF');
     expect(result.current.isConnected).toBe(true);
     expect(foregroundService.start).toHaveBeenCalled();
+    expect(audioService.setPreferredAudioOutput).toHaveBeenCalled();
   });
 
   it('should toggle mic', async () => {
@@ -105,5 +126,16 @@ describe('useHost Hook', () => {
     expect(foregroundService.stop).toHaveBeenCalled();
     expect(result.current.isConnected).toBe(false);
     expect(result.current.roomCode).toBeNull();
+  });
+
+  it('should toggle translation and update health service', async () => {
+    const { result } = renderHook(() => useHost(), { wrapper });
+    
+    await act(async () => {
+      await result.current.toggleTranslation();
+    });
+    
+    expect(result.current.isTranslating).toBe(true);
+    expect(connectionHealthService.updateTranslationStartTime).toHaveBeenCalled();
   });
 });

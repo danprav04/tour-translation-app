@@ -33,6 +33,7 @@ describe('GeminiTranslateService', () => {
 
   it('should connect to WebSocket and send setup', async () => {
     const connectPromise = geminiTranslateService.connect('dummyKey', 'en');
+    expect(geminiTranslateService.connectionState).toBe('connecting');
     
     // Simulate setupComplete response from server
     setTimeout(() => {
@@ -41,6 +42,7 @@ describe('GeminiTranslateService', () => {
     }, 20);
 
     await expect(connectPromise).resolves.toBeUndefined();
+    expect(geminiTranslateService.connectionState).toBe('connected');
     
     const ws = (geminiTranslateService as any).ws;
     expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('models/gemini-3.5-live-translate-preview'));
@@ -85,7 +87,35 @@ describe('GeminiTranslateService', () => {
       const ws = (geminiTranslateService as any).ws;
       geminiTranslateService.sendAudioChunk('audioData');
       expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('audioData'));
+      expect(geminiTranslateService.getConsecutiveSendFailures()).toBe(0);
       done();
+    }, 20);
+  });
+
+  it('should track consecutive send failures and connection state', (done) => {
+    geminiTranslateService.connect('key', 'en').catch(() => {});
+    
+    // Should fail since not connected
+    geminiTranslateService.sendAudioChunk('data1');
+    expect(geminiTranslateService.getConsecutiveSendFailures()).toBe(1);
+
+    setTimeout(() => {
+      const ws = (geminiTranslateService as any).ws;
+      ws.onmessage({ data: JSON.stringify({ setupComplete: true }) });
+      
+      setTimeout(() => {
+        expect(geminiTranslateService.connectionState).toBe('connected');
+        
+        // Successful send
+        geminiTranslateService.sendAudioChunk('data2');
+        expect(geminiTranslateService.getConsecutiveSendFailures()).toBe(0);
+
+        // Close connection
+        ws.onclose({ code: 1000, reason: 'Test' });
+        expect(geminiTranslateService.connectionState).toBe('disconnected');
+        
+        done();
+      }, 10);
     }, 20);
   });
 });

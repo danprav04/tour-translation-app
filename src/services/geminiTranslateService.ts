@@ -6,6 +6,12 @@ class GeminiTranslateService {
   public lastTranslatedAudioAt: number = 0;
   public currentApiKey: string | null = null;
   public currentLangCode: string | null = null;
+  public connectionState: 'disconnected' | 'connecting' | 'connected' = 'disconnected';
+  public consecutiveSendFailures: number = 0;
+
+  getConsecutiveSendFailures(): number {
+    return this.consecutiveSendFailures;
+  }
 
   async connect(apiKey: string, targetLanguageCode: string): Promise<void> {
     if (this.ws) {
@@ -14,6 +20,8 @@ class GeminiTranslateService {
     this.currentApiKey = apiKey;
     this.currentLangCode = targetLanguageCode;
     this.lastTranslatedAudioAt = 0;
+    this.connectionState = 'connecting';
+    this.consecutiveSendFailures = 0;
 
     const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
 
@@ -95,6 +103,7 @@ class GeminiTranslateService {
           for (const msg of messages) {
             if (msg.setupComplete) {
               console.log('[Gemini WS] Setup complete received.');
+              this.connectionState = 'connected';
               isSetupComplete = true;
               resolve();
             } else if (msg.serverContent?.modelTurn?.parts) {
@@ -129,6 +138,7 @@ class GeminiTranslateService {
         if (this.ws !== ws) return;
         
         console.error('[Gemini WS] WebSocket error observed (Check network/API key)');
+        this.connectionState = 'disconnected';
         if (this.onErrorCallback) {
           this.onErrorCallback(new Error('WebSocket connection failed.'));
         }
@@ -137,6 +147,7 @@ class GeminiTranslateService {
 
       ws.onclose = (event) => {
         console.log(`[Gemini WS] Closed with code ${event.code}, reason: ${event.reason}`);
+        this.connectionState = 'disconnected';
         if (this.ws === ws) {
           this.ws = null;
         }
@@ -151,7 +162,10 @@ class GeminiTranslateService {
   }
 
   sendAudioChunk(base64PcmData: string): void {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      this.consecutiveSendFailures++;
+      return;
+    }
 
     const message = {
       realtimeInput: {
@@ -163,7 +177,13 @@ class GeminiTranslateService {
         ]
       }
     };
-    this.ws.send(JSON.stringify(message));
+    try {
+      this.ws.send(JSON.stringify(message));
+      this.consecutiveSendFailures = 0;
+    } catch (e) {
+      console.warn('[Gemini WS] Failed to send audio chunk:', e);
+      this.consecutiveSendFailures++;
+    }
   }
 
   disconnect(): void {
@@ -171,6 +191,7 @@ class GeminiTranslateService {
       this.ws.close();
       this.ws = null;
     }
+    this.connectionState = 'disconnected';
     this.lastTranslatedAudioAt = 0;
   }
 

@@ -24,6 +24,7 @@ jest.mock('../socketService', () => ({
 jest.mock('../geminiTranslateService', () => ({
   isConnected: jest.fn().mockReturnValue(true),
   connectOverlap: jest.fn().mockResolvedValue(true),
+  getConsecutiveSendFailures: jest.fn().mockReturnValue(0),
   lastTranslatedAudioAt: 0,
   currentApiKey: 'key',
   currentLangCode: 'en',
@@ -75,6 +76,43 @@ describe('ConnectionHealthService', () => {
     connectionHealthService.startHostMonitoring('R', true);
     jest.advanceTimersByTime(35000); // Trigger interval
     expect(socketService.sendHealthCheck).toHaveBeenCalled();
+    jest.useRealTimers();
+  });
+
+  it('should update translation start time', () => {
+    connectionHealthService.updateTranslationStartTime(12345);
+    expect(connectionHealthService['state'].lastTranslationStartedAt).toBe(12345);
+  });
+
+  it('should reconnect Gemini if initial setup takes too long', () => {
+    jest.useFakeTimers();
+    const onReconnectGemini = jest.fn();
+    connectionHealthService.registerCallbacks({ onReconnectGemini });
+    connectionHealthService.startHostMonitoring('R', true);
+    
+    connectionHealthService.updateMicState(true);
+    connectionHealthService.updateTranslationState(true);
+    connectionHealthService.updateTranslationStartTime(Date.now() - 11000);
+    
+    jest.advanceTimersByTime(3000);
+    expect(onReconnectGemini).toHaveBeenCalled();
+    
+    jest.useRealTimers();
+  });
+
+  it('should reconnect Gemini on high send failures', () => {
+    jest.useFakeTimers();
+    const onReconnectGemini = jest.fn();
+    connectionHealthService.registerCallbacks({ onReconnectGemini });
+    connectionHealthService.startHostMonitoring('R', true);
+    
+    connectionHealthService.updateMicState(true);
+    connectionHealthService.updateTranslationState(true);
+    (geminiTranslateService.getConsecutiveSendFailures as jest.Mock).mockReturnValue(25);
+    
+    jest.advanceTimersByTime(3000);
+    expect(onReconnectGemini).toHaveBeenCalled();
+    
     jest.useRealTimers();
   });
 });

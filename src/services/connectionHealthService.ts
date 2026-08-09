@@ -21,6 +21,7 @@ interface HealthState {
   isHostStreaming: boolean;
   lastListenerResyncAt: number;
   lastMicActivityAt: number;
+  lastTranslationStartedAt: number;
 }
 
 const HEALTH_CHECK_INTERVAL = 30_000;       // Check socket health every 30s
@@ -48,6 +49,7 @@ class ConnectionHealthService {
     isHostStreaming: true,
     lastListenerResyncAt: 0,
     lastMicActivityAt: 0,
+    lastTranslationStartedAt: 0,
   };
 
   private healthCheckInterval: number | null = null;
@@ -150,6 +152,10 @@ class ConnectionHealthService {
 
   updateTranslationState(active: boolean): void {
     this.isTranslating = active;
+  }
+
+  updateTranslationStartTime(time: number): void {
+    this.state.lastTranslationStartedAt = time;
   }
 
   updateMuteState(muted: boolean): void {
@@ -260,6 +266,21 @@ class ConnectionHealthService {
         } else if (silenceDuration > GEMINI_NO_DATA_WARN) {
           console.log(`[HealthMonitor] Gemini translation delayed: ${silenceDuration}ms since last audio`);
         }
+      } else if (this.state.lastTranslationStartedAt > 0) {
+        // Initial connection check: no audio arrived yet
+        const setupDuration = now - this.state.lastTranslationStartedAt;
+        if (setupDuration > 10_000) { // 10s wait for first response
+          console.log(`[HealthMonitor] No initial translated audio after ${setupDuration}ms, reconnecting Gemini...`);
+          this.callbacks.onReconnectGemini?.();
+          // Reset to prevent rapid spamming before reconnect completes
+          this.state.lastTranslationStartedAt = now;
+        }
+      }
+
+      // Check 3: Send failures (silent drop detection)
+      if (geminiTranslateService.getConsecutiveSendFailures() > 20) {
+        console.log(`[HealthMonitor] High Gemini send failures (${geminiTranslateService.getConsecutiveSendFailures()}), reconnecting...`);
+        this.callbacks.onReconnectGemini?.();
       }
     }
   }
@@ -424,6 +445,7 @@ class ConnectionHealthService {
       isHostStreaming: true,
       lastListenerResyncAt: 0,
       lastMicActivityAt: 0,
+      lastTranslationStartedAt: 0,
     };
     this.isMicActive = false;
     this.isTranslating = false;

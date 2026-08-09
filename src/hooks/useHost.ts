@@ -303,6 +303,7 @@ export const useHost = () => {
       setIsTranslating(true);
       isTranslatingRef.current = true;
       reconnectAttempts.current = 0;
+      connectionHealthService.updateTranslationStartTime(Date.now());
       
       // If LiveKit mode and the mic is on, we need to take over the mic from LiveKit
       // Wait for the LocalMicController to release the mic, with exponential backoff retries

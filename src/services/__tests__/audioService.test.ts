@@ -1,5 +1,12 @@
 import audioService from '../audioService';
 import { requestRecordingPermissionsAsync, setAudioModeAsync, AudioModule } from 'expo-audio';
+import { AudioSession } from '@livekit/react-native';
+
+jest.mock('@livekit/react-native', () => ({
+  AudioSession: {
+    selectAudioOutput: jest.fn().mockResolvedValue(true)
+  }
+}));
 
 jest.mock('expo-audio', () => {
   return {
@@ -46,29 +53,40 @@ describe('AudioService', () => {
     expect(requestRecordingPermissionsAsync).toHaveBeenCalled();
   });
 
+  it('should set and get preferred audio output', () => {
+    audioService.setPreferredAudioOutput('speaker1');
+    expect(audioService.getPreferredAudioOutput()).toBe('speaker1');
+  });
+
   it('should enable playback mode', async () => {
+    audioService.setPreferredAudioOutput('speaker1');
     await audioService.enablePlaybackMode();
     expect(setAudioModeAsync).toHaveBeenCalledWith(expect.objectContaining({
       allowsRecording: false,
     }));
+    expect(AudioSession.selectAudioOutput).toHaveBeenCalledWith('speaker1');
   });
 
   it('should start capture', async () => {
+    audioService.setPreferredAudioOutput('speaker2');
     const onChunk = jest.fn();
     await audioService.startCapture(onChunk);
     expect(audioService.isCapturing()).toBe(true);
     expect(setAudioModeAsync).toHaveBeenCalledWith(expect.objectContaining({
       allowsRecording: true,
     }));
+    expect(AudioSession.selectAudioOutput).toHaveBeenCalledWith('speaker2');
   });
 
   it('should stop capture', async () => {
+    audioService.setPreferredAudioOutput('speaker3');
     await audioService.startCapture(() => {});
     await audioService.stopCapture();
     expect(audioService.isCapturing()).toBe(false);
     expect(setAudioModeAsync).toHaveBeenCalledWith(expect.objectContaining({
       allowsRecording: false,
     }));
+    expect(AudioSession.selectAudioOutput).toHaveBeenCalledWith('speaker3');
   });
 
   it('should play chunk immediately if no seq is provided', () => {

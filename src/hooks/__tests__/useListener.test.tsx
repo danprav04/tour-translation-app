@@ -25,6 +25,7 @@ jest.mock('@/services/foregroundService', () => ({
 
 jest.mock('@/services/audioService', () => ({
   setAudioLevelCallback: jest.fn(),
+  setPreferredAudioOutput: jest.fn(),
   setMuted: jest.fn(),
   enablePlaybackMode: jest.fn().mockResolvedValue(true),
 }));
@@ -73,6 +74,7 @@ describe('useListener Hook', () => {
     expect(result.current.roomCode).toBe('ROOM12');
     expect(result.current.isConnected).toBe(true);
     expect(foregroundService.start).toHaveBeenCalled();
+    expect(audioService.setPreferredAudioOutput).toHaveBeenCalled();
   });
 
   it('should toggle mute', () => {

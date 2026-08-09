@@ -21,10 +21,11 @@ describe('useSettings Hook', () => {
 
     expect(result.current.isLoaded).toBe(true);
     expect(result.current.settings.targetLanguage).toBe('en');
+    expect(result.current.settings.preferredAudioOutput).toBe('');
   });
 
   it('should load stored settings', async () => {
-    const storedSettings = { targetLanguage: 'es' };
+    const storedSettings = { targetLanguage: 'es', preferredAudioOutput: 'speaker' };
     (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce(JSON.stringify(storedSettings));
 
     const { result } = renderHook(() => useSettings());
@@ -34,6 +35,7 @@ describe('useSettings Hook', () => {
     });
 
     expect(result.current.settings.targetLanguage).toBe('es');
+    expect(result.current.settings.preferredAudioOutput).toBe('speaker');
   });
 
   it('should update settings and save to storage', async () => {
