@@ -67,6 +67,9 @@ class AudioService {
         } catch (fallbackErr) {
           console.warn('[AudioService] Fallback to default audio route also failed:', fallbackErr);
         }
+        
+        this._preferredAudioOutput = 'speaker';
+        
         if (this.onAudioRouteFallback) {
           this.onAudioRouteFallback();
         }
