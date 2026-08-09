@@ -81,7 +81,7 @@ app.get('/health', (req, res) => {
     status: 'ok',
     rooms: rooms.size,
     uptime: process.uptime(),
-    minSupportedVersion: process.env.MIN_SUPPORTED_VERSION || '1.5.3'
+    minSupportedVersion: process.env.MIN_SUPPORTED_VERSION || '1.5.5'
   });
 });
 

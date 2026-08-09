@@ -6,7 +6,7 @@ import { Linking, TouchableOpacity } from 'react-native';
 
 jest.mock('@/context/SettingsContext');
 jest.mock('expo-constants', () => ({
-  expoConfig: { version: '1.5.0' },
+  expoConfig: { version: '1.5.5' },
 }));
 
 describe('VersionCheck', () => {
