@@ -21,6 +21,7 @@ export default function AudioRoutePicker({ onRouteChanged }: AudioRoutePickerPro
   const [isVisible, setIsVisible] = useState(false);
   const [availableOutputs, setAvailableOutputs] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentDevice, setCurrentDevice] = useState<string | null>(audioService.getPreferredAudioOutput());
 
   const handleOpen = async () => {
     try {
@@ -45,6 +46,7 @@ export default function AudioRoutePicker({ onRouteChanged }: AudioRoutePickerPro
     try {
       await AudioSession.selectAudioOutput(deviceId);
       audioService.setPreferredAudioOutput(deviceId);
+      setCurrentDevice(deviceId);
       onRouteChanged?.(deviceId);
       setIsVisible(false);
     } catch (e) {
@@ -53,16 +55,36 @@ export default function AudioRoutePicker({ onRouteChanged }: AudioRoutePickerPro
     }
   };
 
+  const getDeviceLabel = (deviceId: string | null) => {
+    if (!deviceId) return 'Default Output';
+    return deviceId.charAt(0).toUpperCase() + deviceId.slice(1);
+  };
+
+  const getDeviceIcon = (deviceId: string | null) => {
+    switch (deviceId) {
+      case 'speaker':
+      case 'force_speaker':
+        return '🔊';
+      case 'earpiece':
+        return '📱';
+      case 'bluetooth':
+      case 'headset':
+        return '🎧';
+      default:
+        return '🎧';
+    }
+  };
+
   return (
     <>
       <Pressable onPress={handleOpen}>
         <GlassCard style={styles.card}>
           <View style={styles.iconContainer}>
-            <Text style={styles.icon}>🎧</Text>
+            <Text style={styles.icon}>{getDeviceIcon(currentDevice)}</Text>
           </View>
           <View style={styles.textContainer}>
             <Text style={styles.title}>Audio Routing</Text>
-            <Text style={styles.desc}>Choose bluetooth, speaker, or headphones</Text>
+            <Text style={styles.desc}>{getDeviceLabel(currentDevice)}</Text>
           </View>
         </GlassCard>
       </Pressable>
