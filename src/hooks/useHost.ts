@@ -3,6 +3,7 @@ import { Alert, AppState } from 'react-native';
 import { base64ToUint8Array } from '@/utils/base64';
 import geminiTranslateService from '@/services/geminiTranslateService';
 import { useSettingsContext } from '@/context/SettingsContext';
+import { useDebugContext } from '@/context/DebugContext';
 import foregroundService from '@/services/foregroundService';
 import audioService from '@/services/audioService';
 import socketService, { ListenerInfo } from '@/services/socketService';
@@ -20,6 +21,7 @@ const generateRoomCode = () => {
 
 export const useHost = () => {
   const { settings, updateSettings } = useSettingsContext();
+  const { addDebugEvent } = useDebugContext();
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [listeners, setListeners] = useState<ListenerInfo[]>([]);
   const [isMicActive, setIsMicActive] = useState(false);
@@ -31,6 +33,11 @@ export const useHost = () => {
   const [isReconnectingFromBackground, setIsReconnectingFromBackground] = useState(false);
   const [showLowAudioWarning, setShowLowAudioWarning] = useState(false);
   const selectedLanguage = settings.targetLanguage;
+  const selectedLanguageRef = useRef(selectedLanguage);
+
+  useEffect(() => {
+    selectedLanguageRef.current = selectedLanguage;
+  }, [selectedLanguage]);
 
   const isTranslatingRef = useRef(isTranslating);
   const isEchoEnabledRef = useRef(isEchoEnabled);
@@ -59,6 +66,14 @@ export const useHost = () => {
     });
     return () => audioService.setAudioLevelCallback(null);
   }, []);
+
+  useEffect(() => {
+    audioService.setAudioRouteFallbackCallback(() => {
+      Alert.alert('Audio Route Failed', 'Could not route audio to preferred device. Falling back to default.');
+      addDebugEvent('Audio route fallback triggered');
+    });
+    return () => audioService.setAudioRouteFallbackCallback(null);
+  }, [addDebugEvent]);
 
   // Setup legacy socket listeners
   useEffect(() => {
@@ -168,6 +183,7 @@ export const useHost = () => {
     if (isTranslating) {
       isTranslatingRef.current = false;
       geminiTranslateService.disconnect();
+      audioService.stopKeepAlive();
       setIsTranslating(false);
     }
     if (isMicActiveRef.current && settings.useLegacyWebSockets) {
@@ -306,17 +322,19 @@ export const useHost = () => {
         if (!isTranslatingRef.current) return; // Intentional disconnect
 
         console.log('[Host] Gemini disconnected unexpectedly. Reconnecting...');
+        addDebugEvent('Translation disconnected, reconnecting...');
         if (reconnectAttempts.current < 30) {
           reconnectAttempts.current += 1;
           // Exponential backoff: 2s, 4s, 8s, up to max 30s
           const delay = Math.min(2000 * Math.pow(2, reconnectAttempts.current - 1), 30000);
           setTimeout(() => {
             if (isTranslatingRef.current) {
-              startTranslation(langCode);
+              startTranslation(selectedLanguageRef.current);
             }
           }, delay);
         } else {
           console.error('[Host] Gemini failed to reconnect after 30 attempts.');
+          addDebugEvent('Translation reconnect failed after 30 attempts');
           Alert.alert('Translation Error', 'Lost connection to translation service.');
           setIsTranslating(false);
           isTranslatingRef.current = false;
@@ -353,8 +371,12 @@ export const useHost = () => {
         };
         setTimeout(tryTakeover, 200);
       }
+
+      audioService.startKeepAlive();
+      addDebugEvent('Translation started successfully');
     } catch (error) {
       console.error('Failed to start translation', error);
+      addDebugEvent(`Translation failed to start: ${error instanceof Error ? error.message : String(error)}`);
       setIsTranslating(false);
     }
   };
@@ -427,6 +449,7 @@ export const useHost = () => {
   const stopTranslation = async () => {
     isTranslatingRef.current = false;
     geminiTranslateService.disconnect();
+    audioService.stopKeepAlive();
     setIsTranslating(false);
     
     // If LiveKit mode and the mic is on, stop our manual capture so LiveKit can take it back

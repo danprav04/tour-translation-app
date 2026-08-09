@@ -45,3 +45,9 @@ jest.mock('socket.io-client', () => {
   };
   return jest.fn(() => mockSocket);
 });
+
+// Mock react-native-background-timer
+jest.mock('react-native-background-timer', () => ({
+  setInterval: jest.fn().mockReturnValue(123),
+  clearInterval: jest.fn(),
+}));

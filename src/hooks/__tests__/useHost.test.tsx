@@ -8,6 +8,11 @@ import foregroundService from '@/services/foregroundService';
 import audioService from '@/services/audioService';
 import connectionHealthService from '@/services/connectionHealthService';
 
+const mockAddDebugEvent = jest.fn();
+jest.mock('@/context/DebugContext', () => ({
+  useDebugContext: () => ({ addDebugEvent: mockAddDebugEvent }),
+}));
+
 jest.mock('@/services/socketService', () => ({
   connect: jest.fn(),
   disconnect: jest.fn(),
@@ -32,6 +37,9 @@ jest.mock('@/services/audioService', () => ({
   startCapture: jest.fn().mockResolvedValue(true),
   stopCapture: jest.fn().mockResolvedValue(true),
   setMicAmplification: jest.fn(),
+  startKeepAlive: jest.fn(),
+  stopKeepAlive: jest.fn(),
+  setAudioRouteFallbackCallback: jest.fn(),
 }));
 
 jest.mock('@/services/connectionHealthService', () => ({
@@ -76,6 +84,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 describe('useHost Hook', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockAddDebugEvent.mockClear();
   });
 
   it('should initialize correctly', () => {
@@ -122,13 +131,56 @@ describe('useHost Hook', () => {
     
     await act(async () => {
       await result.current.startRoom();
+      await result.current.toggleTranslation();
       await result.current.stopRoom();
     });
 
     expect(socketService.disconnect).toHaveBeenCalled();
     expect(foregroundService.stop).toHaveBeenCalled();
+    expect(audioService.stopKeepAlive).toHaveBeenCalled();
     expect(result.current.isConnected).toBe(false);
     expect(result.current.roomCode).toBeNull();
+  });
+
+  it('should handle translation disconnect and retry with correct language', async () => {
+    jest.useFakeTimers();
+    const { result } = renderHook(() => useHost(), { wrapper });
+    
+    await act(async () => {
+      await result.current.toggleTranslation();
+    });
+
+    expect(audioService.startKeepAlive).toHaveBeenCalled();
+    expect(mockAddDebugEvent).toHaveBeenCalledWith('Translation started successfully');
+
+    // Trigger disconnect
+    const onCloseCallback = (geminiTranslateService.onClose as jest.Mock).mock.calls[0][0];
+    act(() => {
+      onCloseCallback();
+    });
+
+    expect(mockAddDebugEvent).toHaveBeenCalledWith('Translation disconnected, reconnecting...');
+    
+    act(() => {
+      jest.advanceTimersByTime(2000); // Wait for retry delay
+    });
+
+    // It should call connect again with the current language (en from mockSettings)
+    expect(geminiTranslateService.connect).toHaveBeenCalledWith(expect.any(String), 'en');
+
+    jest.useRealTimers();
+  });
+
+  it('should log debug event when translation fails to start', async () => {
+    (geminiTranslateService.connect as jest.Mock).mockRejectedValueOnce(new Error('API Error'));
+    const { result } = renderHook(() => useHost(), { wrapper });
+    
+    await act(async () => {
+      await result.current.toggleTranslation();
+    });
+
+    expect(mockAddDebugEvent).toHaveBeenCalledWith('Translation failed to start: API Error');
+    expect(result.current.isTranslating).toBe(false);
   });
 
   it('should toggle translation and update health service', async () => {

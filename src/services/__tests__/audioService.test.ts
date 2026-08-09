@@ -1,6 +1,7 @@
 import audioService from '../audioService';
 import { requestRecordingPermissionsAsync, setAudioModeAsync, AudioModule } from 'expo-audio';
 import { AudioSession } from '@livekit/react-native';
+import BackgroundTimer from 'react-native-background-timer';
 
 jest.mock('@livekit/react-native', () => ({
   AudioSession: {
@@ -99,6 +100,55 @@ describe('AudioService', () => {
       allowsRecording: false,
     }));
     expect(AudioSession.selectAudioOutput).toHaveBeenCalledWith('speaker3');
+  });
+
+  it('should fall back to default audio route on failure and trigger callback', async () => {
+    const fallbackCallback = jest.fn();
+    audioService.setAudioRouteFallbackCallback(fallbackCallback);
+    audioService.setPreferredAudioOutput('failing-device');
+    
+    (AudioSession.selectAudioOutput as jest.Mock)
+      .mockRejectedValueOnce(new Error('Failed to set output'))
+      .mockResolvedValueOnce(true);
+
+    await audioService.enablePlaybackMode();
+
+    expect(AudioSession.selectAudioOutput).toHaveBeenCalledWith('failing-device');
+    expect(AudioSession.selectAudioOutput).toHaveBeenCalledWith(null);
+    expect(fallbackCallback).toHaveBeenCalled();
+  });
+
+  it('should fall back to default audio route on failure and trigger callback even if fallback fails', async () => {
+    const fallbackCallback = jest.fn();
+    audioService.setAudioRouteFallbackCallback(fallbackCallback);
+    audioService.setPreferredAudioOutput('failing-device');
+    
+    (AudioSession.selectAudioOutput as jest.Mock)
+      .mockRejectedValueOnce(new Error('Failed to set output'))
+      .mockRejectedValueOnce(new Error('Fallback failed'));
+
+    await audioService.enablePlaybackMode();
+
+    expect(AudioSession.selectAudioOutput).toHaveBeenCalledWith('failing-device');
+    expect(AudioSession.selectAudioOutput).toHaveBeenCalledWith(null);
+    expect(fallbackCallback).toHaveBeenCalled();
+  });
+
+  it('should start and stop keep-alive playback', () => {
+    audioService.startKeepAlive();
+    expect(BackgroundTimer.setInterval).toHaveBeenCalledWith(expect.any(Function), 8000);
+    expect(audioService['keepAliveInterval']).not.toBeNull();
+
+    // Trigger the interval callback to cover that code path
+    const intervalFn = (BackgroundTimer.setInterval as jest.Mock).mock.calls[0][0];
+    intervalFn();
+    expect(audioService['jitterBuffer'].length).toBeGreaterThan(0);
+
+    audioService.stopKeepAlive();
+    expect(BackgroundTimer.clearInterval).toHaveBeenCalledWith(123);
+    expect(audioService['keepAliveInterval']).toBeNull();
+
+    audioService['playlist'] = null; // cleanup
   });
 
   it('should play chunk immediately if no seq is provided', () => {

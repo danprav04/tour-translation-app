@@ -2,6 +2,7 @@ import { AudioModule, setAudioModeAsync, requestRecordingPermissionsAsync, creat
 import type { AudioPlaylist, AudioStream } from 'expo-audio';
 import { AudioSession } from '@livekit/react-native';
 import { base64ToUint8Array, uint8ArrayToBase64 } from '@/utils/base64';
+import BackgroundTimer from 'react-native-background-timer';
 
 class AudioService {
   private stream: AudioStream | null = null;
@@ -14,11 +15,17 @@ class AudioService {
   private bufferFlushTimeout: ReturnType<typeof setTimeout> | null = null;
   private onChunkCallback: ((base64Data: string) => void) | null = null;
   private onAudioLevelCallback: ((level: number) => void) | null = null;
+  private onAudioRouteFallback: (() => void) | null = null;
   private _preferredAudioOutput: string | null = null;
   private _micAmplification: number = 3.0;
+  private keepAliveInterval: number | null = null;
 
   setAudioLevelCallback(callback: ((level: number) => void) | null) {
     this.onAudioLevelCallback = callback;
+  }
+
+  setAudioRouteFallbackCallback(callback: (() => void) | null) {
+    this.onAudioRouteFallback = callback;
   }
 
   setPreferredAudioOutput(deviceId: string | null): void {
@@ -37,14 +44,54 @@ class AudioService {
    * Re-apply the user's preferred audio output route.
    * This must be called after every setAudioModeAsync() because
    * expo-audio resets the OS audio route when reconfiguring the session.
+   * Returns true if successful, false if failed and fell back to default.
    */
-  private async applyAudioRoute(): Promise<void> {
+  private async applyAudioRoute(): Promise<boolean> {
     if (this._preferredAudioOutput) {
       try {
         await AudioSession.selectAudioOutput(this._preferredAudioOutput);
+        return true;
       } catch (e) {
-        console.warn('[AudioService] Failed to re-apply audio route:', e);
+        console.warn('[AudioService] Failed to re-apply audio route, falling back to default:', e);
+        try {
+          await AudioSession.selectAudioOutput(null as any); // Fall back to system default (speaker)
+        } catch (fallbackErr) {
+          console.warn('[AudioService] Fallback to default audio route also failed:', fallbackErr);
+        }
+        if (this.onAudioRouteFallback) {
+          this.onAudioRouteFallback();
+        }
+        return false;
       }
+    }
+    return true;
+  }
+
+  /**
+   * Starts a silent audio playback loop to prevent the OS from reclaiming the audio session
+   * during standby/screen-off when there are gaps between translations.
+   */
+  startKeepAlive(): void {
+    if (this.keepAliveInterval !== null) return;
+    console.log('[AudioService] Starting silent keep-alive playback');
+    
+    // Play 50ms of silence every 8 seconds
+    // We use a small silent WAV buffer played through the existing pipeline
+    const silentPcm = new Uint8Array(16000 * 2 * 0.05); // 50ms at 16kHz 16-bit mono
+    
+    this.keepAliveInterval = BackgroundTimer.setInterval(() => {
+      this.pushToPlaylist(silentPcm, 16000);
+    }, 8000) as any;
+  }
+
+  /**
+   * Stops the silent keep-alive playback loop.
+   */
+  stopKeepAlive(): void {
+    if (this.keepAliveInterval !== null) {
+      console.log('[AudioService] Stopping silent keep-alive playback');
+      BackgroundTimer.clearInterval(this.keepAliveInterval);
+      this.keepAliveInterval = null;
     }
   }
 
