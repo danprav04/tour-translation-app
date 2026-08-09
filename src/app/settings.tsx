@@ -27,6 +27,7 @@ export default function SettingsScreen() {
   const [deviceName, setDeviceName] = useState(settings.deviceName);
   const [useLegacy, setUseLegacy] = useState(settings.useLegacyWebSockets);
   const [showBugReport, setShowBugReport] = useState(settings.showBugReportButton ?? true);
+  const [micAmplification, setMicAmplification] = useState(settings.micAmplification ?? 3.0);
   const [showApiKey, setShowApiKey] = useState(false);
   const [isBatteryOptimized, setIsBatteryOptimized] = useState<boolean | null>(null);
 
@@ -68,6 +69,7 @@ export default function SettingsScreen() {
       deviceName: deviceName.trim() || 'Listener Device',
       useLegacyWebSockets: useLegacy,
       showBugReportButton: showBugReport,
+      micAmplification: micAmplification,
     });
   };
 
@@ -207,6 +209,40 @@ export default function SettingsScreen() {
                 trackColor={{ false: 'rgba(255,255,255,0.1)', true: '#00D4AA' }}
                 thumbColor="#FFFFFF"
               />
+            </View>
+          </GlassCard>
+
+          {/* Microphone Boost */}
+          <GlassCard style={styles.section}>
+            <View style={styles.switchRow}>
+              <View style={styles.switchTextContainer}>
+                <Text style={styles.sectionTitle}>🎤 Microphone Boost</Text>
+                <Text style={styles.sectionDesc}>
+                  Amplify microphone input for quiet speakers. (Current: {micAmplification.toFixed(1)}x)
+                </Text>
+              </View>
+              <View style={styles.stepperContainer}>
+                <Pressable
+                  onPress={() => {
+                    const next = Math.max(1.0, micAmplification - 0.5);
+                    setMicAmplification(next);
+                    updateSettings({ ...settings, micAmplification: next });
+                  }}
+                  style={styles.stepperBtn}
+                >
+                  <Text style={styles.stepperBtnText}>-</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    const next = Math.min(5.0, micAmplification + 0.5);
+                    setMicAmplification(next);
+                    updateSettings({ ...settings, micAmplification: next });
+                  }}
+                  style={styles.stepperBtn}
+                >
+                  <Text style={styles.stepperBtnText}>+</Text>
+                </Pressable>
+              </View>
             </View>
           </GlassCard>
 
@@ -376,6 +412,33 @@ const styles = StyleSheet.create({
   },
   keyMissing: {
     color: '#FFA502',
+  },
+  infoText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 12,
+  },
+  stepperContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  stepperBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  stepperBtnText: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '600',
+    lineHeight: 24,
   },
   aboutText: {
     color: 'rgba(255,255,255,0.5)',

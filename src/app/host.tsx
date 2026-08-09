@@ -176,6 +176,8 @@ export default function HostScreen() {
     audioLevel,
     setAudioLevel,
     connectionHealth,
+    isReconnectingFromBackground,
+    showLowAudioWarning,
   } = useHost();
   const { setDebugState, addDebugEvent } = useDebugContext();
 
@@ -459,6 +461,11 @@ export default function HostScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Audio Controls</Text>
           <View style={styles.controlsGap}>
+            {showLowAudioWarning && (
+              <View style={styles.lowAudioWarning}>
+                <Text style={styles.lowAudioText}>⚠️ Audio signal is very low. Please speak closer or increase mic boost in Settings.</Text>
+              </View>
+            )}
             <ToggleCard
               icon="🎤"
               label="Microphone"
@@ -689,6 +696,14 @@ export default function HostScreen() {
         </View>
 
       </ScrollView>
+      
+      {/* Reconnecting Overlay */}
+      {isReconnectingFromBackground && (
+        <View style={styles.reconnectOverlay}>
+          <ActivityIndicator size="large" color="#FFFFFF" />
+          <Text style={styles.reconnectText}>Reconnecting...</Text>
+        </View>
+      )}
     </SafeAreaView>
       )}
     </ParticipantsRenderer>
@@ -1054,6 +1069,201 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 999,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 80,
+  },
+  startIcon: {
+    fontSize: 64,
+    marginBottom: 20,
+  },
+  startTitle: {
+    color: '#FFFFFF',
+    fontSize: 26,
+    fontWeight: '800',
+    marginBottom: 12,
+  },
+  startDesc: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 22,
+    paddingHorizontal: 32,
+    marginBottom: 24,
+  },
+  inputWrapper: {
+    width: '100%',
+    marginBottom: 32,
+    alignItems: 'center',
+  },
+  inputLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  roomInput: {
+    width: '80%',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '800',
+    textAlign: 'center',
+    paddingVertical: 14,
+    letterSpacing: 2,
+  },
+  startBtn: {
+    backgroundColor: '#00D4AA',
+    paddingHorizontal: 40,
+    paddingVertical: 16,
+    borderRadius: 16,
+  },
+  startBtnText: {
+    color: '#0A0E1A',
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  pressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
+  },
+
+  // ─── TTS Panel Styles ───
+  ttsCard: {
+    padding: 0,
+    overflow: 'hidden',
+    borderColor: TTS_ACCENT_BRIGHT,
+    backgroundColor: TTS_ACCENT_DIM,
+  },
+  ttsInput: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    lineHeight: 22,
+    minHeight: 100,
+    maxHeight: 180,
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  ttsErrorContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255,71,87,0.1)',
+  },
+  ttsErrorText: {
+    color: '#FF4757',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  ttsGenerateBtn: {
+    margin: 16,
+    backgroundColor: TTS_ACCENT,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ttsGenerateBtnDisabled: {
+    opacity: 0.4,
+  },
+  ttsGeneratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  ttsGenerateBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  ttsPlayer: {
+    padding: 16,
+    gap: 12,
+  },
+  ttsPlayerControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  ttsPlayPauseBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: TTS_ACCENT_DIM,
+    borderWidth: 1.5,
+    borderColor: TTS_ACCENT_BRIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ttsPlayPauseBtnActive: {
+    backgroundColor: TTS_ACCENT,
+    borderColor: TTS_ACCENT,
+  },
+  ttsPlayPauseIcon: {
+    fontSize: 18,
+  },
+  ttsSeekContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  ttsSeekTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    position: 'relative',
+    overflow: 'visible',
+  },
+  ttsSeekFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: TTS_ACCENT,
+  },
+  ttsSeekThumb: {
+    position: 'absolute',
+    top: -5,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    marginLeft: -8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  ttsTimeText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 12,
+    fontWeight: '600',
+    minWidth: 72,
+    textAlign: 'right',
+  },
+  ttsClearBtn: {
+    alignSelf: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  ttsClearBtnText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  ttsBroadcastingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
     backgroundColor: 'rgba(167,139,250,0.12)',
     borderWidth: 1,
     borderColor: 'rgba(167,139,250,0.3)',
@@ -1069,5 +1279,30 @@ const styles = StyleSheet.create({
     color: TTS_ACCENT,
     fontSize: 12,
     fontWeight: '600',
+  },
+  reconnectOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(10, 14, 26, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  reconnectText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+  },
+  lowAudioWarning: {
+    backgroundColor: 'rgba(255, 171, 0, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 171, 0, 0.3)',
+    borderRadius: 12,
+    padding: 12,
+  },
+  lowAudioText: {
+    color: '#FFAB00',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

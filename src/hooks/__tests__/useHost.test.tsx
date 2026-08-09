@@ -1,4 +1,5 @@
 import { renderHook, act } from '@testing-library/react-native';
+import { AppState } from 'react-native';
 import { useHost } from '../useHost';
 import { SettingsContext } from '@/context/SettingsContext';
 import React from 'react';
@@ -30,6 +31,7 @@ jest.mock('@/services/audioService', () => ({
   requestPermissions: jest.fn().mockResolvedValue(true),
   startCapture: jest.fn().mockResolvedValue(true),
   stopCapture: jest.fn().mockResolvedValue(true),
+  setMicAmplification: jest.fn(),
 }));
 
 jest.mock('@/services/connectionHealthService', () => ({
@@ -60,6 +62,7 @@ const mockSettings = {
   noiseCancellation: true,
   autoGainControl: true,
   echoCancellation: true,
+  micAmplification: 4.0,
 };
 
 const updateSettingsMock = jest.fn();
@@ -137,5 +140,84 @@ describe('useHost Hook', () => {
     
     expect(result.current.isTranslating).toBe(true);
     expect(connectionHealthService.updateTranslationStartTime).toHaveBeenCalled();
+  });
+
+  it('should show low audio warning when audio level is low for 10 seconds while mic is active', () => {
+    jest.useFakeTimers();
+    const { result } = renderHook(() => useHost(), { wrapper });
+
+    act(() => {
+      result.current.toggleMic();
+    });
+
+    expect(result.current.isMicActive).toBe(true);
+
+    act(() => {
+      result.current.setAudioLevel(0.01);
+    });
+
+    expect(result.current.showLowAudioWarning).toBe(false);
+
+    act(() => {
+      jest.advanceTimersByTime(10000);
+    });
+
+    expect(result.current.showLowAudioWarning).toBe(true);
+
+    act(() => {
+      result.current.setAudioLevel(0.1);
+    });
+
+    expect(result.current.showLowAudioWarning).toBe(false);
+    jest.useRealTimers();
+  });
+
+  it('should handle AppState change and trigger background reconnect', async () => {
+    jest.useFakeTimers();
+    const { result } = renderHook(() => useHost(), { wrapper });
+    
+    await act(async () => {
+      await result.current.toggleMic();
+    });
+
+    let appStateCallback: any;
+    jest.spyOn(AppState, 'addEventListener').mockImplementation((type, handler) => {
+      if (type === 'change') {
+        appStateCallback = handler;
+      }
+      return { remove: jest.fn() } as any;
+    });
+
+    // Re-render to attach event listener
+    const { result: newResult } = renderHook(() => useHost(), { wrapper });
+
+    await act(async () => {
+      await newResult.current.toggleMic();
+    });
+
+    await act(async () => {
+      appStateCallback('active');
+    });
+
+    expect(newResult.current.isReconnectingFromBackground).toBe(true);
+    expect(socketService.refreshConnection).toHaveBeenCalled();
+    
+    await act(async () => {
+      jest.advanceTimersByTime(500);
+    });
+    
+    expect(newResult.current.isReconnectingFromBackground).toBe(false);
+
+    jest.useRealTimers();
+  });
+
+  it('should set mic amplification on startRoom', async () => {
+    const { result } = renderHook(() => useHost(), { wrapper });
+    
+    await act(async () => {
+      await result.current.startRoom();
+    });
+
+    expect(audioService.setMicAmplification).toHaveBeenCalledWith(4.0);
   });
 });

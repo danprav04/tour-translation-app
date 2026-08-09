@@ -49,9 +49,10 @@ class GeminiTranslateService {
             },
             realtimeInputConfig: {
               automaticActivityDetection: {
-                disabled: false,
-                prefixPaddingMs: 100,
-                silenceDurationMs: 600 // Aggressively detect end of speech after 600ms of silence
+                vad: {
+                  maxInterruptionDurationMs: 3000,
+                  silenceDurationMs: 1200
+                }
               }
             }
           }

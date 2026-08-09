@@ -46,6 +46,7 @@ describe('GeminiTranslateService', () => {
     
     const ws = (geminiTranslateService as any).ws;
     expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('models/gemini-3.5-live-translate-preview'));
+    expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('"silenceDurationMs":1200'));
   });
 
   it('should reject if websocket errors during connection', async () => {

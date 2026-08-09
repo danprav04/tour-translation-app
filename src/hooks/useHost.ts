@@ -28,6 +28,8 @@ export const useHost = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
   const [connectionHealth, setConnectionHealth] = useState<'healthy' | 'degraded' | 'critical'>('healthy');
+  const [isReconnectingFromBackground, setIsReconnectingFromBackground] = useState(false);
+  const [showLowAudioWarning, setShowLowAudioWarning] = useState(false);
   const selectedLanguage = settings.targetLanguage;
 
   const isTranslatingRef = useRef(isTranslating);
@@ -46,32 +48,7 @@ export const useHost = () => {
     isMicActiveRef.current = isMicActive;
   }, [isMicActive]);
 
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', async (nextAppState) => {
-      if (nextAppState === 'active' && isMicActiveRef.current) {
-        console.log('[Host] App returned to active state. Ensuring mic is capturing.');
-        if (settings.useLegacyWebSockets || isTranslatingRef.current) {
-          try {
-            await audioService.stopCapture();
-          } catch (e) {
-            console.log('[Host] Error stopping capture on resume', e);
-          }
-          
-          setTimeout(async () => {
-             if (isMicActiveRef.current) {
-               try {
-                 await audioService.startCapture();
-               } catch (e) {
-                 console.error('[Host] Failed to restart mic after interruption', e);
-               }
-             }
-          }, 500);
-        }
-      }
-    });
 
-    return () => subscription.remove();
-  }, [settings.useLegacyWebSockets]);
 
   const [livekitToken, setLivekitToken] = useState<string | null>(null);
   const [livekitUrl, setLivekitUrl] = useState<string | null>(null);
@@ -118,6 +95,7 @@ export const useHost = () => {
       if (settings.preferredAudioOutput) {
         audioService.setPreferredAudioOutput(settings.preferredAudioOutput);
       }
+      audioService.setMicAmplification(settings.micAmplification ?? 3.0);
       const deviceName = settings.deviceName || 'Host';
       let code = '';
 
@@ -223,6 +201,57 @@ export const useHost = () => {
       socketService.sendAudioChunk(bytes.buffer, 16000, false);
     }
   };
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      if (nextAppState === 'active' && isMicActiveRef.current) {
+        console.log('[Host] App returned to active state. Ensuring connections and mic are capturing.');
+        
+        setIsReconnectingFromBackground(true);
+        
+        if (settings.useLegacyWebSockets) {
+          if (!socketService.isConnected()) {
+            console.log('[Host] Reconnecting socketService after background drop');
+            socketService.refreshConnection();
+          }
+        }
+        
+        if (isTranslatingRef.current) {
+          if (!geminiTranslateService.isConnected() && settings.geminiApiKey) {
+            console.log('[Host] Reconnecting Gemini WS after background drop');
+            try {
+              await geminiTranslateService.connectOverlap(settings.geminiApiKey, settings.targetLanguage);
+            } catch (e) {
+              console.error('[Host] Background reconnect for Gemini failed', e);
+            }
+          }
+        }
+
+        if (settings.useLegacyWebSockets || isTranslatingRef.current) {
+          try {
+            await audioService.stopCapture();
+          } catch (e) {
+            console.log('[Host] Error stopping capture on resume', e);
+          }
+          
+          setTimeout(async () => {
+             if (isMicActiveRef.current) {
+               try {
+                 await audioService.startCapture(handleAudioChunk);
+               } catch (e) {
+                 console.error('[Host] Failed to restart mic after interruption', e);
+               }
+             }
+             setIsReconnectingFromBackground(false);
+          }, 500);
+        } else {
+           setIsReconnectingFromBackground(false);
+        }
+      }
+    });
+
+    return () => subscription.remove();
+  }, [settings.useLegacyWebSockets, settings.geminiApiKey, settings.targetLanguage]);
 
   const toggleMic = async () => {
     if (isMicActive) {
@@ -383,6 +412,18 @@ export const useHost = () => {
     connectionHealthService.updateTranslationState(isTranslating);
   }, [isTranslating]);
 
+  useEffect(() => {
+    let lowAudioTimer: NodeJS.Timeout;
+    if (isMicActive && audioLevel < 0.05) {
+      lowAudioTimer = setTimeout(() => {
+        setShowLowAudioWarning(true);
+      }, 10000);
+    } else {
+      setShowLowAudioWarning(false);
+    }
+    return () => clearTimeout(lowAudioTimer);
+  }, [isMicActive, audioLevel]);
+
   const stopTranslation = async () => {
     isTranslatingRef.current = false;
     geminiTranslateService.disconnect();
@@ -484,5 +525,7 @@ export const useHost = () => {
     audioLevel,
     setAudioLevel,
     connectionHealth,
+    isReconnectingFromBackground,
+    showLowAudioWarning,
   };
 };

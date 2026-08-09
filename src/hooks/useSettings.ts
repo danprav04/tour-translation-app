@@ -11,6 +11,7 @@ export interface Settings {
   useLegacyWebSockets: boolean;
   showBugReportButton: boolean;
   preferredAudioOutput: string;
+  micAmplification: number;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -22,6 +23,7 @@ const DEFAULT_SETTINGS: Settings = {
   useLegacyWebSockets: false,
   showBugReportButton: true,
   preferredAudioOutput: '',
+  micAmplification: 3.0,
 };
 
 const SETTINGS_KEY = '@tour_settings';

@@ -15,6 +15,7 @@ class AudioService {
   private onChunkCallback: ((base64Data: string) => void) | null = null;
   private onAudioLevelCallback: ((level: number) => void) | null = null;
   private _preferredAudioOutput: string | null = null;
+  private _micAmplification: number = 3.0;
 
   setAudioLevelCallback(callback: ((level: number) => void) | null) {
     this.onAudioLevelCallback = callback;
@@ -26,6 +27,10 @@ class AudioService {
 
   getPreferredAudioOutput(): string | null {
     return this._preferredAudioOutput;
+  }
+
+  setMicAmplification(multiplier: number) {
+    this._micAmplification = Math.max(1.0, Math.min(5.0, multiplier));
   }
 
   /**
@@ -112,7 +117,7 @@ class AudioService {
         if (this.onAudioLevelCallback) {
           const dataView = new DataView(buffer.data);
           let localMaxPeak = 0;
-          const multiplier = 3.0; // Amplify by 3.0x to help Gemini silence detection
+          const multiplier = this._micAmplification;
           for (let i = 0; i < dataView.byteLength - 1; i += 2) {
             let val = dataView.getInt16(i, true);
             val = Math.max(-32768, Math.min(32767, val * multiplier));
@@ -138,7 +143,7 @@ class AudioService {
         } else {
           // Even if no visualizer callback, still amplify
           const dataView = new DataView(buffer.data);
-          const multiplier = 3.0;
+          const multiplier = this._micAmplification;
           for (let i = 0; i < dataView.byteLength - 1; i += 2) {
             let val = dataView.getInt16(i, true);
             val = Math.max(-32768, Math.min(32767, val * multiplier));
