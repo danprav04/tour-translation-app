@@ -526,7 +526,10 @@ export default function HostScreen() {
               </View>
             </ToggleCard>
             
-            <AudioRoutePicker onRouteChanged={(deviceId) => updateSettings({ preferredAudioOutput: deviceId })} />
+            <AudioRoutePicker 
+              currentRoute={settings.preferredAudioOutput}
+              onRouteChanged={(deviceId) => updateSettings({ preferredAudioOutput: deviceId })} 
+            />
           </View>
         </View>
 

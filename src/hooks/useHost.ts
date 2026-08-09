@@ -71,9 +71,10 @@ export const useHost = () => {
     audioService.setAudioRouteFallbackCallback(() => {
       Alert.alert('Audio Route Failed', 'Could not route audio to preferred device. Falling back to default.');
       addDebugEvent('Audio route fallback triggered');
+      updateSettings({ preferredAudioOutput: 'speaker' });
     });
     return () => audioService.setAudioRouteFallbackCallback(null);
-  }, [addDebugEvent]);
+  }, [addDebugEvent, updateSettings]);
 
   // Setup legacy socket listeners
   useEffect(() => {
