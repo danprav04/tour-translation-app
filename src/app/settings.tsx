@@ -20,7 +20,7 @@ import packageJson from '../../package.json';
 import { useSettingsContext } from '@/context/SettingsContext';
 import GlassCard from '@/components/GlassCard';
 
-export const appSubversion = '03';
+export const appSubversion = '00';
 
 export default function SettingsScreen() {
   const router = useRouter();
