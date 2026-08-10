@@ -40,7 +40,9 @@
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MICROPHONE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
-        "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+        "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
+        "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+        "android.permission.WAKE_LOCK"
       ]
     },
     "web": {
@@ -88,7 +90,7 @@
           }
         }
       ],
-      "./plugins/withNotifeeForegroundService.js",
+      "./plugins/withBackgroundActions.js",
       "@livekit/react-native-expo-plugin",
       "@config-plugins/react-native-webrtc"
     ],

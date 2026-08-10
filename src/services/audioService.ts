@@ -19,7 +19,6 @@ class AudioService {
   private onAudioRouteFallback: (() => void) | null = null;
   private _preferredAudioOutput: string | null = null;
   private _micAmplification: number = 3.0;
-  private keepAliveInterval: number | null = null;
 
   setAudioLevelCallback(callback: ((level: number) => void) | null) {
     this.onAudioLevelCallback = callback;
@@ -79,47 +78,7 @@ class AudioService {
     return true;
   }
 
-  /**
-   * Starts a silent audio playback loop to prevent the OS from reclaiming the audio session
-   * during standby/screen-off when there are gaps between translations.
-   */
-  startKeepAlive(): void {
-    if (this.keepAliveInterval !== null) return;
-    console.log('[AudioService] Starting silent keep-alive playback');
-    
-    // Play 50ms of silence every 8 seconds
-    // We use a small silent WAV buffer played through the existing pipeline
-    const silentPcm = new Uint8Array(16000 * 2 * 0.05); // 50ms at 16kHz 16-bit mono
-    
-    this.keepAliveInterval = BackgroundTimer.setInterval(async () => {
-      // Periodic check for audio route availability on Android
-      if (Platform.OS === 'android' && this._preferredAudioOutput) {
-        try {
-          const outputs = await AudioSession.getAudioOutputs();
-          if (outputs && outputs.length > 0 && !outputs.includes(this._preferredAudioOutput)) {
-            console.log(`[AudioService] Keep-alive detected preferred output ${this._preferredAudioOutput} dropped. Triggering fallback.`);
-            await this.applyAudioRoute(); // This will fail the availability check and trigger the fallback!
-            return; // Skip playing silence this tick since we're re-routing
-          }
-        } catch (e) {
-          // ignore
-        }
-      }
 
-      this.pushToPlaylist(silentPcm, 16000);
-    }, 8000) as any;
-  }
-
-  /**
-   * Stops the silent keep-alive playback loop.
-   */
-  stopKeepAlive(): void {
-    if (this.keepAliveInterval !== null) {
-      console.log('[AudioService] Stopping silent keep-alive playback');
-      BackgroundTimer.clearInterval(this.keepAliveInterval);
-      this.keepAliveInterval = null;
-    }
-  }
 
   async requestPermissions(): Promise<boolean> {
     const permission = await requestRecordingPermissionsAsync();

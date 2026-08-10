@@ -9,7 +9,6 @@ import BackgroundTimer from 'react-native-background-timer';
 import foregroundService from '@/services/foregroundService';
 import audioService from '@/services/audioService';
 import socketService, { ListenerInfo } from '@/services/socketService';
-import { AndroidForegroundServiceType } from '@notifee/react-native';
 import connectionHealthService from '@/services/connectionHealthService';
 
 const generateRoomCode = () => {
@@ -190,10 +189,7 @@ export const useHost = () => {
       await foregroundService.start(
         'TourCast Host Session',
         `Broadcasting room ${code}`,
-        [
-          AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MICROPHONE,
-          AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-        ]
+        'host'
       );
 
     } catch (error) {
@@ -212,7 +208,6 @@ export const useHost = () => {
     // Unconditionally clean up translation state
     isTranslatingRef.current = false;
     geminiTranslateService.disconnect();
-    audioService.stopKeepAlive();
     setIsTranslating(false);
     
     // Unconditionally stop mic capture to prevent zombie streams
@@ -461,7 +456,6 @@ export const useHost = () => {
         setTimeout(tryTakeover, 400); // Increased initial delay
       }
 
-      audioService.startKeepAlive();
       addDebugEvent('Translation started successfully');
     } catch (error) {
       isReconnectingGeminiRef.current = false;
@@ -611,7 +605,6 @@ export const useHost = () => {
     isReconnectingGeminiRef.current = false;
     connectionHealthService.setGeminiReconnecting(false);
     geminiTranslateService.disconnect();
-    audioService.stopKeepAlive();
     setIsTranslating(false);
     
     // If LiveKit mode and the mic is on, stop our manual capture so LiveKit can take it back
