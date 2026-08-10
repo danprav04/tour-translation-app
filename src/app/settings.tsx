@@ -22,7 +22,7 @@ import { useSettingsContext } from '@/context/SettingsContext';
 import GlassCard from '@/components/GlassCard';
 
 const DONT_KILL_MY_APP_MANUFACTURERS = [
-  'asus', 'blackview', 'hmd-global', 'htc', 'huawei', 'lenovo', 'meizu', 
+  'asus', 'blackview', 'google', 'hmd-global', 'htc', 'huawei', 'lenovo', 'meizu', 
   'motorola', 'nokia', 'oneplus', 'oppo', 'realme', 'samsung', 'sony', 
   'tecno', 'ulefone', 'unihertz', 'vivo', 'wiko', 'xiaomi'
 ];
@@ -287,7 +287,8 @@ export default function SettingsScreen() {
 
           {/* Battery Optimization (Android only) */}
           {Platform.OS === 'android' && (() => {
-            const mfg = Device.manufacturer?.toLowerCase() || '';
+            const rawMfg = Device.manufacturer?.toLowerCase() || '';
+            const mfg = rawMfg.replace(/\s+/g, '-');
             const hasGuide = DONT_KILL_MY_APP_MANUFACTURERS.includes(mfg);
             return (
               <GlassCard style={styles.section}>
@@ -300,7 +301,7 @@ export default function SettingsScreen() {
                         : 'App is restricted. Audio may drop when screen is off.'}
                     </Text>
                   </View>
-                  {isBatteryOptimized !== false && (
+                  {(isBatteryOptimized !== false || hasGuide) && (
                     <View style={{ flexDirection: 'row', gap: 8 }}>
                       {hasGuide && (
                         <Pressable 
@@ -310,13 +311,15 @@ export default function SettingsScreen() {
                           <Text style={[styles.batteryBtnText, { color: '#FFAB00' }]}>Guide</Text>
                         </Pressable>
                       )}
-                      <Pressable style={styles.batteryBtn} onPress={handleOpenBatterySettings}>
-                        <Text style={styles.batteryBtnText}>Fix</Text>
-                      </Pressable>
+                      {isBatteryOptimized !== false && (
+                        <Pressable style={styles.batteryBtn} onPress={handleOpenBatterySettings}>
+                          <Text style={styles.batteryBtnText}>Fix</Text>
+                        </Pressable>
+                      )}
                     </View>
                   )}
                 </View>
-                {isBatteryOptimized !== false && hasGuide && (
+                {hasGuide && (
                   <Text style={[styles.sectionDesc, { marginTop: 12, color: '#FFAB00' }]}>
                     ⚠️ {Device.manufacturer} devices aggressively kill background apps. Standard settings may not be enough. Please view the guide.
                   </Text>
