@@ -29,6 +29,8 @@ import ListenerCard from '@/components/ListenerCard';
 import AudioRoutePicker from '@/components/AudioRoutePicker';
 import AudioVisualizer from '@/components/AudioVisualizer';
 import { ConnectionState, type Participant } from 'livekit-client';
+import BatteryOptimizationGuard from '@/components/BatteryOptimizationGuard';
+import { useKeepAwake } from 'expo-keep-awake';
 
 function ParticipantsRenderer({
   children,
@@ -215,6 +217,7 @@ export default function HostScreen() {
     refreshConnection,
   } = useHost();
   const { setDebugState, addDebugEvent } = useDebugContext();
+  useKeepAwake();
 
   React.useEffect(() => {
     if (autoRestart === 'true' && queryRoomCode && settings.serverUrl) {
@@ -434,7 +437,8 @@ export default function HostScreen() {
   // Not connected / no room yet
   if (!roomCode) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <BatteryOptimizationGuard>
+        <SafeAreaView style={styles.safe}>
         <View style={styles.container}>
           <View style={styles.header}>
             <Pressable onPress={() => router.replace('/')} hitSlop={16}>
@@ -473,6 +477,7 @@ export default function HostScreen() {
           </View>
         </View>
       </SafeAreaView>
+      </BatteryOptimizationGuard>
     );
   }
 
@@ -813,18 +818,20 @@ export default function HostScreen() {
   }
 
   return (
-    <LiveKitRoom
-      serverUrl={livekitUrl || ''}
-      token={livekitToken}
-      connect={true}
-      audio={false} // Managed manually by LocalMicController
-    >
-      <RoomDisconnectCatcher />
-      <RoomHealthMonitor />
-      <LocalMicController isMicActive={isMicActive} isTranslating={isTranslating} setAudioLevel={setAudioLevel} />
-      <TranslationDataPublisher setPublisher={setLivekitPublisher} />
-      {content}
-    </LiveKitRoom>
+    <BatteryOptimizationGuard>
+      <LiveKitRoom
+        serverUrl={livekitUrl || ''}
+        token={livekitToken}
+        connect={true}
+        audio={false} // Managed manually by LocalMicController
+      >
+        <RoomDisconnectCatcher />
+        <RoomHealthMonitor />
+        <LocalMicController isMicActive={isMicActive} isTranslating={isTranslating} setAudioLevel={setAudioLevel} />
+        <TranslationDataPublisher setPublisher={setLivekitPublisher} />
+        {content}
+      </LiveKitRoom>
+    </BatteryOptimizationGuard>
   );
 }
 
