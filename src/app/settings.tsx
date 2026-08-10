@@ -16,9 +16,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Updates from 'expo-updates';
 import Constants from 'expo-constants';
+import * as Device from 'expo-device';
 import packageJson from '../../package.json';
 import { useSettingsContext } from '@/context/SettingsContext';
 import GlassCard from '@/components/GlassCard';
+
+const DONT_KILL_MY_APP_MANUFACTURERS = [
+  'asus', 'blackview', 'hmd-global', 'htc', 'huawei', 'lenovo', 'meizu', 
+  'motorola', 'nokia', 'oneplus', 'oppo', 'realme', 'samsung', 'sony', 
+  'tecno', 'ulefone', 'unihertz', 'vivo', 'wiko', 'xiaomi'
+];
 
 export const appSubversion = '00';
 
@@ -279,25 +286,44 @@ export default function SettingsScreen() {
           </GlassCard>
 
           {/* Battery Optimization (Android only) */}
-          {Platform.OS === 'android' && (
-            <GlassCard style={styles.section}>
-              <View style={styles.switchRow}>
-                <View style={styles.switchTextContainer}>
-                  <Text style={styles.sectionTitle}>🔋 Battery Optimization</Text>
-                  <Text style={styles.sectionDesc}>
-                    {isBatteryOptimized === false
-                      ? 'App is unrestricted. Audio will run perfectly in background.'
-                      : 'App is restricted. Audio may drop when screen is off.'}
-                  </Text>
+          {Platform.OS === 'android' && (() => {
+            const mfg = Device.manufacturer?.toLowerCase() || '';
+            const hasGuide = DONT_KILL_MY_APP_MANUFACTURERS.includes(mfg);
+            return (
+              <GlassCard style={styles.section}>
+                <View style={styles.switchRow}>
+                  <View style={styles.switchTextContainer}>
+                    <Text style={styles.sectionTitle}>🔋 Battery Optimization</Text>
+                    <Text style={styles.sectionDesc}>
+                      {isBatteryOptimized === false
+                        ? 'App is unrestricted. Audio will run perfectly in background.'
+                        : 'App is restricted. Audio may drop when screen is off.'}
+                    </Text>
+                  </View>
+                  {isBatteryOptimized !== false && (
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {hasGuide && (
+                        <Pressable 
+                          style={[styles.batteryBtn, { backgroundColor: 'rgba(255,171,0,0.1)' }]} 
+                          onPress={() => Linking.openURL(`https://dontkillmyapp.com/${mfg}`)}
+                        >
+                          <Text style={[styles.batteryBtnText, { color: '#FFAB00' }]}>Guide</Text>
+                        </Pressable>
+                      )}
+                      <Pressable style={styles.batteryBtn} onPress={handleOpenBatterySettings}>
+                        <Text style={styles.batteryBtnText}>Fix</Text>
+                      </Pressable>
+                    </View>
+                  )}
                 </View>
-                {isBatteryOptimized !== false && (
-                  <Pressable style={styles.batteryBtn} onPress={handleOpenBatterySettings}>
-                    <Text style={styles.batteryBtnText}>Fix</Text>
-                  </Pressable>
+                {isBatteryOptimized !== false && hasGuide && (
+                  <Text style={[styles.sectionDesc, { marginTop: 12, color: '#FFAB00' }]}>
+                    ⚠️ {Device.manufacturer} devices aggressively kill background apps. Standard settings may not be enough. Please view the guide.
+                  </Text>
                 )}
-              </View>
-            </GlassCard>
-          )}
+              </GlassCard>
+            );
+          })()}
 
           {/* About */}
           <GlassCard style={styles.section}>
