@@ -112,7 +112,7 @@ export default function StreamScreen() {
         if (!mounted) return;
         addDebugEvent(`Listener connection failed: ${error.message}`);
         Alert.alert('Connection Error', error.message || 'Failed to connect to room', [
-          { text: 'OK', onPress: () => router.canGoBack() ? router.back() : router.replace('/') }
+          { text: 'OK', onPress: () => router.replace('/') }
         ]);
       });
     }
@@ -179,11 +179,7 @@ export default function StreamScreen() {
           onPress: () => {
             addDebugEvent('Listener manually disconnected');
             disconnect();
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.replace('/');
-            }
+            router.replace('/');
           },
         },
       ]
@@ -620,7 +616,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   troubleshootingTextCol: {
-    flex: 1,
   },
   troubleshootingTitle: {
     color: '#FFFFFF',

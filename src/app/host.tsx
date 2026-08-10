@@ -281,7 +281,7 @@ export default function HostScreen() {
             text: 'End Session',
             style: 'destructive',
             onPress: () => {
-              router.back();
+              router.replace('/');
             },
           },
         ]
@@ -437,7 +437,7 @@ export default function HostScreen() {
       <SafeAreaView style={styles.safe}>
         <View style={styles.container}>
           <View style={styles.header}>
-            <Pressable onPress={() => router.back()} hitSlop={16}>
+            <Pressable onPress={() => router.replace('/')} hitSlop={16}>
               <Text style={styles.backBtn}>← Back</Text>
             </Pressable>
             <Text style={styles.title}>Host Mode</Text>
@@ -915,7 +915,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   troubleshootingTextCol: {
-    flex: 1,
   },
   troubleshootingTitle: {
     color: '#FFFFFF',
