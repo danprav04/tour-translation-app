@@ -26,6 +26,18 @@ export default function HomeScreen() {
           } else if (parsed.role === 'listener') {
             router.replace(`/stream?roomCode=${parsed.roomCode}`);
           }
+          return;
+        }
+
+        const activeSessionData = await AsyncStorage.getItem('activeSession');
+        if (activeSessionData) {
+          await AsyncStorage.removeItem('activeSession');
+          const parsed = JSON.parse(activeSessionData);
+          if (parsed.role === 'host') {
+            router.replace(`/host?autoRestart=true&roomCode=${parsed.roomCode}`);
+          } else if (parsed.role === 'listener') {
+            router.replace(`/stream?roomCode=${parsed.roomCode}`);
+          }
         }
       } catch (e) {
         console.error('Failed to parse autoRestart data', e);

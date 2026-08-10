@@ -1,4 +1,5 @@
 import notifee, { AndroidColor, AndroidImportance, AndroidForegroundServiceType } from '@notifee/react-native';
+import BackgroundTimer from 'react-native-background-timer';
 
 class ForegroundService {
   private isRunning = false;
@@ -42,6 +43,9 @@ class ForegroundService {
         },
       });
 
+      // Acquire CPU partial wakelock to prevent Doze mode from sleeping the app
+      BackgroundTimer.start();
+
       this.isRunning = true;
     } catch (e) {
       console.error('Failed to start foreground service', e);
@@ -58,6 +62,10 @@ class ForegroundService {
         this.resolveTask();
         this.resolveTask = null;
       }
+      
+      // Release CPU partial wakelock
+      BackgroundTimer.stop();
+      
       this.isRunning = false;
     } catch (e) {
       console.error('Failed to stop foreground service', e);

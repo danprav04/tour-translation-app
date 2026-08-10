@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Alert, AppState, Platform, ToastAndroid } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { base64ToUint8Array } from '@/utils/base64';
 import geminiTranslateService from '@/services/geminiTranslateService';
 import { useSettingsContext } from '@/context/SettingsContext';
@@ -178,6 +179,7 @@ export const useHost = () => {
       }
       setRoomCode(code);
       setIsConnected(true);
+      await AsyncStorage.setItem('activeSession', JSON.stringify({ role: 'host', roomCode: code }));
       await updateSettings({ lastRoomCode: code });
 
       const hasPermission = await audioService.requestPermissions();
@@ -230,6 +232,7 @@ export const useHost = () => {
     setLivekitUrl(null);
     setIsMicActive(false);
     setListeners([]);
+    await AsyncStorage.removeItem('activeSession');
   };
 
   const handleAudioChunk = (base64Data: string) => {

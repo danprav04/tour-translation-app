@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSettingsContext } from '@/context/SettingsContext';
 import { useDebugContext } from '@/context/DebugContext';
 import foregroundService from '@/services/foregroundService';
@@ -109,6 +110,7 @@ export const useListener = () => {
       setRoomCode(code);
       setIsConnected(true);
       setIsReconnecting(false);
+      await AsyncStorage.setItem('activeSession', JSON.stringify({ role: 'listener', roomCode: code }));
 
     } catch (error) {
       console.error('Failed to connect to room', error);
@@ -146,6 +148,7 @@ export const useListener = () => {
     setRoomCode(null);
     setLivekitToken(null);
     setLivekitUrl(null);
+    await AsyncStorage.removeItem('activeSession');
   };
 
   useEffect(() => {
