@@ -236,6 +236,10 @@ export const useListener = () => {
     }
   };
 
+  const refreshConnection = () => {
+    socketService.refreshConnection();
+  };
+
   useEffect(() => {
     return () => {
       disconnect();
@@ -254,6 +258,7 @@ export const useListener = () => {
     connect,
     disconnect,
     toggleMute,
-    audioLevel
+    audioLevel,
+    refreshConnection
   };
 };

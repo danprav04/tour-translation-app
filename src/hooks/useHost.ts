@@ -674,6 +674,11 @@ export const useHost = () => {
     }
   };
 
+  const refreshConnection = () => {
+    addDebugEvent('Manual connection refresh triggered');
+    socketService.refreshConnection();
+  };
+
   useEffect(() => {
     return () => {
       stopRoom();
@@ -709,5 +714,6 @@ export const useHost = () => {
     connectionHealth,
     isReconnectingFromBackground,
     showLowAudioWarning,
+    refreshConnection,
   };
 };

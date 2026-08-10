@@ -43,6 +43,7 @@ export default function StreamScreen() {
     toggleMute,
     audioLevel,
     isStandby,
+    refreshConnection,
   } = useListener();
 
   const [pulseAnim] = useState(() => new Animated.Value(1));
@@ -217,6 +218,7 @@ export default function StreamScreen() {
       scaleAnim={scaleAnim}
       handleMutePress={handleMutePress}
       handleDisconnect={handleDisconnect}
+      handleRefreshConnection={refreshConnection}
       audioLevel={audioLevel}
       useLegacy={settings.useLegacyWebSockets}
     />
@@ -336,6 +338,7 @@ function StreamContentUI({
   scaleAnim,
   handleMutePress,
   handleDisconnect,
+  handleRefreshConnection,
   audioLevel,
 }: any) {
   return (
@@ -353,7 +356,12 @@ function StreamContentUI({
         {/* Header */}
         <View style={styles.header}>
           <StatusBadge status={connectionStatus} />
-          <Text style={styles.roomCode}>Room: {roomCode}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Pressable onPress={handleRefreshConnection} hitSlop={8}>
+              <Text style={styles.refreshBtn}>↻ Refresh</Text>
+            </Pressable>
+            <Text style={styles.roomCode}>Room: {roomCode}</Text>
+          </View>
         </View>
 
         {/* Main content */}
@@ -452,6 +460,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     letterSpacing: 1,
+  },
+  refreshBtn: {
+    color: '#00D4AA',
+    fontSize: 14,
+    fontWeight: '700',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,170,0.3)',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(0,212,170,0.08)',
   },
   center: {
     flex: 1,

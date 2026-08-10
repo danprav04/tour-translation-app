@@ -209,6 +209,7 @@ export default function HostScreen() {
     connectionHealth,
     isReconnectingFromBackground,
     showLowAudioWarning,
+    refreshConnection,
   } = useHost();
   const { setDebugState, addDebugEvent } = useDebugContext();
 
@@ -477,9 +478,14 @@ export default function HostScreen() {
                       : 'Session Active'
             }
           />
-          <Pressable onPress={handleStop} hitSlop={8}>
-            <Text style={styles.endBtn}>End Session</Text>
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Pressable onPress={refreshConnection} hitSlop={8}>
+              <Text style={styles.refreshBtn}>↻ Refresh</Text>
+            </Pressable>
+            <Pressable onPress={handleStop} hitSlop={8}>
+              <Text style={styles.endBtn}>End Session</Text>
+            </Pressable>
+          </View>
         </View>
 
         {/* QR Code */}
@@ -835,6 +841,19 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,71,87,0.3)',
     overflow: 'hidden',
     backgroundColor: 'rgba(255,71,87,0.08)',
+  },
+  refreshBtn: {
+    color: '#00D4AA',
+    fontSize: 14,
+    fontWeight: '700',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,170,0.3)',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(0,212,170,0.08)',
+    marginRight: 8,
   },
   section: {
     marginBottom: 20,
