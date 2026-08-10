@@ -25,6 +25,8 @@ import StatusBadge from '@/components/StatusBadge';
 import AudioVisualizer from '@/components/AudioVisualizer';
 import GlassCard from '@/components/GlassCard';
 import AudioRoutePicker from '@/components/AudioRoutePicker';
+import BatteryOptimizationGuard from '@/components/BatteryOptimizationGuard';
+import { useKeepAwake } from 'expo-keep-awake';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const MUTE_BTN_SIZE = Math.min(SCREEN_WIDTH * 0.45, 180);
@@ -45,6 +47,7 @@ export default function StreamScreen() {
     toggleMute,
     audioLevel,
     isStandby,
+    hostStatus,
     refreshConnection,
   } = useListener();
 
@@ -52,6 +55,7 @@ export default function StreamScreen() {
   const [scaleAnim] = useState(() => new Animated.Value(1));
 
   const { setDebugState, addDebugEvent } = useDebugContext();
+  useKeepAwake();
 
   useEffect(() => {
     setDebugState('listener', {
@@ -215,11 +219,13 @@ export default function StreamScreen() {
   if (!settings.useLegacyWebSockets && (!livekitToken || !livekitUrl || !isAudioSessionReady)) {
     if (!isStandby) {
       return (
-        <SafeAreaView style={styles.safe}>
-          <View style={[styles.container, styles.center]}>
-            <Text style={styles.statusText}>Connecting...</Text>
-          </View>
-        </SafeAreaView>
+        <BatteryOptimizationGuard>
+          <SafeAreaView style={styles.safe}>
+            <View style={[styles.container, styles.center]}>
+              <Text style={styles.statusText}>Connecting...</Text>
+            </View>
+          </SafeAreaView>
+        </BatteryOptimizationGuard>
       );
     }
   }
@@ -231,6 +237,7 @@ export default function StreamScreen() {
       isConnected={isConnected}
       isReconnecting={isReconnecting}
       isStandby={isStandby}
+      hostStatus={hostStatus}
       connectionStatus={connectionStatus}
       pulseAnim={pulseAnim}
       scaleAnim={scaleAnim}
@@ -244,19 +251,25 @@ export default function StreamScreen() {
   );
 
   if (settings.useLegacyWebSockets) {
-    return content;
+    return (
+      <BatteryOptimizationGuard>
+        {content}
+      </BatteryOptimizationGuard>
+    );
   }
 
   return (
-    <LiveKitRoom
-      serverUrl={livekitUrl}
-      token={livekitToken}
-      connect={true}
-      audio={false}
-      connectOptions={{ autoSubscribe: false }}
-    >
-      {content}
-    </LiveKitRoom>
+    <BatteryOptimizationGuard>
+      <LiveKitRoom
+        serverUrl={livekitUrl}
+        token={livekitToken}
+        connect={true}
+        audio={false}
+        connectOptions={{ autoSubscribe: false }}
+      >
+        {content}
+      </LiveKitRoom>
+    </BatteryOptimizationGuard>
   );
 }
 
@@ -352,6 +365,7 @@ function StreamContentUI({
   isConnected,
   isReconnecting,
   isStandby,
+  hostStatus,
   connectionStatus,
   pulseAnim,
   scaleAnim,
@@ -369,6 +383,15 @@ function StreamContentUI({
           <Text style={styles.standbyTitle}>Host Disconnected</Text>
           <Text style={styles.standbyText}>
             Waiting for host to recreate room {roomCode}...
+          </Text>
+        </View>
+      )}
+      {hostStatus === 'disconnected' && !isStandby && (
+        <View style={[StyleSheet.absoluteFill, styles.standbyOverlay]}>
+          <Text style={[styles.standbyIcon, { fontSize: 48 }]}>🔄</Text>
+          <Text style={styles.standbyTitle}>Host Connection Lost</Text>
+          <Text style={styles.standbyText}>
+            Waiting for host to reconnect...
           </Text>
         </View>
       )}
