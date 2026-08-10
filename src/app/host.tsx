@@ -26,7 +26,7 @@ import QRCodeDisplay from '@/components/QRCodeDisplay';
 import ListenerCard from '@/components/ListenerCard';
 import AudioRoutePicker from '@/components/AudioRoutePicker';
 import AudioVisualizer from '@/components/AudioVisualizer';
-import type { Participant } from 'livekit-client';
+import { ConnectionState, type Participant } from 'livekit-client';
 
 function ParticipantsRenderer({
   children,
@@ -66,6 +66,37 @@ function RoomDisconnectCatcher() {
       room.disconnect().catch((e) => console.warn('Caught unmount disconnect error:', e));
     };
   }, [room]);
+  return null;
+}
+
+function RoomHealthMonitor() {
+  const room = useRoomContext();
+  const { addDebugEvent } = useDebugContext();
+  
+  React.useEffect(() => {
+    if (!room) return;
+    
+    const handleStateChange = (state: ConnectionState) => {
+      addDebugEvent(`LiveKit state changed: ${state}`);
+      if (state === ConnectionState.Disconnected) {
+        Alert.alert(
+          'Media Connection Lost', 
+          'The audio channel was disconnected. You may need to recreate the room if it does not recover automatically.'
+        );
+      }
+    };
+    
+    room.on('connected', () => handleStateChange(ConnectionState.Connected));
+    room.on('disconnected', () => handleStateChange(ConnectionState.Disconnected));
+    room.on('reconnecting', () => handleStateChange(ConnectionState.Reconnecting));
+    
+    return () => {
+      room.removeAllListeners('connected');
+      room.removeAllListeners('disconnected');
+      room.removeAllListeners('reconnecting');
+    };
+  }, [room, addDebugEvent]);
+  
   return null;
 }
 
@@ -734,6 +765,7 @@ export default function HostScreen() {
       audio={false} // Managed manually by LocalMicController
     >
       <RoomDisconnectCatcher />
+      <RoomHealthMonitor />
       <LocalMicController isMicActive={isMicActive} isTranslating={isTranslating} setAudioLevel={setAudioLevel} />
       <TranslationDataPublisher setPublisher={setLivekitPublisher} />
       {content}

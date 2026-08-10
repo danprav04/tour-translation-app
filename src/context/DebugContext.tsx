@@ -29,8 +29,8 @@ export const DebugProvider = ({ children }: { children: ReactNode }) => {
       event,
     };
     debugDataRef.current.events.push(newEvent);
-    // Keep only the last 100 events to prevent memory bloat
-    if (debugDataRef.current.events.length > 100) {
+    // Keep only the last 200 events to prevent memory bloat
+    if (debugDataRef.current.events.length > 200) {
       debugDataRef.current.events.shift();
     }
   };

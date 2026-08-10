@@ -8,6 +8,7 @@ interface HealthCallbacks {
   onRestartMic?: () => Promise<void>;
   onReconnectGemini?: () => Promise<void>;
   onRefreshSocket?: () => void;
+  onSignalingSocketRecovery?: () => void;
   onListenerNoData?: (status: { hostConnected: boolean; hostStreaming: boolean }) => void;
   onHealthStatusChanged?: (status: HealthStatus) => void;
   onHostStreamingChanged?: (isStreaming: boolean) => void;
@@ -85,10 +86,10 @@ class ConnectionHealthService {
     this.isLivekitMode = !isLegacy;
     this.resetState();
 
-    if (isLegacy) {
-      this.startSocketHealthCheck();
-      this.startPreventiveReconnect();
-    }
+    // Start Socket.IO monitoring unconditionally since it manages the room even in LiveKit mode
+    this.startSocketHealthCheck();
+    this.startPreventiveReconnect();
+
     this.startDataFlowMonitor();
     this.startGeminiPreventiveReconnect();
   }
@@ -225,9 +226,13 @@ class ConnectionHealthService {
           this.notifyStatusChange();
 
           if (this.state.consecutiveSocketFailures >= MAX_SOCKET_FAILURES) {
-            console.log('[HealthMonitor] Too many failures, refreshing socket connection...');
+            console.log('[HealthMonitor] Too many failures, initiating socket recovery...');
             this.state.consecutiveSocketFailures = 0;
-            this.callbacks.onRefreshSocket?.();
+            if (this.role === 'host' && this.callbacks.onSignalingSocketRecovery) {
+              this.callbacks.onSignalingSocketRecovery();
+            } else {
+              this.callbacks.onRefreshSocket?.();
+            }
           }
           return;
         }
@@ -400,7 +405,11 @@ class ConnectionHealthService {
       if (!socketService.isConnected()) return;
 
       console.log('[HealthMonitor] Preventive socket reconnect (scheduled every 5 min)...');
-      socketService.refreshConnection();
+      if (this.role === 'host' && this.callbacks.onSignalingSocketRecovery) {
+        this.callbacks.onSignalingSocketRecovery();
+      } else {
+        socketService.refreshConnection();
+      }
 
       // Verify data flow resumes after reconnect
       BackgroundTimer.setTimeout(() => {

@@ -204,19 +204,24 @@ export const useHost = () => {
   };
 
   const stopRoom = async () => {
+    addDebugEvent('stopRoom called');
     connectionHealthService.stop();
-    if (isTranslating) {
-      isTranslatingRef.current = false;
-      geminiTranslateService.disconnect();
-      audioService.stopKeepAlive();
-      setIsTranslating(false);
-    }
-    if (isMicActiveRef.current && settings.useLegacyWebSockets) {
+    // Unconditionally clean up translation state
+    isTranslatingRef.current = false;
+    geminiTranslateService.disconnect();
+    audioService.stopKeepAlive();
+    setIsTranslating(false);
+    
+    // Unconditionally stop mic capture to prevent zombie streams
+    try {
       await audioService.stopCapture();
+    } catch (e) {
+      console.error('Error stopping capture in stopRoom', e);
     }
-    if (settings.useLegacyWebSockets) {
-      socketService.disconnect();
-    }
+    
+    // Unconditionally clean up socket
+    socketService.disconnect();
+
     await foregroundService.stop();
     setIsConnected(false);
     setRoomCode(null);
@@ -296,6 +301,7 @@ export const useHost = () => {
 
   const toggleMic = async () => {
     if (isMicActive) {
+      addDebugEvent('Mic toggled OFF');
       setIsMicActive(false);
       
       const wasTranslating = isTranslatingRef.current;
@@ -311,6 +317,7 @@ export const useHost = () => {
         await audioService.stopCapture();
       }
     } else {
+      addDebugEvent('Mic toggled ON');
       setIsMicActive(true);
       // Start expo-audio capture if using legacy websockets OR translating in LiveKit
       if (settings.useLegacyWebSockets || isTranslatingRef.current) {
@@ -417,21 +424,25 @@ export const useHost = () => {
       // If LiveKit mode and the mic is on, we need to take over the mic from LiveKit
       // Wait for the LocalMicController to release the mic, with exponential backoff retries
       if (!settings.useLegacyWebSockets && isMicActiveRef.current) {
+        addDebugEvent('Initiating mic takeover for translation');
         let attempts = 0;
         const tryTakeover = async () => {
           try {
             await audioService.startCapture(handleAudioChunk);
+            addDebugEvent(`Mic takeover succeeded on attempt ${attempts + 1}`);
           } catch (e) {
             attempts++;
-            if (attempts < 5) {
-              const delay = 200 * Math.pow(2, attempts - 1); // 200, 400, 800, 1600ms
+            if (attempts < 10) {
+              const delay = 300 * Math.pow(1.5, attempts - 1); 
+              addDebugEvent(`Mic takeover failed, retrying in ${Math.round(delay)}ms...`);
               setTimeout(tryTakeover, delay);
             } else {
-              console.error('Failed to take over mic after 5 attempts', e);
+              console.error('Failed to take over mic after 10 attempts', e);
+              addDebugEvent('Fatal: Mic takeover failed after 10 attempts');
             }
           }
         };
-        setTimeout(tryTakeover, 200);
+        setTimeout(tryTakeover, 400); // Increased initial delay
       }
 
       audioService.startKeepAlive();
@@ -478,7 +489,32 @@ export const useHost = () => {
       },
       onRefreshSocket: () => {
         console.log('[HealthMonitor] Refreshing socket...');
+        addDebugEvent('Standard socket refresh triggered');
         socketService.refreshConnection();
+      },
+      onSignalingSocketRecovery: async () => {
+        addDebugEvent('Signaling socket recovery triggered');
+        console.log('[Host] Layered socket recovery started...');
+        try {
+          socketService.refreshConnection();
+          // Small delay to let transport connect
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          if (roomCode) {
+            console.log('[Host] Reclaiming room on server...');
+            addDebugEvent(`Reclaiming room ${roomCode}`);
+            const res = await socketService.createRoom({
+              architecture: settings.useLegacyWebSockets ? 'legacy' : 'webrtc',
+              existingRoomCode: roomCode
+            });
+            addDebugEvent(`Room reclaimed: ${res.roomCode}`);
+          }
+        } catch (e) {
+           console.error('[Host] Fatal: Could not recover signaling', e);
+           addDebugEvent(`Fatal signaling recovery error: ${e}`);
+           Alert.alert('Connection Lost', 'Unable to recover connection to server. Session ended.');
+           stopRoom();
+        }
       },
       onHealthStatusChanged: (status) => {
         setConnectionHealth(status);
@@ -515,6 +551,7 @@ export const useHost = () => {
   }, [isMicActive, audioLevel]);
 
   const stopTranslation = async () => {
+    addDebugEvent('stopTranslation called');
     isTranslatingRef.current = false;
     isReconnectingGeminiRef.current = false;
     connectionHealthService.setGeminiReconnecting(false);
