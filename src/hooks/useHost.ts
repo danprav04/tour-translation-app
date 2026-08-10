@@ -4,6 +4,7 @@ import { base64ToUint8Array } from '@/utils/base64';
 import geminiTranslateService from '@/services/geminiTranslateService';
 import { useSettingsContext } from '@/context/SettingsContext';
 import { useDebugContext } from '@/context/DebugContext';
+import BackgroundTimer from 'react-native-background-timer';
 import foregroundService from '@/services/foregroundService';
 import audioService from '@/services/audioService';
 import socketService, { ListenerInfo } from '@/services/socketService';
@@ -389,7 +390,7 @@ export const useHost = () => {
           reconnectAttempts.current += 1;
           // Exponential backoff: 2s, 4s, 8s, up to max 30s
           const delay = Math.min(2000 * Math.pow(2, reconnectAttempts.current - 1), 30000);
-          setTimeout(() => {
+          BackgroundTimer.setTimeout(() => {
             if (isTranslatingRef.current) {
               startTranslation(selectedLanguageRef.current, true).catch(() => {
                 isReconnectingGeminiRef.current = false;
@@ -414,7 +415,19 @@ export const useHost = () => {
       geminiTranslateService.onClose(handleDisconnect);
       geminiTranslateService.onError((err) => {
         console.error('[Host] Gemini API error:', err);
-        // Error usually precedes close, handleDisconnect will manage retries.
+        addDebugEvent(`Gemini API error: ${err.message}`);
+        
+        // If it's a fatal error (like quota exceeded, invalid request, etc), stop immediately instead of looping.
+        const msg = err.message.toLowerCase();
+        if (msg.includes('quota') || msg.includes('limit') || msg.includes('unauthorized') || msg.includes('forbidden') || msg.includes('invalid') || msg.includes('bad request')) {
+          console.error('[Host] Fatal Gemini error detected. Stopping translation.');
+          addDebugEvent('Fatal Gemini error detected. Stopping translation explicitly.');
+          Alert.alert('Translation Error', `Failed to translate: ${err.message}`);
+          
+          if (isTranslatingRef.current) {
+            stopTranslation();
+          }
+        }
       });
 
       setIsTranslating(true);
@@ -496,6 +509,20 @@ export const useHost = () => {
              if (isTranslatingRef.current) stopTranslation();
              if (isEchoEnabledRef.current) setIsEchoEnabled(false);
           }
+        }
+      },
+      onMicFatalError: () => {
+        console.log('[HealthMonitor] Mic fatal error triggered. Shutting down translation...');
+        addDebugEvent('Mic fatally disconnected in background. Stopping translation explicitly.');
+        setIsMicActive(false);
+        if (isTranslatingRef.current) {
+          stopTranslation();
+        }
+        if (isEchoEnabledRef.current) {
+          setIsEchoEnabled(false);
+        }
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Microphone interrupted by system. Translation stopped.', ToastAndroid.LONG);
         }
       },
       onReconnectGemini: async () => {

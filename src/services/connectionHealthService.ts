@@ -12,6 +12,7 @@ interface HealthCallbacks {
   onListenerNoData?: (status: { hostConnected: boolean; hostStreaming: boolean }) => void;
   onHealthStatusChanged?: (status: HealthStatus) => void;
   onHostStreamingChanged?: (isStreaming: boolean) => void;
+  onMicFatalError?: () => void;
 }
 
 interface HealthState {
@@ -68,6 +69,9 @@ class ConnectionHealthService {
   private isGeminiReconnecting = false;
   private lastGeminiReconnectAt = 0;
   private readonly GEMINI_RECONNECT_COOLDOWN = 30_000;
+
+  private consecutiveMicRestarts = 0;
+  private readonly MAX_MIC_RESTARTS = 3;
 
   // LiveKit data channel monitoring
   private lastLivekitDataAt: number = 0;
@@ -148,11 +152,13 @@ class ConnectionHealthService {
     this.isMicActive = active;
     if (active) {
       this.state.lastMicActivityAt = Date.now();
+      this.consecutiveMicRestarts = 0;
     }
   }
 
   recordMicActivity(): void {
     this.state.lastMicActivityAt = Date.now();
+    this.consecutiveMicRestarts = 0;
   }
 
   updateTranslationState(active: boolean): void {
@@ -269,8 +275,16 @@ class ConnectionHealthService {
     if (this.isMicActive && !this.isMuted && expectExpoAudioActive) {
       const lastSent = this.state.lastMicActivityAt;
       if (lastSent > 0 && (now - lastSent) > HOST_MIC_SILENCE_THRESHOLD) {
-        console.log(`[HealthMonitor] Host mic silent for ${now - lastSent}ms, restarting capture...`);
-        this.callbacks.onRestartMic?.();
+        this.consecutiveMicRestarts++;
+        if (this.consecutiveMicRestarts >= this.MAX_MIC_RESTARTS) {
+          console.log(`[HealthMonitor] Mic failed to restart after ${this.MAX_MIC_RESTARTS} attempts. Throwing fatal error.`);
+          this.callbacks.onMicFatalError?.();
+          // Reset counter so we don't spam it, though fatal error should stop everything
+          this.consecutiveMicRestarts = 0;
+        } else {
+          console.log(`[HealthMonitor] Host mic silent for ${now - lastSent}ms, restarting capture (Attempt ${this.consecutiveMicRestarts})...`);
+          this.callbacks.onRestartMic?.();
+        }
       }
     }
 

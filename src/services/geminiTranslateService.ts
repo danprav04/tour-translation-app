@@ -123,7 +123,11 @@ class GeminiTranslateService {
               // console.log('[Gemini WS] serverContent without audio parts:', JSON.stringify(msg.serverContent));
             } else if (msg.error) {
               console.error('[Gemini WS] Error from server:', msg.error);
-              reject(new Error(msg.error.message || 'Server returned an error'));
+              const err = new Error(msg.error.message || 'Server returned an error');
+              if (this.onErrorCallback) {
+                this.onErrorCallback(err);
+              }
+              reject(err);
             } else {
               // console.log('[Gemini WS] Unhandled message part:', msg);
             }
