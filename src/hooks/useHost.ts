@@ -21,7 +21,7 @@ const generateRoomCode = () => {
 
 export const useHost = () => {
   const { settings, updateSettings } = useSettingsContext();
-  const { addDebugEvent } = useDebugContext();
+  const { addDebugEvent, setDebugState } = useDebugContext();
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [listeners, setListeners] = useState<ListenerInfo[]>([]);
   const [isMicActive, setIsMicActive] = useState(false);
@@ -66,6 +66,25 @@ export const useHost = () => {
     });
     return () => audioService.setAudioLevelCallback(null);
   }, []);
+
+  useEffect(() => {
+    setDebugState('hostStreamState', {
+      isMicActive,
+      isTranslating,
+      isEchoEnabled,
+      isConnected,
+      roomCode,
+      isReconnectingFromBackground,
+      isTTSActive,
+      connectionHealth,
+      hasLivekitToken: !!livekitToken,
+      hasLivekitUrl: !!livekitUrl
+    });
+  }, [
+    isMicActive, isTranslating, isEchoEnabled, isConnected,
+    roomCode, isReconnectingFromBackground, isTTSActive,
+    connectionHealth, livekitToken, livekitUrl, setDebugState
+  ]);
 
   useEffect(() => {
     audioService.setAudioRouteFallbackCallback(() => {

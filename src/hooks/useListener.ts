@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSettingsContext } from '@/context/SettingsContext';
+import { useDebugContext } from '@/context/DebugContext';
 import foregroundService from '@/services/foregroundService';
 import { uint8ArrayToBase64 } from '@/utils/base64';
 import audioService from '@/services/audioService';
@@ -8,6 +9,7 @@ import connectionHealthService from '@/services/connectionHealthService';
 
 export const useListener = () => {
   const { settings, updateSettings } = useSettingsContext();
+  const { setDebugState } = useDebugContext();
   const [isConnected, setIsConnected] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [roomCode, setRoomCode] = useState<string | null>(null);
@@ -26,6 +28,22 @@ export const useListener = () => {
     });
     return () => audioService.setAudioLevelCallback(null);
   }, []);
+
+  useEffect(() => {
+    setDebugState('listenerStreamState', {
+      isConnected,
+      isMuted,
+      roomCode,
+      isReconnecting,
+      isStandby,
+      isHostStreaming,
+      hasLivekitToken: !!livekitToken,
+      hasLivekitUrl: !!livekitUrl
+    });
+  }, [
+    isConnected, isMuted, roomCode, isReconnecting, 
+    isStandby, isHostStreaming, livekitToken, livekitUrl, setDebugState
+  ]);
 
   useEffect(() => {
     isMutedRef.current = isMuted;
