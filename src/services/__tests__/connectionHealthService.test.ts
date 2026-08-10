@@ -115,4 +115,31 @@ describe('ConnectionHealthService', () => {
     
     jest.useRealTimers();
   });
+
+  it('should skip Gemini health checks during reconnection and cooldown', () => {
+    jest.useFakeTimers();
+    const onReconnectGemini = jest.fn();
+    connectionHealthService.registerCallbacks({ onReconnectGemini });
+    connectionHealthService.startHostMonitoring('R', true);
+    
+    connectionHealthService.updateMicState(true);
+    connectionHealthService.updateTranslationState(true);
+    (geminiTranslateService.getConsecutiveSendFailures as jest.Mock).mockReturnValue(25);
+    
+    // Set reconnecting
+    connectionHealthService.setGeminiReconnecting(true);
+    jest.advanceTimersByTime(3000);
+    expect(onReconnectGemini).not.toHaveBeenCalled();
+    
+    // End reconnecting (starts cooldown)
+    connectionHealthService.setGeminiReconnecting(false);
+    jest.advanceTimersByTime(3000);
+    expect(onReconnectGemini).not.toHaveBeenCalled();
+    
+    // Advance past cooldown (30s)
+    jest.advanceTimersByTime(30000);
+    expect(onReconnectGemini).toHaveBeenCalled();
+    
+    jest.useRealTimers();
+  });
 });

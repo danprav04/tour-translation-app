@@ -1,6 +1,7 @@
 import geminiTranslateService from '../geminiTranslateService';
 
 class MockWebSocket {
+  static OPEN = 1;
   url: string;
   onopen: (() => void) | null = null;
   onmessage: ((event: any) => void) | null = null;
@@ -60,63 +61,88 @@ describe('GeminiTranslateService', () => {
     await expect(connectPromise).rejects.toThrow('WebSocket connection failed.');
   });
 
-  it('should handle incoming translated audio', (done) => {
-    geminiTranslateService.connect('key', 'en').catch(() => {}); // Catch closure
-    setTimeout(() => {
-      const ws = (geminiTranslateService as any).ws;
-      
-      geminiTranslateService.onTranslatedAudio((audio) => {
-        expect(audio).toBe('base64audio');
-        done();
-      });
+  it('should handle incoming translated audio', async () => {
+    jest.useFakeTimers();
+    const connectPromise = geminiTranslateService.connect('key', 'en').catch(() => {});
+    jest.advanceTimersByTime(20);
 
-      ws.onmessage({
-        data: JSON.stringify({
-          serverContent: {
-            modelTurn: {
-              parts: [{ inlineData: { data: 'base64audio' } }]
-            }
-          }
-        })
-      });
-    }, 20);
-  });
-
-  it('should send audio chunks if connected', (done) => {
-    geminiTranslateService.connect('key', 'en').catch(() => {});
-    setTimeout(() => {
-      const ws = (geminiTranslateService as any).ws;
-      geminiTranslateService.sendAudioChunk('audioData');
-      expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('audioData'));
-      expect(geminiTranslateService.getConsecutiveSendFailures()).toBe(0);
-      done();
-    }, 20);
-  });
-
-  it('should track consecutive send failures and connection state', (done) => {
-    geminiTranslateService.connect('key', 'en').catch(() => {});
+    const ws = (geminiTranslateService as any).ws;
+    let receivedAudio = '';
     
-    // Should fail since not connected
+    geminiTranslateService.onTranslatedAudio((audio) => {
+      receivedAudio = audio;
+    });
+
+    ws.onmessage({
+      data: JSON.stringify({
+        serverContent: {
+          modelTurn: {
+            parts: [{ inlineData: { data: 'base64audio' } }]
+          }
+        }
+      })
+    });
+
+    expect(receivedAudio).toBe('base64audio');
+    jest.useRealTimers();
+  });
+
+  it('should send audio chunks if connected', async () => {
+    jest.useFakeTimers();
+    const connectPromise = geminiTranslateService.connect('key', 'en').catch(() => {});
+    jest.advanceTimersByTime(20);
+
+    const ws = (geminiTranslateService as any).ws;
+    geminiTranslateService.sendAudioChunk('audioData');
+    expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('audioData'));
+    expect(geminiTranslateService.getConsecutiveSendFailures()).toBe(0);
+
+    jest.useRealTimers();
+  });
+
+  it('should track consecutive send failures and connection state', async () => {
+    jest.useFakeTimers();
+    const connectPromise = geminiTranslateService.connect('key', 'en').catch(() => {});
+    
+    expect(geminiTranslateService.connectionState).toBe('connecting');
     geminiTranslateService.sendAudioChunk('data1');
+    expect(geminiTranslateService.getConsecutiveSendFailures()).toBe(0);
+
+    jest.advanceTimersByTime(20);
+    const ws = (geminiTranslateService as any).ws;
+    ws.onmessage({ data: JSON.stringify({ setupComplete: true }) });
+    
+    expect(geminiTranslateService.connectionState).toBe('connected');
+    
+    geminiTranslateService.sendAudioChunk('data2');
+    expect(geminiTranslateService.getConsecutiveSendFailures()).toBe(0);
+
+    ws.onclose({ code: 1000, reason: 'Test' });
+    expect(geminiTranslateService.connectionState).toBe('disconnected');
+    
+    geminiTranslateService.sendAudioChunk('data3');
     expect(geminiTranslateService.getConsecutiveSendFailures()).toBe(1);
 
-    setTimeout(() => {
-      const ws = (geminiTranslateService as any).ws;
-      ws.onmessage({ data: JSON.stringify({ setupComplete: true }) });
-      
-      setTimeout(() => {
-        expect(geminiTranslateService.connectionState).toBe('connected');
-        
-        // Successful send
-        geminiTranslateService.sendAudioChunk('data2');
-        expect(geminiTranslateService.getConsecutiveSendFailures()).toBe(0);
+    jest.useRealTimers();
+  });
 
-        // Close connection
-        ws.onclose({ code: 1000, reason: 'Test' });
-        expect(geminiTranslateService.connectionState).toBe('disconnected');
-        
-        done();
-      }, 10);
-    }, 20);
+  it('should manage keepalive interval', async () => {
+    jest.useFakeTimers();
+    const connectPromise = geminiTranslateService.connect('dummyKey', 'en');
+    
+    // Simulate setupComplete
+    const ws = (geminiTranslateService as any).ws;
+    ws.onmessage({ data: JSON.stringify({ setupComplete: true }) });
+    await connectPromise;
+
+    expect((geminiTranslateService as any).keepaliveInterval).not.toBeNull();
+    
+    jest.advanceTimersByTime(8000);
+    expect(ws.send).toHaveBeenCalled();
+
+    geminiTranslateService.disconnect();
+    expect((geminiTranslateService as any).keepaliveInterval).toBeNull();
+    
+    jest.useRealTimers();
   });
 });

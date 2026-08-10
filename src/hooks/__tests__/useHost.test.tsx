@@ -50,6 +50,7 @@ jest.mock('@/services/connectionHealthService', () => ({
   stop: jest.fn(),
   registerCallbacks: jest.fn(),
   recordMicActivity: jest.fn(),
+  setGeminiReconnecting: jest.fn(),
 }));
 
 jest.mock('@/services/geminiTranslateService', () => ({
@@ -167,6 +168,14 @@ describe('useHost Hook', () => {
 
     // It should call connect again with the current language (en from mockSettings)
     expect(geminiTranslateService.connect).toHaveBeenCalledWith(expect.any(String), 'en');
+    
+    // Simulate concurrent disconnect while reconnecting
+    act(() => {
+      onCloseCallback();
+    });
+    
+    // Should not trigger another reconnection due to isReconnectingGeminiRef guard
+    expect(mockAddDebugEvent).toHaveBeenCalledTimes(2); // Only the first 'Translation disconnected...'
 
     jest.useRealTimers();
   });

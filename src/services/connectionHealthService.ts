@@ -64,6 +64,10 @@ class ConnectionHealthService {
   private isMuted = false;
   private roomCode: string | null = null;
 
+  private isGeminiReconnecting = false;
+  private lastGeminiReconnectAt = 0;
+  private readonly GEMINI_RECONNECT_COOLDOWN = 30_000;
+
   // LiveKit data channel monitoring
   private lastLivekitDataAt: number = 0;
   private isLivekitMode = false;
@@ -162,6 +166,13 @@ class ConnectionHealthService {
     this.isMuted = muted;
   }
 
+  setGeminiReconnecting(value: boolean): void {
+    this.isGeminiReconnecting = value;
+    if (!value) {
+      this.lastGeminiReconnectAt = Date.now();
+    }
+  }
+
   recordLivekitDataReceived(): void {
     this.lastLivekitDataAt = Date.now();
   }
@@ -257,6 +268,9 @@ class ConnectionHealthService {
 
     // Check 2: Gemini translation health
     if (this.isTranslating && this.isMicActive) {
+      if (this.isGeminiReconnecting) return;
+      if ((now - this.lastGeminiReconnectAt) < this.GEMINI_RECONNECT_COOLDOWN) return;
+
       const lastTranslated = geminiTranslateService.lastTranslatedAudioAt;
       if (lastTranslated > 0) {
         const silenceDuration = now - lastTranslated;
@@ -450,6 +464,8 @@ class ConnectionHealthService {
     this.isMicActive = false;
     this.isTranslating = false;
     this.isMuted = false;
+    this.isGeminiReconnecting = false;
+    this.lastGeminiReconnectAt = 0;
     this.lastLivekitDataAt = 0;
     this.isLivekitMode = false;
   }

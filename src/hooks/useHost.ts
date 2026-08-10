@@ -45,6 +45,7 @@ export const useHost = () => {
   const wasStreamingBeforeTTSRef = useRef(false);
   const isMicActiveRef = useRef(false);
   const reconnectAttempts = useRef(0);
+  const isReconnectingGeminiRef = useRef(false);
 
   useEffect(() => {
     isTranslatingRef.current = isTranslating;
@@ -326,13 +327,30 @@ export const useHost = () => {
   const echoSeqRef = useRef(0);
 
 
-  const startTranslation = async (langCode: string) => {
+  const startTranslation = async (langCode: string, isReconnect = false) => {
+    // Guard against overlapping connection attempts
+    if (isReconnectingGeminiRef.current && !isReconnect) return;
+
     try {
+      if (isReconnect) {
+        connectionHealthService.setGeminiReconnecting(true);
+      } else {
+        reconnectAttempts.current = 0;
+      }
+
       if (!settings.geminiApiKey) {
         throw new Error('Gemini API key is not configured. Please add it in Settings.');
       }
       await geminiTranslateService.connect(settings.geminiApiKey, langCode);
+      
+      // On success, reset the reconnect flag
+      isReconnectingGeminiRef.current = false;
+      connectionHealthService.setGeminiReconnecting(false);
+
       geminiTranslateService.onTranslatedAudio((translatedBase64) => {
+        // Reset backoff counter upon receiving valid audio data
+        reconnectAttempts.current = 0;
+        
         // Play locally if echo is enabled
         if (isEchoEnabledRef.current) {
           echoSeqRef.current += 1;
@@ -353,6 +371,10 @@ export const useHost = () => {
 
       const handleDisconnect = () => {
         if (!isTranslatingRef.current) return; // Intentional disconnect
+        if (isReconnectingGeminiRef.current) return; // Already reconnecting
+
+        isReconnectingGeminiRef.current = true;
+        connectionHealthService.setGeminiReconnecting(true);
 
         console.log('[Host] Gemini disconnected unexpectedly. Reconnecting...');
         addDebugEvent('Translation disconnected, reconnecting...');
@@ -362,7 +384,13 @@ export const useHost = () => {
           const delay = Math.min(2000 * Math.pow(2, reconnectAttempts.current - 1), 30000);
           setTimeout(() => {
             if (isTranslatingRef.current) {
-              startTranslation(selectedLanguageRef.current);
+              startTranslation(selectedLanguageRef.current, true).catch(() => {
+                isReconnectingGeminiRef.current = false;
+                connectionHealthService.setGeminiReconnecting(false);
+              });
+            } else {
+              isReconnectingGeminiRef.current = false;
+              connectionHealthService.setGeminiReconnecting(false);
             }
           }, delay);
         } else {
@@ -371,6 +399,8 @@ export const useHost = () => {
           Alert.alert('Translation Error', 'Lost connection to translation service.');
           setIsTranslating(false);
           isTranslatingRef.current = false;
+          isReconnectingGeminiRef.current = false;
+          connectionHealthService.setGeminiReconnecting(false);
         }
       };
 
@@ -382,7 +412,6 @@ export const useHost = () => {
 
       setIsTranslating(true);
       isTranslatingRef.current = true;
-      reconnectAttempts.current = 0;
       connectionHealthService.updateTranslationStartTime(Date.now());
       
       // If LiveKit mode and the mic is on, we need to take over the mic from LiveKit
@@ -408,6 +437,8 @@ export const useHost = () => {
       audioService.startKeepAlive();
       addDebugEvent('Translation started successfully');
     } catch (error) {
+      isReconnectingGeminiRef.current = false;
+      connectionHealthService.setGeminiReconnecting(false);
       console.error('Failed to start translation', error);
       addDebugEvent(`Translation failed to start: ${error instanceof Error ? error.message : String(error)}`);
       setIsTranslating(false);
@@ -432,12 +463,16 @@ export const useHost = () => {
         }
       },
       onReconnectGemini: async () => {
-        if (!isTranslatingRef.current) return;
+        if (!isTranslatingRef.current || isReconnectingGeminiRef.current) return;
         console.log('[HealthMonitor] Reconnecting Gemini...');
+        isReconnectingGeminiRef.current = true;
+        connectionHealthService.setGeminiReconnecting(true);
         try {
           geminiTranslateService.disconnect();
-          await startTranslation(settings.targetLanguage);
+          await startTranslation(settings.targetLanguage, true);
         } catch (e) {
+          isReconnectingGeminiRef.current = false;
+          connectionHealthService.setGeminiReconnecting(false);
           console.error('[HealthMonitor] Gemini reconnect failed:', e);
         }
       },
@@ -481,6 +516,8 @@ export const useHost = () => {
 
   const stopTranslation = async () => {
     isTranslatingRef.current = false;
+    isReconnectingGeminiRef.current = false;
+    connectionHealthService.setGeminiReconnecting(false);
     geminiTranslateService.disconnect();
     audioService.stopKeepAlive();
     setIsTranslating(false);
