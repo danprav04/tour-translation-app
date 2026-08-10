@@ -75,7 +75,7 @@ export default function SettingsScreen() {
   };
 
   const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? packageJson.version ?? '1.0.0';
-  const appSubversion = '01';
+  const appSubversion = '02';
   const fullVersion = `${appVersion}.${appSubversion}`;
   const appName = Constants.expoConfig?.name ?? 'TourCast';
 
