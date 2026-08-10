@@ -12,7 +12,9 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useNavigation } from 'expo-router';
+import { useRouter, useNavigation, useLocalSearchParams } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Updates from 'expo-updates';
 import { AudioSession, AndroidAudioTypePresets, LiveKitRoom, useParticipants } from '@livekit/react-native';
 import { useHost } from '@/hooks/useHost';
 import { useTTS } from '@/hooks/useTTS';
@@ -177,6 +179,7 @@ function TranslationDataPublisher({ setPublisher }: { setPublisher: any }) {
 export default function HostScreen() {
   const router = useRouter();
   const navigation = useNavigation();
+  const { autoRestart, roomCode: queryRoomCode } = useLocalSearchParams<{ autoRestart: string, roomCode: string }>();
 
 
 
@@ -212,6 +215,14 @@ export default function HostScreen() {
     refreshConnection,
   } = useHost();
   const { setDebugState, addDebugEvent } = useDebugContext();
+
+  React.useEffect(() => {
+    if (autoRestart === 'true' && queryRoomCode && settings.serverUrl) {
+      setCustomCode(queryRoomCode);
+      startRoom(queryRoomCode);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRestart, queryRoomCode, settings.serverUrl]);
 
   React.useEffect(() => {
     setDebugState('host', {
@@ -371,6 +382,26 @@ export default function HostScreen() {
     );
   };
 
+  const handleHardRestart = () => {
+    Alert.alert(
+      'Hard Restart',
+      'This will reload the entire app and resume the session. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Restart', 
+          style: 'destructive', 
+          onPress: async () => {
+            if (roomCode) {
+              await AsyncStorage.setItem('autoRestart', JSON.stringify({ role: 'host', roomCode }));
+            }
+            Updates.reloadAsync();
+          }
+        },
+      ]
+    );
+  };
+
   const handleTranslationToggle = (value: boolean) => {
     if (value && !settings.geminiApiKey) {
       Alert.alert(
@@ -479,6 +510,9 @@ export default function HostScreen() {
             }
           />
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Pressable onPress={handleHardRestart} hitSlop={8}>
+              <Text style={styles.hardRestartBtn}>Hard Restart</Text>
+            </Pressable>
             <Pressable onPress={refreshConnection} hitSlop={8}>
               <Text style={styles.refreshBtn}>↻ Refresh</Text>
             </Pressable>
@@ -841,6 +875,19 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,71,87,0.3)',
     overflow: 'hidden',
     backgroundColor: 'rgba(255,71,87,0.08)',
+  },
+  hardRestartBtn: {
+    color: '#FFAB00',
+    fontSize: 14,
+    fontWeight: '700',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,171,0,0.3)',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,171,0,0.08)',
+    marginRight: 8,
   },
   refreshBtn: {
     color: '#00D4AA',

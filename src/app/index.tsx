@@ -8,10 +8,31 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import GlassCard from '@/components/GlassCard';
 
 export default function HomeScreen() {
   const router = useRouter();
+
+  React.useEffect(() => {
+    const checkAutoRestart = async () => {
+      try {
+        const data = await AsyncStorage.getItem('autoRestart');
+        if (data) {
+          await AsyncStorage.removeItem('autoRestart');
+          const parsed = JSON.parse(data);
+          if (parsed.role === 'host') {
+            router.replace(`/host?autoRestart=true&roomCode=${parsed.roomCode}`);
+          } else if (parsed.role === 'listener') {
+            router.replace(`/stream?roomCode=${parsed.roomCode}`);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to parse autoRestart data', e);
+      }
+    };
+    checkAutoRestart();
+  }, [router]);
 
   return (
     <SafeAreaView style={styles.safe}>

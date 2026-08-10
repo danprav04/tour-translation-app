@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Updates from 'expo-updates';
 import { uint8ArrayToBase64 } from '@/utils/base64';
 import { AudioSession, AndroidAudioTypePresets, LiveKitRoom, useRoomContext, useTracks } from '@livekit/react-native';
 import { Track, RoomEvent } from 'livekit-client';
@@ -188,6 +190,26 @@ export default function StreamScreen() {
     );
   };
 
+  const handleHardRestart = () => {
+    Alert.alert(
+      'Hard Restart',
+      'This will reload the entire app and resume the session. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Restart', 
+          style: 'destructive', 
+          onPress: async () => {
+            if (roomCode) {
+              await AsyncStorage.setItem('autoRestart', JSON.stringify({ role: 'listener', roomCode }));
+            }
+            Updates.reloadAsync();
+          }
+        },
+      ]
+    );
+  };
+
   const connectionStatus = isReconnecting
     ? 'reconnecting'
     : isConnected
@@ -218,6 +240,7 @@ export default function StreamScreen() {
       scaleAnim={scaleAnim}
       handleMutePress={handleMutePress}
       handleDisconnect={handleDisconnect}
+      handleHardRestart={handleHardRestart}
       handleRefreshConnection={refreshConnection}
       audioLevel={audioLevel}
       useLegacy={settings.useLegacyWebSockets}
@@ -338,6 +361,7 @@ function StreamContentUI({
   scaleAnim,
   handleMutePress,
   handleDisconnect,
+  handleHardRestart,
   handleRefreshConnection,
   audioLevel,
 }: any) {
@@ -357,6 +381,9 @@ function StreamContentUI({
         <View style={styles.header}>
           <StatusBadge status={connectionStatus} />
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Pressable onPress={handleHardRestart} hitSlop={8}>
+              <Text style={styles.hardRestartBtn}>Hard Restart</Text>
+            </Pressable>
             <Pressable onPress={handleRefreshConnection} hitSlop={8}>
               <Text style={styles.refreshBtn}>↻ Refresh</Text>
             </Pressable>
@@ -460,6 +487,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     letterSpacing: 1,
+  },
+  hardRestartBtn: {
+    color: '#FFAB00',
+    fontSize: 14,
+    fontWeight: '700',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,171,0,0.3)',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,171,0,0.08)',
   },
   refreshBtn: {
     color: '#00D4AA',
