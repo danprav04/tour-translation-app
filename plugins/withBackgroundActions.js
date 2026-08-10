@@ -17,7 +17,7 @@ const withBackgroundActions = (config) => {
       if (service.$['android:name'] === serviceName) {
         serviceExists = true;
         // Ensure the correct types are set
-        service.$['android:foregroundServiceType'] = 'microphone|dataSync';
+        service.$['android:foregroundServiceType'] = 'microphone|dataSync|mediaPlayback';
         break;
       }
     }
@@ -26,7 +26,7 @@ const withBackgroundActions = (config) => {
       application.service.push({
         $: {
           'android:name': serviceName,
-          'android:foregroundServiceType': 'microphone|dataSync',
+          'android:foregroundServiceType': 'microphone|dataSync|mediaPlayback',
         },
       });
     }

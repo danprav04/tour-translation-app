@@ -61,10 +61,13 @@ class ForegroundService {
         },
         color: '#0A0E1A',
         linkingURI: 'tourcast://', // Optional: open app when notification is clicked
+        foregroundServiceType: role === 'host' 
+          ? ['microphone', 'dataSync', 'mediaPlayback'] 
+          : ['dataSync', 'mediaPlayback'],
         parameters: {
           role,
         },
-      };
+      } as any;
 
       await BackgroundService.start(this.backgroundTask, options);
       this.isRunning = true;
