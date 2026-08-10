@@ -249,6 +249,12 @@ class SocketService {
     return this.socket !== null && this.socket.connected;
   }
 
+  on(event: string, callback: (...args: any[]) => void): void {
+    if (this.socket) {
+      this.socket.on(event, callback);
+    }
+  }
+
   off(event: string): void {
     if (this.socket) {
       this.socket.off(event);
