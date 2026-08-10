@@ -380,15 +380,7 @@ function StreamContentUI({
         {/* Header */}
         <View style={styles.header}>
           <StatusBadge status={connectionStatus} />
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Pressable onPress={handleHardRestart} hitSlop={8}>
-              <Text style={styles.hardRestartBtn}>Hard Restart</Text>
-            </Pressable>
-            <Pressable onPress={handleRefreshConnection} hitSlop={8}>
-              <Text style={styles.refreshBtn}>↻ Refresh</Text>
-            </Pressable>
-            <Text style={styles.roomCode}>Room: {roomCode}</Text>
-          </View>
+          <Text style={styles.roomCode}>Room: {roomCode}</Text>
         </View>
 
         {/* Main content */}
@@ -446,8 +438,29 @@ function StreamContentUI({
           </Text>
         </View>
 
-        {/* Disconnect */}
+        {/* Disconnect and Troubleshooting */}
         <View style={styles.footer}>
+          {/* Troubleshooting */}
+          <View style={styles.troubleshootingContainer}>
+            <Text style={styles.sectionTitle}>Troubleshooting</Text>
+            <GlassCard style={styles.troubleshootingCard}>
+              <View style={styles.troubleshootingRow}>
+                <View style={styles.troubleshootingTextCol}>
+                  <Text style={styles.troubleshootingTitle}>Connection Issues?</Text>
+                  <Text style={styles.troubleshootingDesc}>Try refreshing the connection or performing a hard restart to re-initialize the session.</Text>
+                </View>
+                <View style={styles.troubleshootingActions}>
+                  <Pressable onPress={handleRefreshConnection} style={({pressed}) => [styles.troubleshootingBtn, styles.refreshBtn, pressed && styles.pressed]}>
+                    <Text style={styles.troubleshootingBtnText}>↻ Refresh</Text>
+                  </Pressable>
+                  <Pressable onPress={handleHardRestart} style={({pressed}) => [styles.troubleshootingBtn, styles.hardRestartBtn, pressed && styles.pressed]}>
+                    <Text style={[styles.troubleshootingBtnText, {color: '#FFAB00'}]}>⚡ Restart</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </GlassCard>
+          </View>
+
           <View style={{ marginBottom: 24, width: '100%' }}>
             <AudioRoutePicker onRouteChanged={(deviceId) => updateSettings({ preferredAudioOutput: deviceId })} />
           </View>
@@ -489,27 +502,11 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   hardRestartBtn: {
-    color: '#FFAB00',
-    fontSize: 14,
-    fontWeight: '700',
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    borderWidth: 1,
     borderColor: 'rgba(255,171,0,0.3)',
-    overflow: 'hidden',
     backgroundColor: 'rgba(255,171,0,0.08)',
   },
   refreshBtn: {
-    color: '#00D4AA',
-    fontSize: 14,
-    fontWeight: '700',
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    borderWidth: 1,
     borderColor: 'rgba(0,212,170,0.3)',
-    overflow: 'hidden',
     backgroundColor: 'rgba(0,212,170,0.08)',
   },
   center: {
@@ -601,5 +598,56 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 24,
+  },
+  troubleshootingContainer: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 12,
+    marginLeft: 4,
+  },
+  troubleshootingCard: {
+    padding: 16,
+  },
+  troubleshootingRow: {
+    flexDirection: 'column',
+    gap: 12,
+  },
+  troubleshootingTextCol: {
+    flex: 1,
+  },
+  troubleshootingTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  troubleshootingDesc: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  troubleshootingActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  troubleshootingBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  troubleshootingBtnText: {
+    color: '#00D4AA',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

@@ -510,12 +510,6 @@ export default function HostScreen() {
             }
           />
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Pressable onPress={handleHardRestart} hitSlop={8}>
-              <Text style={styles.hardRestartBtn}>Hard Restart</Text>
-            </Pressable>
-            <Pressable onPress={refreshConnection} hitSlop={8}>
-              <Text style={styles.refreshBtn}>↻ Refresh</Text>
-            </Pressable>
             <Pressable onPress={handleStop} hitSlop={8}>
               <Text style={styles.endBtn}>End Session</Text>
             </Pressable>
@@ -769,6 +763,27 @@ export default function HostScreen() {
           )}
         </View>
 
+        {/* Troubleshooting */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Troubleshooting</Text>
+          <GlassCard style={styles.troubleshootingCard}>
+            <View style={styles.troubleshootingRow}>
+              <View style={styles.troubleshootingTextCol}>
+                <Text style={styles.troubleshootingTitle}>Connection Issues?</Text>
+                <Text style={styles.troubleshootingDesc}>Try refreshing the connection or performing a hard restart to re-initialize the session.</Text>
+              </View>
+              <View style={styles.troubleshootingActions}>
+                <Pressable onPress={refreshConnection} style={({pressed}) => [styles.troubleshootingBtn, styles.refreshBtn, pressed && styles.pressed]}>
+                  <Text style={styles.troubleshootingBtnText}>↻ Refresh</Text>
+                </Pressable>
+                <Pressable onPress={handleHardRestart} style={({pressed}) => [styles.troubleshootingBtn, styles.hardRestartBtn, pressed && styles.pressed]}>
+                  <Text style={[styles.troubleshootingBtnText, {color: '#FFAB00'}]}>⚡ Restart</Text>
+                </Pressable>
+              </View>
+            </View>
+          </GlassCard>
+        </View>
+
       </ScrollView>
       
       {/* Reconnecting Overlay */}
@@ -887,20 +902,48 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,171,0,0.3)',
     overflow: 'hidden',
     backgroundColor: 'rgba(255,171,0,0.08)',
-    marginRight: 8,
   },
   refreshBtn: {
+    borderColor: 'rgba(0,212,170,0.3)',
+    backgroundColor: 'rgba(0,212,170,0.08)',
+  },
+  troubleshootingCard: {
+    padding: 16,
+  },
+  troubleshootingRow: {
+    flexDirection: 'column',
+    gap: 12,
+  },
+  troubleshootingTextCol: {
+    flex: 1,
+  },
+  troubleshootingTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  troubleshootingDesc: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  troubleshootingActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  troubleshootingBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  troubleshootingBtnText: {
     color: '#00D4AA',
     fontSize: 14,
     fontWeight: '700',
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(0,212,170,0.3)',
-    overflow: 'hidden',
-    backgroundColor: 'rgba(0,212,170,0.08)',
-    marginRight: 8,
   },
   section: {
     marginBottom: 20,
