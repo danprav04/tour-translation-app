@@ -20,6 +20,8 @@ import packageJson from '../../package.json';
 import { useSettingsContext } from '@/context/SettingsContext';
 import GlassCard from '@/components/GlassCard';
 
+export const appSubversion = '02';
+
 export default function SettingsScreen() {
   const router = useRouter();
   const { settings, updateSettings } = useSettingsContext();
@@ -75,7 +77,6 @@ export default function SettingsScreen() {
   };
 
   const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? packageJson.version ?? '1.0.0';
-  const appSubversion = '02';
   const fullVersion = `${appVersion}.${appSubversion}`;
   const appName = Constants.expoConfig?.name ?? 'TourCast';
 

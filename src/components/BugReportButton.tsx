@@ -15,6 +15,7 @@ import { useSettingsContext } from '@/context/SettingsContext';
 import { useDebugContext } from '@/context/DebugContext';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
+import { appSubversion } from '@/app/settings';
 
 export default function BugReportButton() {
   const { settings, isLoaded } = useSettingsContext();
@@ -50,6 +51,7 @@ export default function BugReportButton() {
           osName: Device.osName,
           osVersion: Device.osVersion,
           appVersion: Constants.expoConfig?.version ?? Constants.nativeAppVersion,
+          appSubversion,
         },
         timestamp: new Date().toISOString(),
       };
