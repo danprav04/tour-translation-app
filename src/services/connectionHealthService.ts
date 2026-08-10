@@ -263,7 +263,10 @@ class ConnectionHealthService {
 
   private checkHostDataFlow(now: number): void {
     // Check 1: Mic capture health
-    if (this.isMicActive && !this.isMuted) {
+    // Only check expo-audio mic health if we expect it to be running:
+    // (Legacy mode OR Translating in LiveKit mode)
+    const expectExpoAudioActive = !this.isLivekitMode || this.isTranslating;
+    if (this.isMicActive && !this.isMuted && expectExpoAudioActive) {
       const lastSent = this.state.lastMicActivityAt;
       if (lastSent > 0 && (now - lastSent) > HOST_MIC_SILENCE_THRESHOLD) {
         console.log(`[HealthMonitor] Host mic silent for ${now - lastSent}ms, restarting capture...`);

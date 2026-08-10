@@ -465,12 +465,37 @@ export const useHost = () => {
         console.log('[HealthMonitor] Restarting mic capture...');
         try {
           await audioService.stopCapture();
+
+          // If the app is in the background and the mic stops producing data,
+          // it is highly likely another app took the microphone.
+          // In this case, we should explicitly turn off the mic instead of trying to restart it.
+          if (AppState.currentState !== 'active') {
+            console.log('[HealthMonitor] App in background, explicitly turning off mic due to interruption.');
+            addDebugEvent('Mic turned off automatically in background due to interruption');
+            setIsMicActive(false);
+            if (isTranslatingRef.current) {
+              stopTranslation();
+            }
+            if (isEchoEnabledRef.current) {
+              setIsEchoEnabled(false);
+            }
+            if (Platform.OS === 'android') {
+              ToastAndroid.show('Microphone turned off (used by another app)', ToastAndroid.LONG);
+            }
+            return;
+          }
+
           await new Promise(resolve => setTimeout(resolve, 500));
           if (isMicActiveRef.current) {
             await audioService.startCapture(handleAudioChunk);
           }
         } catch (e) {
           console.error('[HealthMonitor] Mic restart failed:', e);
+          if (AppState.currentState !== 'active') {
+             setIsMicActive(false);
+             if (isTranslatingRef.current) stopTranslation();
+             if (isEchoEnabledRef.current) setIsEchoEnabled(false);
+          }
         }
       },
       onReconnectGemini: async () => {
