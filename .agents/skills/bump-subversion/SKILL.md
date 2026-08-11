@@ -7,6 +7,8 @@ description: Instructions for how to correctly bump the app's subversion.
 
 When you are asked to "bump the subversion" or change the subversion of the app, **DO NOT** modify the `version` field in `package.json` or `app.json`.
 
+**Note:** If you are explicitly asked to "bump the version" (not the subversion), then you *should* modify the `version` field in both `package.json` and `app.json` to the next appropriate version number.
+
 Instead, the subversion is maintained in the application's settings file. To correctly bump the subversion:
 
 1. Open `src/app/settings.tsx`.
