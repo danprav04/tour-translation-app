@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - Tour Translation App</title>
+    
+    <!-- Modern Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            position: relative;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        /* Animated background elements */
+        .blob {
+            position: fixed;
+            filter: blur(80px);
+            z-index: 0;
+            opacity: 0.6;
+            animation: float 10s infinite ease-in-out alternate;
+        }
+
+        .blob-1 {
+            width: 300px;
+            height: 300px;
+            background: #818cf8;
+            top: -100px;
+            left: -100px;
+            border-radius: 50%;
+        }
+
+        .blob-2 {
+            width: 400px;
+            height: 400px;
+            background: #c084fc;
+            bottom: -150px;
+            right: -100px;
+            border-radius: 50%;
+            animation-delay: -5s;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(30px, 50px) scale(1.1); }
+        }
+
+        /* Glassmorphism Card */
+        .container {
+            position: relative;
+            z-index: 1;
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 3rem;
+            text-align: left;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            margin: 0 auto;
+        }
+
+        /* Typography */
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            background: linear-gradient(to right, #fff, #c7d2fe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: #e2e8f0;
+        }
+
+        p, li {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+            font-weight: 300;
+        }
+
+        ul {
+            padding-left: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        a:hover {
+            color: #818cf8;
+            text-decoration: underline;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-size: 1rem;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .back-link:hover {
+            color: white;
+            text-decoration: none;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+            .container {
+                padding: 2rem;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <div class="container">
+        <a href="/" class="back-link">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Back to Home
+        </a>
+
+        <h1>Privacy Policy</h1>
+        
+        <p><strong>Effective Date:</strong> August 11, 2026</p>
+
+        <p>This Privacy Policy explains how <strong>danprav</strong> ("we", "us", or "our") collects, uses, and shares your information when you use the Tour Translation App mobile application and related services.</p>
+
+        <h2>1. Information We Collect</h2>
+        <ul>
+            <li><strong>Audio and Microphone Data:</strong> Our app requires access to your device's microphone to provide real-time translation features. Audio data is processed in real-time.</li>
+            <li><strong>Usage & Diagnostic Information:</strong> If you explicitly choose to submit a bug report through the app, we collect anonymous diagnostic information (such as crash logs, app settings, and non-identifying session data) to help us troubleshoot issues and improve stability.</li>
+            <li><strong>Device Information:</strong> We may collect basic device information such as operating system version, device model, and app version solely for troubleshooting and optimization purposes.</li>
+        </ul>
+
+        <h2>2. How We Use Your Information</h2>
+        <ul>
+            <li>To provide, maintain, and improve our real-time translation services.</li>
+            <li>To facilitate the connection between hosts and listeners in translation rooms.</li>
+            <li>To troubleshoot bugs, crashes, and performance issues (only via explicitly submitted bug reports).</li>
+        </ul>
+
+        <h2>3. Data Retention and Deletion</h2>
+        <p><strong>We do not persistently store your personal data.</strong></p>
+        <ul>
+            <li><strong>Audio Data:</strong> All audio data collected from the microphone is processed ephemerally in real-time to generate translations and facilitate communication. It is <strong>never recorded or stored</strong> on our servers or your device.</li>
+            <li><strong>Diagnostic Data:</strong> Bug reports submitted voluntarily are stored temporarily for debugging purposes and do not contain personal identifiers. If you wish to request the deletion of any specific bug report data you may have submitted, please contact us at the email below.</li>
+        </ul>
+
+        <h2>4. Data Sharing and Third-Party SDKs</h2>
+        <p>We do not sell your personal information. We share data only with service providers essential to the app's functionality:</p>
+        <ul>
+            <li><strong>Real-Time Communication APIs:</strong> We may use third-party services (such as LiveKit) to route audio streams between hosts and listeners securely.</li>
+            <li><strong>Translation APIs:</strong> Speech data may be sent to third-party transcription and translation services to generate text. These services process the data ephemerally and are bound by confidentiality obligations not to use your data for other purposes.</li>
+            <li><strong>Legal Requirements:</strong> We may disclose information if required to do so by law or in response to valid requests by public authorities.</li>
+        </ul>
+
+        <h2>5. Data Security</h2>
+        <p>We implement industry-standard security measures to protect your information. All data transmitted between the app, our servers, and third-party APIs (including audio streams) is encrypted in transit using secure protocols (e.g., TLS/HTTPS, WebRTC secure channels).</p>
+
+        <h2>6. Your Choices</h2>
+        <p>You can choose not to grant microphone permissions to the app at any time via your device settings, though this will prevent the core translation features from working. You also control whether to submit bug reports.</p>
+
+        <h2>7. Changes to This Privacy Policy</h2>
+        <p>We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Effective Date" at the top.</p>
+
+        <h2>8. Contact Us</h2>
+        <p>If you have any questions or concerns about this Privacy Policy or our data practices, please contact us at:</p>
+        <p><strong>Email:</strong> <a href="mailto:contact@danprav.me">contact@danprav.me</a></p>
+        <p><strong>Developer:</strong> danprav</p>
+    </div>
+</body>
+</html>
