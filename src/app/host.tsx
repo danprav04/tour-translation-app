@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   BackHandler,
   Platform,
+  ToastAndroid,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useNavigation, useLocalSearchParams } from 'expo-router';
@@ -18,6 +19,7 @@ import * as Updates from 'expo-updates';
 import { AudioSession, AndroidAudioTypePresets, LiveKitRoom, useParticipants } from '@livekit/react-native';
 import { useHost } from '@/hooks/useHost';
 import { useTTS } from '@/hooks/useTTS';
+import { getOEMBatteryInstructions, dismissOEMGuide, openOEMGuide, OEMInstructions } from '@/utils/oemBatteryHelper';
 import { useSettingsContext } from '@/context/SettingsContext';
 import { useDebugContext } from '@/context/DebugContext';
 import { SUPPORTED_LANGUAGES } from '@/constants/languages';
@@ -181,12 +183,16 @@ function TranslationDataPublisher({ setPublisher }: { setPublisher: any }) {
 export default function HostScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const { autoRestart, roomCode: queryRoomCode } = useLocalSearchParams<{ autoRestart: string, roomCode: string }>();
-
-
+  const { autoRestart, roomCode: queryRoomCode, resumeMic, resumeTranslation, lang } = useLocalSearchParams<{ autoRestart: string, roomCode: string, resumeMic: string, resumeTranslation: string, lang: string }>();
 
   const { settings, updateSettings } = useSettingsContext();
   const [customCode, setCustomCode] = React.useState(settings.lastRoomCode || '');
+  const [oemGuide, setOemGuide] = React.useState<OEMInstructions | null>(null);
+  
+  React.useEffect(() => {
+    getOEMBatteryInstructions().then(setOemGuide);
+  }, []);
+
   const {
     roomCode,
     livekitToken,
@@ -202,6 +208,7 @@ export default function HostScreen() {
     toggleMic,
     toggleTranslation,
     toggleEcho,
+    startTranslation,
     setLanguage,
     kickListener,
     renameListener,
@@ -234,7 +241,17 @@ export default function HostScreen() {
   React.useEffect(() => {
     if (autoRestart === 'true' && queryRoomCode && settings.serverUrl) {
       setCustomCode(queryRoomCode);
-      startRoom(queryRoomCode);
+      const doRestart = async () => {
+        await startRoom(queryRoomCode);
+        if (resumeMic === 'true') {
+          await toggleMic();
+        }
+        if (resumeTranslation === 'true' && lang) {
+          await startTranslation(lang);
+        }
+        ToastAndroid.show('Session resumed', ToastAndroid.SHORT);
+      };
+      doRestart();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRestart, queryRoomCode, settings.serverUrl]);
@@ -538,6 +555,30 @@ export default function HostScreen() {
           <Text style={styles.sectionTitle}>Invite Listeners</Text>
           <QRCodeDisplay roomCode={roomCode} serverUrl={settings.serverUrl} />
         </GlassCard>
+
+        {/* OEM Battery Guide */}
+        {oemGuide && (
+          <View style={[styles.section, { backgroundColor: '#332b00', borderColor: '#ccaa00', borderWidth: 1 }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <Text style={[styles.sectionTitle, { color: '#ffcc00' }]}>⚠️ Background Mic Fix ({oemGuide.brand})</Text>
+              <Pressable onPress={async () => {
+                await dismissOEMGuide();
+                setOemGuide(null);
+              }}>
+                <Text style={{ color: '#aaa', padding: 4 }}>Dismiss</Text>
+              </Pressable>
+            </View>
+            <Text style={{ color: '#eee', marginBottom: 12 }}>
+              Your device kills background microphones. To fix this:
+            </Text>
+            {oemGuide.steps.map((step, i) => (
+              <Text key={i} style={{ color: '#ddd', marginLeft: 8, marginBottom: 4 }}>• {step}</Text>
+            ))}
+            <Pressable onPress={() => openOEMGuide(oemGuide.detailsUrl)} style={{ marginTop: 12, alignSelf: 'flex-start' }}>
+              <Text style={{ color: '#00D4AA', textDecorationLine: 'underline' }}>View Detailed Instructions</Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* Audio Controls */}
         <View style={styles.section}>

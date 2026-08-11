@@ -1,3 +1,4 @@
+import { AppState } from 'react-native';
 import BackgroundTimer from 'react-native-background-timer';
 import socketService from './socketService';
 import geminiTranslateService from './geminiTranslateService';
@@ -32,6 +33,7 @@ const RTT_DEGRADED_THRESHOLD = 5_000;       // RTT > 5s = degraded
 const MAX_SOCKET_FAILURES = 2;              // 2 consecutive failures = reconnect
 
 const HOST_MIC_SILENCE_THRESHOLD = 3_000;   // Host mic silent for 3s = restart mic
+const HOST_MIC_SILENCE_THRESHOLD_BG = 10_000; // Background: 10s tolerance for CPU throttling
 const LISTENER_NO_DATA_THRESHOLD = 15_000;  // Listener no data for 15s = resync
 const LISTENER_RESYNC_COOLDOWN = 20_000;    // Don't resync more than once per 20s
 const LISTENER_FORCE_RECONNECT_DELAY = 5_000; // After resync, wait 5s then force reconnect
@@ -267,7 +269,10 @@ class ConnectionHealthService {
     const expectExpoAudioActive = !this.isLivekitMode || this.isTranslating;
     if (this.isMicActive && !this.isMuted && expectExpoAudioActive) {
       const lastSent = this.state.lastMicActivityAt;
-      if (lastSent > 0 && (now - lastSent) > HOST_MIC_SILENCE_THRESHOLD) {
+      const threshold = AppState.currentState === 'active' 
+        ? HOST_MIC_SILENCE_THRESHOLD 
+        : HOST_MIC_SILENCE_THRESHOLD_BG;
+      if (lastSent > 0 && (now - lastSent) > threshold) {
         this.consecutiveMicRestarts++;
         if (this.consecutiveMicRestarts >= this.MAX_MIC_RESTARTS) {
           console.log(`[HealthMonitor] Mic failed to restart after ${this.MAX_MIC_RESTARTS} attempts. Throwing fatal error.`);

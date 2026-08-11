@@ -34,7 +34,7 @@ export default function HomeScreen() {
           await AsyncStorage.removeItem('activeSession');
           const parsed = JSON.parse(activeSessionData);
           if (parsed.role === 'host') {
-            router.replace(`/host?autoRestart=true&roomCode=${parsed.roomCode}`);
+            router.replace(`/host?autoRestart=true&roomCode=${parsed.roomCode}&resumeMic=${parsed.wasMicActive ?? false}&resumeTranslation=${parsed.wasTranslating ?? false}&lang=${parsed.targetLanguage ?? ''}`);
           } else if (parsed.role === 'listener') {
             router.replace(`/stream?roomCode=${parsed.roomCode}`);
           }

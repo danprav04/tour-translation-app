@@ -1,12 +1,18 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import BackgroundService from 'react-native-background-actions';
 import BackgroundTimer from 'react-native-background-timer';
 import socketService from '@/services/socketService';
 
 class ForegroundService {
   private isRunning = false;
+  private hostState: { isMicActive?: boolean; isTranslating?: boolean; targetLanguage?: string } | null = null;
 
   constructor() {
     // Constructor no longer needs to register notifee listener
+  }
+
+  public updateHostState(state: { isMicActive?: boolean; isTranslating?: boolean; targetLanguage?: string }) {
+    this.hostState = state;
   }
 
   // The Headless JS task that runs in the background
@@ -36,6 +42,21 @@ class ForegroundService {
           }
         } catch (e) {
           console.warn('[ForegroundService] Reconnect failed in background', e);
+        }
+
+        // Flush state to AsyncStorage for recovery
+        try {
+          const sessionState = await AsyncStorage.getItem('activeSession');
+          // Arrow function captures 'this' from class
+          if (sessionState && this.hostState) {
+            const parsed = JSON.parse(sessionState);
+            parsed.wasMicActive = this.hostState.isMicActive ?? parsed.wasMicActive;
+            parsed.wasTranslating = this.hostState.isTranslating ?? parsed.wasTranslating;
+            parsed.targetLanguage = this.hostState.targetLanguage ?? parsed.targetLanguage;
+            await AsyncStorage.setItem('activeSession', JSON.stringify(parsed));
+          }
+        } catch (e) {
+          // Ignore
         }
       }, 15000); // Check every 15 seconds
       

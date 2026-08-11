@@ -6,6 +6,8 @@ import geminiTranslateService from '@/services/geminiTranslateService';
 import { useSettingsContext } from '@/context/SettingsContext';
 import { useDebugContext } from '@/context/DebugContext';
 import BackgroundTimer from 'react-native-background-timer';
+import NetInfo from '@react-native-community/netinfo';
+import { livekitService } from '@/services/livekitService';
 import foregroundService from '@/services/foregroundService';
 import audioService from '@/services/audioService';
 import socketService, { ListenerInfo } from '@/services/socketService';
@@ -47,6 +49,7 @@ export const useHost = () => {
   const isMicActiveRef = useRef(false);
   const reconnectAttempts = useRef(0);
   const isReconnectingGeminiRef = useRef(false);
+  const geminiFirstErrorTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
     isTranslatingRef.current = isTranslating;
@@ -351,6 +354,7 @@ export const useHost = () => {
       
       // On success, reset the reconnect flag
       isReconnectingGeminiRef.current = false;
+      geminiFirstErrorTimeRef.current = null;
       connectionHealthService.setGeminiReconnecting(false);
 
       geminiTranslateService.onTranslatedAudio((translatedBase64) => {
@@ -375,19 +379,42 @@ export const useHost = () => {
         }
       });
 
-      const handleDisconnect = () => {
+      const handleDisconnect = async () => {
         if (!isTranslatingRef.current) return; // Intentional disconnect
         if (isReconnectingGeminiRef.current) return; // Already reconnecting
+
+        if (geminiFirstErrorTimeRef.current === null) {
+          geminiFirstErrorTimeRef.current = Date.now();
+        } else if (Date.now() - geminiFirstErrorTimeRef.current > 30000) {
+          console.error('[Host] Gemini failed to reconnect after 30 seconds.');
+          addDebugEvent('Translation reconnect timed out after 30s');
+          Alert.alert('Translation Error', 'Lost connection to translation service.');
+          setIsTranslating(false);
+          isTranslatingRef.current = false;
+          isReconnectingGeminiRef.current = false;
+          geminiFirstErrorTimeRef.current = null;
+          connectionHealthService.setGeminiReconnecting(false);
+          return;
+        }
 
         isReconnectingGeminiRef.current = true;
         connectionHealthService.setGeminiReconnecting(true);
 
         console.log('[Host] Gemini disconnected unexpectedly. Reconnecting...');
         addDebugEvent('Translation disconnected, reconnecting...');
+        
+        // Don't spam reconnects if offline
+        const netState = await NetInfo.fetch();
+        if (!netState.isConnected) {
+           console.log('[Host] Network is offline, waiting before reconnect attempt...');
+        }
+
         if (reconnectAttempts.current < 30) {
           reconnectAttempts.current += 1;
           // Exponential backoff: 2s, 4s, 8s, up to max 30s
-          const delay = Math.min(2000 * Math.pow(2, reconnectAttempts.current - 1), 30000);
+          let delay = Math.min(2000 * Math.pow(2, reconnectAttempts.current - 1), 30000);
+          if (!netState.isConnected) delay = Math.max(delay, 5000); // at least 5s if offline
+          
           BackgroundTimer.setTimeout(() => {
             if (isTranslatingRef.current) {
               startTranslation(selectedLanguageRef.current, true).catch(() => {
@@ -406,6 +433,7 @@ export const useHost = () => {
           setIsTranslating(false);
           isTranslatingRef.current = false;
           isReconnectingGeminiRef.current = false;
+          geminiFirstErrorTimeRef.current = null;
           connectionHealthService.setGeminiReconnecting(false);
         }
       };
@@ -475,37 +503,12 @@ export const useHost = () => {
         console.log('[HealthMonitor] Restarting mic capture...');
         try {
           await audioService.stopCapture();
-
-          // If the app is in the background and the mic stops producing data,
-          // it is highly likely another app took the microphone.
-          // In this case, we should explicitly turn off the mic instead of trying to restart it.
-          if (AppState.currentState !== 'active') {
-            console.log('[HealthMonitor] App in background, explicitly turning off mic due to interruption.');
-            addDebugEvent('Mic turned off automatically in background due to interruption');
-            setIsMicActive(false);
-            if (isTranslatingRef.current) {
-              stopTranslation();
-            }
-            if (isEchoEnabledRef.current) {
-              setIsEchoEnabled(false);
-            }
-            if (Platform.OS === 'android') {
-              ToastAndroid.show('Microphone turned off (used by another app)', ToastAndroid.LONG);
-            }
-            return;
-          }
-
           await new Promise(resolve => setTimeout(resolve, 500));
           if (isMicActiveRef.current) {
             await audioService.startCapture(handleAudioChunk);
           }
         } catch (e) {
           console.error('[HealthMonitor] Mic restart failed:', e);
-          if (AppState.currentState !== 'active') {
-             setIsMicActive(false);
-             if (isTranslatingRef.current) stopTranslation();
-             if (isEchoEnabledRef.current) setIsEchoEnabled(false);
-          }
         }
       },
       onMicFatalError: () => {
@@ -586,6 +589,14 @@ export const useHost = () => {
   useEffect(() => {
     connectionHealthService.updateTranslationState(isTranslating);
   }, [isTranslating]);
+
+  useEffect(() => {
+    foregroundService.updateHostState({
+      isMicActive,
+      isTranslating,
+      targetLanguage: selectedLanguage
+    });
+  }, [isMicActive, isTranslating, selectedLanguage]);
 
   useEffect(() => {
     let lowAudioTimer: NodeJS.Timeout;

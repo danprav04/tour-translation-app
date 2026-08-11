@@ -75,6 +75,16 @@ function generateRoomCode() {
   return code;
 }
 
+// Garbage collect old room codes from the recentRoomCodes map
+setInterval(() => {
+  const now = Date.now();
+  for (const [code, timestamp] of recentRoomCodes.entries()) {
+    if ((now - timestamp) >= SEVEN_DAYS_MS) {
+      recentRoomCodes.delete(code);
+    }
+  }
+}, 24 * 60 * 60 * 1000); // Run daily
+
 // HTTP endpoints
 app.get('/health', (req, res) => {
   res.json({
@@ -240,6 +250,7 @@ io.on('connection', (socket) => {
       if (rooms.has(roomCode)) {
         const room = rooms.get(roomCode);
         room.hostSocketId = socket.id; // Update host socket ID
+        socket.roomCode = roomCode; // Set on socket for O(1) lookup
         if (architecture) {
           room.architecture = architecture;
         }
@@ -284,6 +295,7 @@ io.on('connection', (socket) => {
       lastAudioTimestamp: null
     });
     
+    socket.roomCode = roomCode;
     socket.join(roomCode);
     markRoomCodeUsed(roomCode);
     if (typeof callback === 'function') {
@@ -334,6 +346,7 @@ io.on('connection', (socket) => {
     }
     
     room.listeners.set(socket.id, listenerInfo);
+    socket.roomCode = code;
     socket.join(code);
     
     if (!isReconnecting) {
@@ -349,18 +362,13 @@ io.on('connection', (socket) => {
   socket.on('audio-chunk', (data, seq, timestamp, sampleRate) => {
     // Broadcast audio-data to all other sockets in the room, volatile
     // (Volatile means if the connection is slow, the packet can be dropped rather than buffered)
-    let targetRoomId = null;
-    
-    // Find which room this host belongs to
-    for (const [roomId, room] of rooms.entries()) {
-      if (room.hostSocketId === socket.id) {
-        targetRoomId = roomId;
-        room.lastAudioTimestamp = Date.now();
-        break;
-      }
-    }
+    const targetRoomId = socket.roomCode;
     
     if (targetRoomId) {
+      const room = rooms.get(targetRoomId);
+      if (room) {
+        room.lastAudioTimestamp = Date.now();
+      }
       // Passing seq, timestamp, and sampleRate to listeners
       socket.volatile.to(targetRoomId).emit('audio-data', data, seq, timestamp, sampleRate);
     }
@@ -452,7 +460,7 @@ io.on('connection', (socket) => {
         setTimeout(() => {
           const checkRoom = rooms.get(roomId);
           if (checkRoom && checkRoom.hostSocketId === socket.id) {
-            socket.to(roomId).emit('room-closed');
+            io.to(roomId).emit('room-closed');
             rooms.delete(roomId);
           }
         }, 30000);

@@ -23,6 +23,7 @@ import audioService from '@/services/audioService';
 import connectionHealthService from '@/services/connectionHealthService';
 import StatusBadge from '@/components/StatusBadge';
 import AudioVisualizer from '@/components/AudioVisualizer';
+import { getOEMBatteryInstructions, dismissOEMGuide, openOEMGuide, OEMInstructions } from '@/utils/oemBatteryHelper';
 import GlassCard from '@/components/GlassCard';
 import AudioRoutePicker from '@/components/AudioRoutePicker';
 import BatteryOptimizationGuard from '@/components/BatteryOptimizationGuard';
@@ -53,6 +54,11 @@ export default function StreamScreen() {
 
   const [pulseAnim] = useState(() => new Animated.Value(1));
   const [scaleAnim] = useState(() => new Animated.Value(1));
+  
+  const [oemGuide, setOemGuide] = useState<OEMInstructions | null>(null);
+  useEffect(() => {
+    getOEMBatteryInstructions().then(setOemGuide);
+  }, []);
 
   const { setDebugState, addDebugEvent } = useDebugContext();
   React.useEffect(() => {
@@ -258,6 +264,8 @@ export default function StreamScreen() {
       handleHardRestart={handleHardRestart}
       handleRefreshConnection={refreshConnection}
       audioLevel={audioLevel}
+      oemGuide={oemGuide}
+      setOemGuide={setOemGuide}
       useLegacy={settings.useLegacyWebSockets}
     />
   );
@@ -386,6 +394,8 @@ function StreamContentUI({
   handleHardRestart,
   handleRefreshConnection,
   audioLevel,
+  oemGuide,
+  setOemGuide,
 }: any) {
   return (
     <SafeAreaView style={styles.safe}>
@@ -416,6 +426,30 @@ function StreamContentUI({
 
         {/* Main content */}
         <View style={styles.center}>
+          {/* OEM Battery Guide */}
+          {oemGuide && (
+            <View style={[styles.card, { backgroundColor: '#332b00', borderColor: '#ccaa00', borderWidth: 1, marginHorizontal: 24, marginBottom: 24 }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <Text style={[{ fontSize: 16, fontWeight: 'bold' }, { color: '#ffcc00' }]}>⚠️ Background Audio Fix ({oemGuide.brand})</Text>
+                <Pressable onPress={async () => {
+                  await dismissOEMGuide();
+                  setOemGuide(null);
+                }}>
+                  <Text style={{ color: '#aaa', padding: 4 }}>Dismiss</Text>
+                </Pressable>
+              </View>
+              <Text style={{ color: '#eee', marginBottom: 12, marginTop: 8 }}>
+                Your device may kill background audio. To fix this:
+              </Text>
+              {oemGuide.steps.map((step: string, i: number) => (
+                <Text key={i} style={{ color: '#ddd', marginLeft: 8, marginBottom: 4 }}>• {step}</Text>
+              ))}
+              <Pressable onPress={() => openOEMGuide(oemGuide.detailsUrl)} style={{ marginTop: 12, alignSelf: 'flex-start' }}>
+                <Text style={{ color: '#00D4AA', textDecorationLine: 'underline' }}>View Detailed Instructions</Text>
+              </Pressable>
+            </View>
+          )}
+
           {/* Mute Button */}
           <Animated.View
             style={[
