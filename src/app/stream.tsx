@@ -26,7 +26,7 @@ import AudioVisualizer from '@/components/AudioVisualizer';
 import GlassCard from '@/components/GlassCard';
 import AudioRoutePicker from '@/components/AudioRoutePicker';
 import BatteryOptimizationGuard from '@/components/BatteryOptimizationGuard';
-import { useKeepAwake } from 'expo-keep-awake';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const MUTE_BTN_SIZE = Math.min(SCREEN_WIDTH * 0.45, 180);
@@ -55,7 +55,19 @@ export default function StreamScreen() {
   const [scaleAnim] = useState(() => new Animated.Value(1));
 
   const { setDebugState, addDebugEvent } = useDebugContext();
-  useKeepAwake();
+  React.useEffect(() => {
+    activateKeepAwakeAsync().catch(() => {});
+    return () => {
+      try {
+        const promise = deactivateKeepAwake();
+        if (promise && promise.catch) {
+          promise.catch(() => {});
+        }
+      } catch (e) {
+        // Ignore error if activity is destroyed
+      }
+    };
+  }, []);
 
   useEffect(() => {
     setDebugState('listener', {

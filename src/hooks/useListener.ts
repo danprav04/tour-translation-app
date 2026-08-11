@@ -171,11 +171,11 @@ export const useListener = () => {
         console.log('[Listener] Room closed by host');
         enterStandby();
       });
-      socketService.on('host-disconnected', () => {
+      socketService.onHostDisconnected(() => {
         console.log('[Listener] Host disconnected unexpectedly');
         setHostStatus('disconnected');
       });
-      socketService.on('host-reconnected', () => {
+      socketService.onHostReconnected(() => {
         console.log('[Listener] Host reconnected successfully');
         setHostStatus('connected');
       });

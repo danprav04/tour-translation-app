@@ -30,7 +30,7 @@ import AudioRoutePicker from '@/components/AudioRoutePicker';
 import AudioVisualizer from '@/components/AudioVisualizer';
 import { ConnectionState, type Participant } from 'livekit-client';
 import BatteryOptimizationGuard from '@/components/BatteryOptimizationGuard';
-import { useKeepAwake } from 'expo-keep-awake';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 
 function ParticipantsRenderer({
   children,
@@ -217,7 +217,19 @@ export default function HostScreen() {
     refreshConnection,
   } = useHost();
   const { setDebugState, addDebugEvent } = useDebugContext();
-  useKeepAwake();
+  React.useEffect(() => {
+    activateKeepAwakeAsync().catch(() => {});
+    return () => {
+      try {
+        const promise = deactivateKeepAwake();
+        if (promise && promise.catch) {
+          promise.catch(() => {});
+        }
+      } catch (e) {
+        // Ignore error if activity is destroyed
+      }
+    };
+  }, []);
 
   React.useEffect(() => {
     if (autoRestart === 'true' && queryRoomCode && settings.serverUrl) {
