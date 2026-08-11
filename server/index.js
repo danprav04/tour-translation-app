@@ -260,6 +260,9 @@ io.on('connection', (socket) => {
           socket.emit('listener-joined', listener);
         }
 
+        // Notify listeners that host has reconnected
+        io.to(roomCode).emit('host-reconnected', { timestamp: Date.now() });
+
         if (typeof callback === 'function') {
           callback({ success: true, roomCode, roomId: roomCode, reconnected: true });
         }
@@ -438,6 +441,13 @@ io.on('connection', (socket) => {
       if (room.hostSocketId === socket.id) {
         isHost = true;
         room.lastHostDisconnect = Date.now();
+        
+        // Notify listeners immediately so they can show a reconnecting UI
+        io.to(roomId).emit('host-disconnected', { 
+          timestamp: Date.now(),
+          gracePeriodMs: 30000 
+        });
+        
         // Don't close immediately, give host 30 seconds to reconnect
         setTimeout(() => {
           const checkRoom = rooms.get(roomId);

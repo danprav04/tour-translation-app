@@ -16,11 +16,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Updates from 'expo-updates';
 import Constants from 'expo-constants';
+import * as Device from 'expo-device';
 import packageJson from '../../package.json';
 import { useSettingsContext } from '@/context/SettingsContext';
 import GlassCard from '@/components/GlassCard';
 
-export const appSubversion = '03';
+const DONT_KILL_MY_APP_SCORES: Record<string, number> = {
+  'xiaomi': 5, 'samsung': 5, 'oneplus': 5, 'huawei': 5,
+  'ulefone': 4, 'oppo': 4, 'meizu': 4, 'asus': 4,
+  'wiko': 3, 'vivo': 3, 'tecno': 3, 'realme': 3, 'motorola': 3, 'lenovo': 3, 'blackview': 3,
+  'unihertz': 2, 'sony': 2,
+  'google': 0, 'nokia': 0, 'htc': 0, 'stock-android': 0,
+};
+
+export const appSubversion = '00';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -279,25 +288,66 @@ export default function SettingsScreen() {
           </GlassCard>
 
           {/* Battery Optimization (Android only) */}
-          {Platform.OS === 'android' && (
-            <GlassCard style={styles.section}>
-              <View style={styles.switchRow}>
-                <View style={styles.switchTextContainer}>
-                  <Text style={styles.sectionTitle}>🔋 Battery Optimization</Text>
-                  <Text style={styles.sectionDesc}>
-                    {isBatteryOptimized === false
-                      ? 'App is unrestricted. Audio will run perfectly in background.'
-                      : 'App is restricted. Audio may drop when screen is off.'}
-                  </Text>
+          {Platform.OS === 'android' && (() => {
+            const rawMfg = Device.manufacturer?.toLowerCase() || '';
+            const mfg = rawMfg.replace(/\s+/g, '-');
+            const hasGuide = mfg in DONT_KILL_MY_APP_SCORES;
+            const score = hasGuide ? DONT_KILL_MY_APP_SCORES[mfg] : 0;
+            
+            let warnColor = '#00D4AA';
+            let warnIcon = 'ℹ️';
+            let warnText = 'Stock Android devices generally handle background apps well, but you may still want to review the guide.';
+            let btnColor = 'rgba(0,212,170,0.1)';
+            
+            if (score >= 4) {
+              warnColor = '#FF4757';
+              warnIcon = '🚨';
+              warnText = `${Device.manufacturer} devices aggressively kill background apps. Standard settings may not be enough. Please view the guide.`;
+              btnColor = 'rgba(255,71,87,0.1)';
+            } else if (score >= 2) {
+              warnColor = '#FFAB00';
+              warnIcon = '⚠️';
+              warnText = `${Device.manufacturer} devices sometimes kill background apps. If you experience drops, please view the guide.`;
+              btnColor = 'rgba(255,171,0,0.1)';
+            }
+
+            return (
+              <GlassCard style={styles.section}>
+                <View style={styles.switchRow}>
+                  <View style={styles.switchTextContainer}>
+                    <Text style={styles.sectionTitle}>🔋 Battery Optimization</Text>
+                    <Text style={styles.sectionDesc}>
+                      {isBatteryOptimized === false
+                        ? 'App is unrestricted. Audio will run perfectly in background.'
+                        : 'App is restricted. Audio may drop when screen is off.'}
+                    </Text>
+                  </View>
+                  {(isBatteryOptimized !== false || hasGuide) && (
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {hasGuide && (
+                        <Pressable 
+                          style={[styles.batteryBtn, { backgroundColor: btnColor }]} 
+                          onPress={() => Linking.openURL(`https://dontkillmyapp.com/${mfg}`)}
+                        >
+                          <Text style={[styles.batteryBtnText, { color: warnColor }]}>Guide</Text>
+                        </Pressable>
+                      )}
+                      {isBatteryOptimized !== false && (
+                        <Pressable style={styles.batteryBtn} onPress={handleOpenBatterySettings}>
+                          <Text style={styles.batteryBtnText}>Fix</Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  )}
                 </View>
-                {isBatteryOptimized !== false && (
-                  <Pressable style={styles.batteryBtn} onPress={handleOpenBatterySettings}>
-                    <Text style={styles.batteryBtnText}>Fix</Text>
-                  </Pressable>
+                {hasGuide && (
+                  <Text style={[styles.sectionDesc, { marginTop: 12, color: warnColor }]}>
+                    {warnIcon} {warnText}
+                  </Text>
                 )}
-              </View>
-            </GlassCard>
-          )}
+              </GlassCard>
+            );
+          })()}
 
           {/* About */}
           <GlassCard style={styles.section}>

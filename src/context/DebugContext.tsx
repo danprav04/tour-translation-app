@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useRef, useEffect, ReactNode } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface DebugContextType {
   setDebugState: (key: string, data: any) => void;
@@ -18,6 +19,32 @@ export const DebugProvider = ({ children }: { children: ReactNode }) => {
     state: {},
     events: [],
   });
+
+  // Load from disk on startup
+  useEffect(() => {
+    AsyncStorage.getItem('tourcast_debug_data').then((data) => {
+      if (data) {
+        try {
+          const parsed = JSON.parse(data);
+          debugDataRef.current = {
+            state: { ...parsed.state, ...debugDataRef.current.state },
+            events: [...parsed.events, ...debugDataRef.current.events].slice(-200)
+          };
+        } catch (e) {
+          console.warn('Failed to parse debug data from disk', e);
+        }
+      }
+    });
+
+    // Save to disk every 10 seconds
+    const interval = setInterval(() => {
+      debugDataRef.current.state.lastAliveTimestamp = new Date().toISOString();
+      AsyncStorage.setItem('tourcast_debug_data', JSON.stringify(debugDataRef.current))
+        .catch(e => console.warn('Failed to save debug data', e));
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const setDebugState = (key: string, data: any) => {
     debugDataRef.current.state[key] = data;

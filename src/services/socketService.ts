@@ -249,6 +249,24 @@ class SocketService {
     return this.socket !== null && this.socket.connected;
   }
 
+  onHostDisconnected(callback: () => void): void {
+    if (this.socket) {
+      this.socket.on('host-disconnected', callback);
+    }
+  }
+
+  onHostReconnected(callback: () => void): void {
+    if (this.socket) {
+      this.socket.on('host-reconnected', callback);
+    }
+  }
+
+  on(event: string, callback: (...args: any[]) => void): void {
+    if (this.socket) {
+      this.socket.on(event, callback);
+    }
+  }
+
   off(event: string): void {
     if (this.socket) {
       this.socket.off(event);

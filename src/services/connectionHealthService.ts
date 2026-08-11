@@ -56,7 +56,6 @@ class ConnectionHealthService {
 
   private healthCheckInterval: number | null = null;
   private dataFlowInterval: number | null = null;
-  private preventiveReconnectInterval: number | null = null;
   private geminiPreventiveReconnectInterval: number | null = null;
 
   private isRunning = false;
@@ -92,7 +91,6 @@ class ConnectionHealthService {
 
     // Start Socket.IO monitoring unconditionally since it manages the room even in LiveKit mode
     this.startSocketHealthCheck();
-    this.startPreventiveReconnect();
 
     this.startDataFlowMonitor();
     this.startGeminiPreventiveReconnect();
@@ -108,7 +106,6 @@ class ConnectionHealthService {
 
     if (isLegacy) {
       this.startSocketHealthCheck();
-      this.startPreventiveReconnect();
       this.startDataFlowMonitor();
     }
     if (!isLegacy) {
@@ -128,10 +125,6 @@ class ConnectionHealthService {
     if (this.dataFlowInterval !== null) {
       BackgroundTimer.clearInterval(this.dataFlowInterval);
       this.dataFlowInterval = null;
-    }
-    if (this.preventiveReconnectInterval !== null) {
-      BackgroundTimer.clearInterval(this.preventiveReconnectInterval);
-      this.preventiveReconnectInterval = null;
     }
     if (this.geminiPreventiveReconnectInterval !== null) {
       BackgroundTimer.clearInterval(this.geminiPreventiveReconnectInterval);
@@ -415,34 +408,6 @@ class ConnectionHealthService {
   }
 
   // --- Preventive Reconnection ---
-
-  private startPreventiveReconnect(): void {
-    this.preventiveReconnectInterval = BackgroundTimer.setInterval(() => {
-      if (!this.isRunning) return;
-      if (!socketService.isConnected()) return;
-
-      console.log('[HealthMonitor] Preventive socket reconnect (scheduled every 5 min)...');
-      if (this.role === 'host' && this.callbacks.onSignalingSocketRecovery) {
-        this.callbacks.onSignalingSocketRecovery();
-      } else {
-        socketService.refreshConnection();
-      }
-
-      // Verify data flow resumes after reconnect
-      BackgroundTimer.setTimeout(() => {
-        if (!this.isRunning) return;
-        if (!socketService.isConnected()) {
-          console.log('[HealthMonitor] Socket not reconnected after preventive refresh, retrying...');
-          this.callbacks.onRefreshSocket?.();
-        } else {
-          // Reset failure counters on successful reconnect
-          this.state.consecutiveSocketFailures = 0;
-          this.state.socketHealthy = true;
-          this.notifyStatusChange();
-        }
-      }, 5_000);
-    }, PREVENTIVE_RECONNECT_INTERVAL);
-  }
 
   private startGeminiPreventiveReconnect(): void {
     this.geminiPreventiveReconnectInterval = BackgroundTimer.setInterval(() => {

@@ -21,6 +21,7 @@ export const useListener = () => {
   const [livekitToken, setLivekitToken] = useState<string | null>(null);
   const [livekitUrl, setLivekitUrl] = useState<string | null>(null);
   const [isHostStreaming, setIsHostStreaming] = useState(true);
+  const [hostStatus, setHostStatus] = useState<'connected' | 'disconnected'>('connected');
   const isMutedRef = useRef(false);
 
   useEffect(() => {
@@ -37,13 +38,15 @@ export const useListener = () => {
       roomCode,
       isReconnecting,
       isStandby,
+      isStandby,
       isHostStreaming,
+      hostStatus,
       hasLivekitToken: !!livekitToken,
       hasLivekitUrl: !!livekitUrl
     });
   }, [
     isConnected, isMuted, roomCode, isReconnecting, 
-    isStandby, isHostStreaming, livekitToken, livekitUrl, setDebugState
+    isStandby, isHostStreaming, hostStatus, livekitToken, livekitUrl, setDebugState
   ]);
 
   useEffect(() => {
@@ -104,7 +107,8 @@ export const useListener = () => {
       
       await foregroundService.start(
         'TourCast Listener',
-        `Listening to room ${code}`
+        `Listening to room ${code}`,
+        'listener'
       );
 
       setRoomCode(code);
@@ -134,6 +138,7 @@ export const useListener = () => {
     setLivekitUrl(null);
     setIsConnected(false);
     setIsStandby(true);
+    setHostStatus('connected'); // Reset for next connection
   };
 
   const disconnect = async () => {
@@ -148,6 +153,7 @@ export const useListener = () => {
     setRoomCode(null);
     setLivekitToken(null);
     setLivekitUrl(null);
+    setHostStatus('connected');
     await AsyncStorage.removeItem('activeSession');
   };
 
@@ -165,6 +171,14 @@ export const useListener = () => {
         console.log('[Listener] Room closed by host');
         enterStandby();
       });
+      socketService.onHostDisconnected(() => {
+        console.log('[Listener] Host disconnected unexpectedly');
+        setHostStatus('disconnected');
+      });
+      socketService.onHostReconnected(() => {
+        console.log('[Listener] Host reconnected successfully');
+        setHostStatus('connected');
+      });
       socketService.onAudioData((data, sampleRate, seq, timestamp) => {
         // console.log(`[Listener] Received audio chunk seq=${seq}`); // too noisy
         const base64Data = uint8ArrayToBase64(new Uint8Array(data));
@@ -175,6 +189,8 @@ export const useListener = () => {
       socketService.off('kicked');
       socketService.off('renamed');
       socketService.off('room-closed');
+      socketService.off('host-disconnected');
+      socketService.off('host-reconnected');
       socketService.off('audio-data');
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -262,6 +278,7 @@ export const useListener = () => {
     disconnect,
     toggleMute,
     audioLevel,
-    refreshConnection
+    refreshConnection,
+    hostStatus
   };
 };
