@@ -11,6 +11,9 @@ on:
         options:
           - production-aab
 
+permissions:
+  contents: read
+
 jobs:
   build-android-aab:
     runs-on: ubuntu-latest
