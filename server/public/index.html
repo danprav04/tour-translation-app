@@ -3,269 +3,154 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Download App</title>
-    <meta name="description" content="Download the latest version of our application securely and quickly.">
+    <title>Tourcast - Real-Time Tour Translation</title>
+    <meta name="description" content="Break language barriers on your next tour. Real-time translation for guides and listeners.">
     
-    <!-- Modern Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     
     <style>
         :root {
-            --primary: #6366f1;
-            --primary-hover: #4f46e5;
-            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
-            --glass-bg: rgba(255, 255, 255, 0.05);
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
+            --bg-color: #000000;
+            --text-main: #f5f5f7;
+            --text-muted: #86868b;
+            --border-color: #333336;
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
         body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: var(--bg-gradient);
-            color: var(--text-main);
             overflow: hidden;
-            position: relative;
+            /* Subtle dark grid background glow */
+            background-image: 
+                radial-gradient(circle at center, rgba(255,255,255,0.05) 0%, transparent 70%);
         }
 
-        /* Animated background elements */
-        .blob {
-            position: absolute;
-            filter: blur(80px);
-            z-index: 0;
-            opacity: 0.6;
-            animation: float 10s infinite ease-in-out alternate;
-        }
-
-        .blob-1 {
-            width: 300px;
-            height: 300px;
-            background: #818cf8;
-            top: -100px;
-            left: -100px;
-            border-radius: 50%;
-        }
-
-        .blob-2 {
-            width: 400px;
-            height: 400px;
-            background: #c084fc;
-            bottom: -150px;
-            right: -100px;
-            border-radius: 50%;
-            animation-delay: -5s;
-        }
-
-        @keyframes float {
-            0% { transform: translate(0, 0) scale(1); }
-            100% { transform: translate(30px, 50px) scale(1.1); }
-        }
-
-        /* Glassmorphism Card */
         .container {
-            position: relative;
-            z-index: 1;
-            background: var(--glass-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid var(--glass-border);
-            border-radius: 24px;
-            padding: 3rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             text-align: center;
-            max-width: 450px;
-            width: 90%;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            transform: translateY(0);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            padding: 2rem;
+            z-index: 2;
+            animation: fadeIn 1s ease-out forwards;
         }
 
-        .container:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6);
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Icon styling */
-        .icon-wrapper {
+        .icon-box {
             width: 80px;
             height: 80px;
-            background: linear-gradient(135deg, #818cf8, #c084fc);
-            border-radius: 24px;
+            background: linear-gradient(145deg, #1a1a1a, #0a0a0a);
+            border: 1px solid var(--border-color);
+            border-radius: 22px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 2rem;
-            box-shadow: 0 10px 20px rgba(129, 140, 248, 0.3);
-            animation: pulse 2.5s infinite;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.1);
         }
 
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(192, 132, 252, 0.4); }
-            70% { box-shadow: 0 0 0 20px rgba(192, 132, 252, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(192, 132, 252, 0); }
+        .icon-box svg {
+            width: 36px;
+            height: 36px;
+            color: #fff;
         }
 
-        .icon-wrapper svg {
-            width: 40px;
-            height: 40px;
-            color: white;
-        }
-
-        /* Typography */
         h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
+            font-size: 3.5rem;
+            font-weight: 600;
+            letter-spacing: -0.03em;
             margin-bottom: 1rem;
-            background: linear-gradient(to right, #fff, #c7d2fe);
+            background: linear-gradient(180deg, #fff 0%, #a1a1a6 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
-        p {
+        p.subtitle {
+            font-size: 1.25rem;
             color: var(--text-muted);
-            font-size: 1.1rem;
-            line-height: 1.6;
-            margin-bottom: 2.5rem;
-            font-weight: 300;
+            font-weight: 400;
+            max-width: 400px;
+            margin-bottom: 3rem;
+            line-height: 1.4;
         }
 
-        /* Button */
-        .download-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.75rem;
-            background: var(--primary);
-            color: white;
-            text-decoration: none;
-            padding: 1rem 2rem;
-            border-radius: 9999px;
-            font-size: 1.15rem;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-            width: 100%;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        .play-badge {
+            display: inline-block;
+            transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s ease;
         }
 
-        .download-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: left 0.5s ease;
-        }
-
-        .download-btn:hover {
-            background: var(--primary-hover);
+        .play-badge:hover {
             transform: scale(1.03);
-            box-shadow: 0 15px 30px -5px rgba(99, 102, 241, 0.5);
-            border-color: rgba(255, 255, 255, 0.3);
+            opacity: 0.9;
         }
 
-        .download-btn:hover::before {
-            left: 100%;
+        .play-badge img {
+            height: 60px;
+            width: auto;
         }
 
-        .download-btn svg {
-            width: 24px;
-            height: 24px;
-            transition: transform 0.3s ease;
+        footer {
+            position: absolute;
+            bottom: 2.5rem;
+            text-align: center;
+            width: 100%;
         }
 
-        .download-btn:hover svg {
-            transform: translateY(3px);
-        }
-
-        /* Meta info */
-        .meta-info {
-            margin-top: 1.5rem;
-            font-size: 0.9rem;
+        footer a {
             color: var(--text-muted);
-            display: flex;
-            justify-content: center;
-            gap: 1.25rem;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: color 0.2s;
         }
 
-        .meta-info span {
-            display: flex;
-            align-items: center;
-            gap: 0.35rem;
+        footer a:hover {
+            color: var(--text-main);
         }
 
-        .meta-info svg {
-            width: 16px;
-            height: 16px;
-        }
-
-        @media (max-width: 480px) {
-            .container {
-                padding: 2rem;
-                width: 95%;
-            }
-            h1 {
-                font-size: 2rem;
-            }
+        @media (max-width: 600px) {
+            h1 { font-size: 2.5rem; }
+            p.subtitle { font-size: 1.1rem; padding: 0 1rem; }
         }
     </style>
 </head>
 <body>
-    <div class="blob blob-1"></div>
-    <div class="blob blob-2"></div>
-
     <div class="container">
-        <div class="icon-wrapper">
-            <!-- App Icon / Package SVG -->
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
-                <line x1="12" y1="18" x2="12.01" y2="18"></line>
+        <div class="icon-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="22"></line>
             </svg>
         </div>
         
-        <h1>Download App</h1>
-        <p>Get the latest build directly to your device. Fast, secure, and ready to install.</p>
+        <h1>Tourcast</h1>
+        <p class="subtitle">Real-time audio translation for tours and events.</p>
         
-        <!-- The Download Button -->
-        <a href="https://github.com/danprav04/tour-translation-app/releases/download/v1.5.0/build-1.5.6.apk" class="download-btn" download>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-            Download APK
+        <a href="https://play.google.com/store/apps/details?id=com.danprav.tourcast" class="play-badge" target="_blank" rel="noopener noreferrer">
+            <img alt="Get it on Google Play" src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" />
         </a>
-
-        <!-- Additional trust indicators -->
-        <div class="meta-info">
-            <span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                </svg>
-                Secure
-            </span>
-            <span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                </svg>
-                Verified Build
-            </span>
-        </div>
     </div>
+
+    <footer>
+        <a href="/privacy.html">Privacy Policy</a>
+    </footer>
 </body>
 </html>
