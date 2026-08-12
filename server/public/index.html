@@ -92,55 +92,72 @@
             line-height: 1.4;
         }
 
-        .play-badge {
-            display: inline-block;
-            transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s ease;
-        }
-
-        .play-badge:hover {
-            transform: scale(1.03);
-            opacity: 0.9;
-        }
-
-        .play-badge img {
-            height: 60px;
-            width: auto;
-        }
-
         .buttons {
             display: flex;
             align-items: center;
-            gap: 1.5rem;
+            gap: 1rem;
             flex-wrap: wrap;
             justify-content: center;
         }
 
-        .github-btn {
+        .action-btn {
             display: flex;
             align-items: center;
-            gap: 0.6rem;
+            gap: 0.75rem;
             background-color: rgba(255, 255, 255, 0.05);
             color: var(--text-main);
             text-decoration: none;
-            padding: 0 1.5rem;
-            height: 44px;
+            padding: 0 1.25rem;
+            height: 48px;
             border-radius: 8px;
-            font-weight: 500;
-            font-size: 0.95rem;
             border: 1px solid rgba(255, 255, 255, 0.1);
             transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
         }
 
-        .github-btn:hover {
+        .action-btn:hover {
             background-color: rgba(255, 255, 255, 0.1);
             border-color: rgba(255, 255, 255, 0.2);
             transform: scale(1.03);
         }
 
+        .action-btn svg {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
         .github-btn svg {
-            width: 20px;
-            height: 20px;
+            width: 22px;
+            height: 22px;
             fill: currentColor;
+        }
+        
+        .btn-content {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+        }
+
+        .btn-sub {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            line-height: 1;
+            margin-bottom: 0.15rem;
+            font-weight: 500;
+        }
+
+        .btn-main {
+            font-size: 0.95rem;
+            font-weight: 600;
+            line-height: 1.1;
+            letter-spacing: -0.01em;
+        }
+        
+        .github-btn .btn-main {
+            font-size: 0.95rem;
+            font-weight: 500;
         }
 
         footer {
@@ -181,15 +198,24 @@
         <p class="subtitle">Real-time audio translation for tours and events.</p>
         
         <div class="buttons">
-            <a href="https://play.google.com/store/apps/details?id=com.danprav.tourcast" class="play-badge" target="_blank" rel="noopener noreferrer">
-                <img alt="Get it on Google Play" src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" />
+            <a href="https://play.google.com/store/apps/details?id=com.danprav.tourcast" class="action-btn" target="_blank" rel="noopener noreferrer">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3.193 2.146a1.53 1.53 0 0 0-.693 1.294v17.12a1.53 1.53 0 0 0 .693 1.294L13.8 12 3.193 2.146z" fill="#00a6ff"/>
+                    <path d="m14.545 11.29-10.606-9.91a1.53 1.53 0 0 1 1.096-.134l12.44 7.18-2.93 2.864z" fill="#00e676"/>
+                    <path d="M14.545 12.71 17.475 9.85l3.298 1.905c1.236.713 1.236 1.874 0 2.587l-3.298 1.905-2.93-2.865z" fill="#ffea00"/>
+                    <path d="m14.545 12.71-2.93 2.865-8.423 4.86a1.53 1.53 0 0 1-1.096-.134l10.606-9.91z" fill="#ff3d00"/>
+                </svg>
+                <div class="btn-content">
+                    <span class="btn-sub">GET IT ON</span>
+                    <span class="btn-main">Google Play</span>
+                </div>
             </a>
             
-            <a href="https://github.com/danprav04/tour-translation-app" class="github-btn" target="_blank" rel="noopener noreferrer">
+            <a href="https://github.com/danprav04/tour-translation-app" class="action-btn github-btn" target="_blank" rel="noopener noreferrer">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"></path>
                 </svg>
-                View on GitHub
+                <span class="btn-main">View on GitHub</span>
             </a>
         </div>
     </div>
