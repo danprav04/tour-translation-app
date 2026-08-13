@@ -16,57 +16,45 @@ class ForegroundService {
   }
 
   // The Headless JS task that runs in the background
-  private async backgroundTask(taskDataArguments: any) {
-    // We need to keep the background task alive
-    await new Promise(async (resolve) => {
-      // Start the CPU wakelock
-      BackgroundTimer.start();
-      
-      let reconnectAttempts = 0;
-      
-      const interval = BackgroundTimer.setInterval(async () => {
-        if (!BackgroundService.isRunning()) {
-          BackgroundTimer.clearInterval(interval);
-          resolve(null);
-          return;
+  private backgroundTask = async (taskDataArguments: any) => {
+    // Helper for sleep
+    const sleep = (time: number) => new Promise<void>((resolve) => setTimeout(resolve, time));
+    
+    let reconnectAttempts = 0;
+    
+    // react-native-background-actions already holds a PARTIAL_WAKE_LOCK,
+    // so standard setTimeout (via sleep) will work reliably here.
+    while (BackgroundService.isRunning()) {
+      // Background reconnection logic
+      try {
+        if (!socketService.isConnected()) {
+           console.log('[ForegroundService] Background task detected disconnected socket, refreshing...');
+           socketService.refreshConnection();
+           reconnectAttempts++;
+        } else {
+           reconnectAttempts = 0;
         }
-        
-        // Background reconnection logic
-        try {
-          if (!socketService.isConnected()) {
-             console.log('[ForegroundService] Background task detected disconnected socket, refreshing...');
-             socketService.refreshConnection();
-             reconnectAttempts++;
-          } else {
-             reconnectAttempts = 0;
-          }
-        } catch (e) {
-          console.warn('[ForegroundService] Reconnect failed in background', e);
-        }
+      } catch (e) {
+        console.warn('[ForegroundService] Reconnect failed in background', e);
+      }
 
-        // Flush state to AsyncStorage for recovery
-        try {
-          const sessionState = await AsyncStorage.getItem('activeSession');
-          // Arrow function captures 'this' from class
-          if (sessionState && this.hostState) {
-            const parsed = JSON.parse(sessionState);
-            parsed.wasMicActive = this.hostState.isMicActive ?? parsed.wasMicActive;
-            parsed.wasTranslating = this.hostState.isTranslating ?? parsed.wasTranslating;
-            parsed.targetLanguage = this.hostState.targetLanguage ?? parsed.targetLanguage;
-            await AsyncStorage.setItem('activeSession', JSON.stringify(parsed));
-          }
-        } catch (e) {
-          // Ignore
+      // Flush state to AsyncStorage for recovery
+      try {
+        const sessionState = await AsyncStorage.getItem('activeSession');
+        if (sessionState && this.hostState) {
+          const parsed = JSON.parse(sessionState);
+          parsed.wasMicActive = this.hostState.isMicActive ?? parsed.wasMicActive;
+          parsed.wasTranslating = this.hostState.isTranslating ?? parsed.wasTranslating;
+          parsed.targetLanguage = this.hostState.targetLanguage ?? parsed.targetLanguage;
+          await AsyncStorage.setItem('activeSession', JSON.stringify(parsed));
         }
-      }, 15000); // Check every 15 seconds
-      
-      // Cleanup when stopped
-      BackgroundService.on('expiration', () => {
-         BackgroundTimer.clearInterval(interval);
-         resolve(null);
-      });
-    });
-  }
+      } catch (e) {
+        // Ignore
+      }
+
+      await sleep(15000); // Wait 15 seconds before the next iteration
+    }
+  };
 
   async start(title: string, body: string, role: 'host' | 'listener') {
     if (this.isRunning) return;
