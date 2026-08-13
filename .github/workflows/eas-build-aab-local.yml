@@ -18,6 +18,17 @@ jobs:
   build-android-aab:
     runs-on: ubuntu-latest
     steps:
+      - name: 🗑 Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: false # we need android sdk
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
       - name: 🏗 Setup repo
         uses: actions/checkout@v4
 
@@ -46,6 +57,7 @@ jobs:
         run: eas build --platform android --profile ${{ github.event.inputs.profile }} --local --non-interactive --output ./app-build.aab
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          GRADLE_OPTS: "-Xmx4096m -XX:MaxMetaspaceSize=512m -Dorg.gradle.workers.max=1 -Dorg.gradle.parallel=false -Dorg.gradle.caching=true"
 
       - name: 📤 Upload AAB Artifact
         uses: actions/upload-artifact@v4
