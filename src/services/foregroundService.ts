@@ -21,6 +21,7 @@ class ForegroundService {
     const sleep = (time: number) => new Promise<void>((resolve) => setTimeout(resolve, time));
     
     let reconnectAttempts = 0;
+    let nextUpdate = Date.now() + 60000;
     
     // react-native-background-actions already holds a PARTIAL_WAKE_LOCK,
     // so standard setTimeout (via sleep) will work reliably here.
@@ -28,7 +29,7 @@ class ForegroundService {
       // Background reconnection logic
       try {
         if (!socketService.isConnected()) {
-           console.log('[ForegroundService] Background task detected disconnected socket, refreshing...');
+           console.log(`[ForegroundService] Background task detected disconnected socket, refreshing (attempt ${reconnectAttempts + 1})...`);
            socketService.refreshConnection();
            reconnectAttempts++;
         } else {
@@ -52,7 +53,23 @@ class ForegroundService {
         // Ignore
       }
 
-      await sleep(15000); // Wait 15 seconds before the next iteration
+      // Keep notification fresh so Android knows the service is active
+      if (Date.now() >= nextUpdate) {
+          try {
+              await BackgroundService.updateNotification({ 
+                  taskDesc: socketService.isConnected() ? 'Connected • Tour Active' : 'Reconnecting...' 
+              });
+              nextUpdate = Date.now() + 60000;
+          } catch (e) {
+              console.warn('[ForegroundService] Failed to update notification', e);
+          }
+      }
+
+      // Exponential backoff: 15s, 30s, 60s, up to 5 mins max
+      const sleepDuration = socketService.isConnected() 
+        ? 15000 
+        : Math.min(15000 * Math.pow(2, reconnectAttempts), 300000);
+      await sleep(sleepDuration);
     }
   };
 
@@ -71,8 +88,8 @@ class ForegroundService {
         color: '#0A0E1A',
         linkingURI: 'tourcast://', // Optional: open app when notification is clicked
         foregroundServiceType: role === 'host' 
-          ? ['microphone', 'dataSync', 'mediaPlayback'] 
-          : ['dataSync', 'mediaPlayback'],
+          ? ['microphone', 'mediaPlayback'] 
+          : ['mediaPlayback'],
         parameters: {
           role,
         },
@@ -80,9 +97,13 @@ class ForegroundService {
 
       await BackgroundService.start(this.backgroundTask, options);
       this.isRunning = true;
-    } catch (e) {
+    } catch (e: any) {
       console.error('Failed to start background service', e);
-      throw e;
+      if (e?.message && e.message.includes('ForegroundServiceStartNotAllowedException')) {
+        console.warn('Foreground service blocked by Android 12+ background start restrictions');
+      } else {
+        throw e;
+      }
     }
   }
 

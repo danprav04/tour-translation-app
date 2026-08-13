@@ -25,6 +25,8 @@ interface HealthState {
   lastListenerResyncAt: number;
   lastMicActivityAt: number;
   lastTranslationStartedAt: number;
+  totalRecoveryAttempts: number;
+  nextAllowedRecoveryAt: number;
 }
 
 const HEALTH_CHECK_INTERVAL = 30_000;       // Check socket health every 30s
@@ -54,6 +56,8 @@ class ConnectionHealthService {
     lastListenerResyncAt: 0,
     lastMicActivityAt: 0,
     lastTranslationStartedAt: 0,
+    totalRecoveryAttempts: 0,
+    nextAllowedRecoveryAt: 0,
   };
 
   private healthCheckInterval: number | null = null;
@@ -206,6 +210,7 @@ class ConnectionHealthService {
         } else {
           if (!this.state.socketHealthy) {
             this.state.socketHealthy = true;
+            this.state.totalRecoveryAttempts = 0; // Reset backoff
             this.notifyStatusChange();
           }
           this.state.consecutiveSocketFailures = 0;
@@ -215,6 +220,7 @@ class ConnectionHealthService {
 
     this.healthCheckInterval = BackgroundTimer.setInterval(() => {
       if (!this.isRunning) return;
+      if (Date.now() < this.state.nextAllowedRecoveryAt) return; // Backing off during Doze/network drop
 
       // Check if previous health check timed out
       if (this.state.pendingHealthCheckNonce !== null) {
@@ -229,6 +235,13 @@ class ConnectionHealthService {
           if (this.state.consecutiveSocketFailures >= MAX_SOCKET_FAILURES) {
             console.log('[HealthMonitor] Too many failures, initiating socket recovery...');
             this.state.consecutiveSocketFailures = 0;
+            this.state.totalRecoveryAttempts += 1;
+            
+            // Exponential backoff up to 5 minutes
+            const backoffDelay = Math.min(30000 * Math.pow(2, this.state.totalRecoveryAttempts - 1), 300000);
+            this.state.nextAllowedRecoveryAt = Date.now() + backoffDelay;
+            console.log(`[HealthMonitor] Backing off health checks for ${backoffDelay}ms due to network suspension`);
+
             if (this.role === 'host' && this.callbacks.onSignalingSocketRecovery) {
               this.callbacks.onSignalingSocketRecovery();
             } else {
@@ -456,6 +469,8 @@ class ConnectionHealthService {
       lastListenerResyncAt: 0,
       lastMicActivityAt: 0,
       lastTranslationStartedAt: 0,
+      totalRecoveryAttempts: 0,
+      nextAllowedRecoveryAt: 0,
     };
     this.isMicActive = false;
     this.isTranslating = false;

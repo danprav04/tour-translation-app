@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Modal } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Modal, Platform } from 'react-native';
 import * as Battery from 'expo-battery';
 import * as IntentLauncher from 'expo-intent-launcher';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+import * as Device from 'expo-device';
 
 interface BatteryOptimizationGuardProps {
   children: React.ReactNode;
@@ -13,6 +15,8 @@ const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export default function BatteryOptimizationGuard({ children }: BatteryOptimizationGuardProps) {
   const [showPrompt, setShowPrompt] = useState(false);
+  const manufacturer = Device.manufacturer?.toLowerCase() || '';
+  const isAggressiveOEM = ['samsung', 'xiaomi', 'huawei', 'oneplus', 'oppo', 'vivo'].includes(manufacturer);
 
   useEffect(() => {
     checkBatteryOptimization();
@@ -42,9 +46,14 @@ export default function BatteryOptimizationGuard({ children }: BatteryOptimizati
 
   const handleFix = async () => {
     try {
-      await IntentLauncher.startActivityAsync(
-        IntentLauncher.ActivityAction.IGNORE_BATTERY_OPTIMIZATION_SETTINGS
-      );
+      if (Platform.OS === 'android') {
+        const pkg = Constants.expoConfig?.android?.package || 'com.tourcast.app';
+        await IntentLauncher.startActivityAsync(
+          'android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
+          { data: `package:${pkg}` }
+        );
+      }
+      
       // Wait a moment and then check if they fixed it
       setTimeout(async () => {
         const isEnabled = await Battery.isBatteryOptimizationEnabledAsync();
@@ -53,7 +62,14 @@ export default function BatteryOptimizationGuard({ children }: BatteryOptimizati
         }
       }, 3000);
     } catch (e) {
-      console.warn('Failed to launch intent', e);
+      console.warn('Failed to launch direct intent, falling back to general settings', e);
+      try {
+        await IntentLauncher.startActivityAsync(
+          IntentLauncher.ActivityAction.IGNORE_BATTERY_OPTIMIZATION_SETTINGS
+        );
+      } catch (fallbackErr) {
+        console.warn('Fallback intent failed', fallbackErr);
+      }
     }
   };
 
@@ -83,6 +99,12 @@ export default function BatteryOptimizationGuard({ children }: BatteryOptimizati
               Your phone's battery saver may disconnect you during the tour. 
               Tap 'Fix' to allow Tour Translator to run in the background.
             </Text>
+            
+            {Platform.OS === 'android' && isAggressiveOEM && (
+              <Text style={styles.oemText}>
+                Note: On {Device.manufacturer} devices, you may also need to check your device's "App Launch", "Deep Sleep", or "Pause app activity" settings to prevent the app from being restricted.
+              </Text>
+            )}
             
             <View style={styles.actions}>
               <Pressable
@@ -140,6 +162,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 24,
+  },
+  oemText: {
+    color: '#FFAB00',
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 24,
+    backgroundColor: 'rgba(255, 171, 0, 0.1)',
+    padding: 10,
+    borderRadius: 8,
   },
   actions: {
     width: '100%',
