@@ -21,21 +21,25 @@ import '@/services/foregroundService';
 
 import VersionCheck from '@/components/VersionCheck';
 
+import { DatabaseProvider } from '@/context/DatabaseContext';
+
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <SettingsProvider>
         <DebugProvider>
-          <StatusBar style="light" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: '#0A0E1A' },
-              animation: 'fade',
-            }}
-          />
-          <BugReportButton />
-          <VersionCheck />
+          <DatabaseProvider>
+            <StatusBar style="light" />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: '#0A0E1A' },
+                animation: 'fade',
+              }}
+            />
+            <BugReportButton />
+            <VersionCheck />
+          </DatabaseProvider>
         </DebugProvider>
       </SettingsProvider>
     </SafeAreaProvider>

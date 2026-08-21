@@ -100,13 +100,22 @@ export default function HomeScreen() {
           </GlassCard>
         </View>
 
-        {/* Settings link */}
-        <Pressable
-          onPress={() => router.push('/settings')}
-          style={({ pressed }) => [styles.settingsLink, pressed && styles.pressed]}
-        >
-          <Text style={styles.settingsText}>⚙️ Settings</Text>
-        </Pressable>
+        {/* Bottom links */}
+        <View style={styles.bottomLinks}>
+          <Pressable
+            onPress={() => router.push('/history')}
+            style={({ pressed }) => [styles.bottomLink, pressed && styles.pressed]}
+          >
+            <Text style={styles.bottomLinkText}>📚 History</Text>
+          </Pressable>
+          
+          <Pressable
+            onPress={() => router.push('/settings')}
+            style={({ pressed }) => [styles.bottomLink, pressed && styles.pressed]}
+          >
+            <Text style={styles.bottomLinkText}>⚙️ Settings</Text>
+          </Pressable>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -209,14 +218,18 @@ const styles = StyleSheet.create({
   listenerBadgeText: {
     color: '#7C5CFC',
   },
-  settingsLink: {
-    alignSelf: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+  bottomLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 32,
     marginBottom: 20,
     marginTop: 24,
   },
-  settingsText: {
+  bottomLink: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  bottomLinkText: {
     color: 'rgba(255,255,255,0.5)',
     fontSize: 15,
     fontWeight: '500',

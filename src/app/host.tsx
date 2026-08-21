@@ -30,6 +30,7 @@ import QRCodeDisplay from '@/components/QRCodeDisplay';
 import ListenerCard from '@/components/ListenerCard';
 import AudioRoutePicker from '@/components/AudioRoutePicker';
 import AudioVisualizer from '@/components/AudioVisualizer';
+import LiveTranscriptPanel from '@/components/LiveTranscriptPanel';
 import { ConnectionState, type Participant } from 'livekit-client';
 import BatteryOptimizationGuard from '@/components/BatteryOptimizationGuard';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
@@ -194,6 +195,7 @@ export default function HostScreen() {
   }, []);
 
   const {
+    transcript,
     roomCode,
     livekitToken,
     livekitUrl,
@@ -668,6 +670,15 @@ export default function HostScreen() {
             />
           </GlassCard>
         )}
+
+        {/* Live Transcript Panel */}
+        <LiveTranscriptPanel
+          finalChunks={transcript.finalChunks}
+          interimText={transcript.interimText}
+          displayMode={transcript.displayMode}
+          onDisplayModeChange={transcript.setDisplayMode}
+          isActive={transcript.isActive}
+        />
 
         {/* ─── TTS Panel ─── */}
         {false && (

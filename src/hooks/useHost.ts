@@ -12,6 +12,7 @@ import foregroundService from '@/services/foregroundService';
 import audioService from '@/services/audioService';
 import socketService, { ListenerInfo } from '@/services/socketService';
 import connectionHealthService from '@/services/connectionHealthService';
+import { useTranscript } from './useTranscript';
 
 const generateRoomCode = () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -25,6 +26,7 @@ const generateRoomCode = () => {
 export const useHost = () => {
   const { settings, updateSettings } = useSettingsContext();
   const { addDebugEvent, setDebugState } = useDebugContext();
+  const transcript = useTranscript();
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [listeners, setListeners] = useState<ListenerInfo[]>([]);
   const [isMicActive, setIsMicActive] = useState(false);
@@ -211,6 +213,7 @@ export const useHost = () => {
     // Unconditionally clean up translation state
     isTranslatingRef.current = false;
     geminiTranslateService.disconnect();
+    transcript.stopTranscription();
     setIsTranslating(false);
     
     // Unconditionally stop mic capture to prevent zombie streams
@@ -238,6 +241,7 @@ export const useHost = () => {
     if (isTranslatingRef.current) {
       // In both legacy and LiveKit mode, if translating, send to Gemini
       geminiTranslateService.sendAudioChunk(base64Data);
+      transcript.sendAudioChunk(base64Data);
     } else if (settings.useLegacyWebSockets) {
       // If not translating, only legacy mode broadcasts raw audio chunks
       const binaryString = atob(base64Data);
@@ -351,6 +355,15 @@ export const useHost = () => {
         throw new Error('Gemini API key is not configured. Please add it in Settings.');
       }
       await geminiTranslateService.connect(settings.geminiApiKey, langCode);
+      
+      // Start parallel transcription service
+      try {
+        if (!isReconnect) {
+          await transcript.startTranscription(settings.geminiApiKey, 'auto', langCode, roomCode || undefined);
+        }
+      } catch (err) {
+        console.error('Failed to start transcription service', err);
+      }
       
       // On success, reset the reconnect flag
       isReconnectingGeminiRef.current = false;
@@ -616,6 +629,7 @@ export const useHost = () => {
     isReconnectingGeminiRef.current = false;
     connectionHealthService.setGeminiReconnecting(false);
     geminiTranslateService.disconnect();
+    transcript.stopTranscription();
     setIsTranslating(false);
     
     // If LiveKit mode and the mic is on, stop our manual capture so LiveKit can take it back
@@ -694,6 +708,7 @@ export const useHost = () => {
   }, []);
 
   return {
+    transcript,
     roomCode,
     livekitToken,
     livekitUrl,
