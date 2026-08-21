@@ -12,6 +12,7 @@ export const useTranscript = () => {
   const [interimText, setInterimText] = useState<string>('');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('both');
   const [isActive, setIsActive] = useState(false);
+  const isActiveRef = useRef(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   const chunkSequenceRef = useRef(0);
@@ -112,9 +113,11 @@ export const useTranscript = () => {
       });
 
       setIsActive(true);
+      isActiveRef.current = true;
     } catch (err) {
       console.error('[useTranscript] Failed to start transcription:', err);
       setIsActive(false);
+      isActiveRef.current = false;
       throw err;
     }
   }, [db]);
@@ -122,6 +125,7 @@ export const useTranscript = () => {
   const stopTranscription = useCallback(async () => {
     transcriptionService.disconnect();
     setIsActive(false);
+    isActiveRef.current = false;
     
     if (sessionIdRef.current) {
       await db.finalizeSession(sessionIdRef.current);
@@ -131,12 +135,10 @@ export const useTranscript = () => {
   }, [db]);
 
   const sendAudioChunk = useCallback((base64Data: string) => {
-    if (isActive) {
+    if (isActiveRef.current) {
       transcriptionService.sendAudioChunk(base64Data);
-    } else {
-      // console.log('[useTranscript] sendAudioChunk ignored because not active');
     }
-  }, [isActive]);
+  }, []);
 
   return {
     finalChunks,
