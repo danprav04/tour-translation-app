@@ -37,7 +37,7 @@ describe('TranscriptionService', () => {
     
     expect(ws.send).toHaveBeenCalled();
     const setupMsg = JSON.parse(ws.send.mock.calls[0][0]);
-    expect(setupMsg.setup.model).toBe('models/gemini-3-flash-live');
+    expect(setupMsg.setup.model).toBe('models/gemini-3-flash');
     expect(setupMsg.setup.generationConfig.responseModalities).toEqual(['TEXT']);
 
     // Trigger setup complete

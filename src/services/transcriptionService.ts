@@ -9,18 +9,9 @@ class TranscriptionService {
   private keepaliveInterval: ReturnType<typeof setInterval> | null = null;
   private accumulatedInterim: string = '';
 
-  async connect(apiKey: string): Promise<void> {
-    if (this.ws) {
-      this.disconnect();
-    }
-    this.currentApiKey = apiKey;
-    this.connectionState = 'connecting';
-    this.accumulatedInterim = '';
-
-    // We use gemini-3-flash-live as instructed
-    const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
-
+  private async connectWithModel(apiKey: string, modelName: string, version: string = 'v1alpha'): Promise<void> {
     return new Promise((resolve, reject) => {
+      const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.${version}.GenerativeService.BidiGenerateContent?key=${apiKey}`;
       const ws = new WebSocket(url);
       this.ws = ws;
 
@@ -29,10 +20,10 @@ class TranscriptionService {
       ws.onopen = () => {
         if (this.ws !== ws) return;
         
-        console.log('[Transcription WS] Connected. Sending setup...');
+        console.log(`[Transcription WS] Connected. Sending setup for model: ${modelName}...`);
         const setupMessage = {
           setup: {
-            model: "models/gemini-3.1-flash-live-preview",
+            model: modelName,
             generationConfig: {
               responseModalities: ["TEXT"],
             },
@@ -60,10 +51,10 @@ class TranscriptionService {
           if (typeof event.data === 'string') {
             messageText = event.data;
           } else if (event.data instanceof Blob) {
-            messageText = await new Promise((resolve, reject) => {
+            messageText = await new Promise((res, rej) => {
               const reader = new FileReader();
-              reader.onload = () => resolve(reader.result as string);
-              reader.onerror = reject;
+              reader.onload = () => res(reader.result as string);
+              reader.onerror = rej;
               reader.readAsText(event.data);
             });
           } else if (event.data instanceof ArrayBuffer) {
@@ -84,14 +75,8 @@ class TranscriptionService {
           const messages = Array.isArray(message) ? message : [message];
 
           for (const msg of messages) {
-            // Add detailed debug logging for transcription responses
-            console.log('[Transcription WS] Received message keys:', Object.keys(msg));
-            if (msg.serverContent) {
-               console.log('[Transcription WS] serverContent:', JSON.stringify(msg.serverContent, null, 2));
-            }
-
             if (msg.setupComplete) {
-              console.log('[Transcription WS] Setup complete received.');
+              console.log(`[Transcription WS] Setup complete received for ${modelName}.`);
               this.connectionState = 'connected';
               isSetupComplete = true;
               this.startKeepalive();
@@ -100,8 +85,6 @@ class TranscriptionService {
               const parts = msg.serverContent.modelTurn.parts;
               for (const part of parts) {
                 if (part.text) {
-                  // For live API, text parts are usually interim until turnComplete
-                  console.log('[Transcription WS] received text part:', part.text);
                   this.accumulatedInterim += part.text;
                   if (this.onInterimTextCallback) {
                     this.onInterimTextCallback(this.accumulatedInterim);
@@ -111,8 +94,6 @@ class TranscriptionService {
             } 
             
             if (msg.serverContent?.turnComplete) {
-              console.log('[Transcription WS] turnComplete received. Accumulated:', this.accumulatedInterim);
-              // The API has finished an utterance turn (silence detected)
               if (this.accumulatedInterim.trim() && this.onFinalTextCallback) {
                 this.onFinalTextCallback(this.accumulatedInterim.trim());
               }
@@ -123,9 +104,9 @@ class TranscriptionService {
             }
 
             if (msg.error) {
-              console.error('[Transcription WS] Error from server:', msg.error);
+              console.error(`[Transcription WS] Error from server for ${modelName}:`, msg.error);
               const err = new Error(msg.error.message || 'Server returned an error');
-              if (this.onErrorCallback) {
+              if (this.onErrorCallback && isSetupComplete) {
                 this.onErrorCallback(err);
               }
               reject(err);
@@ -133,7 +114,7 @@ class TranscriptionService {
           }
         } catch (error) {
           console.error('[Transcription WS] Failed in onmessage:', error);
-          if (this.onErrorCallback) {
+          if (this.onErrorCallback && isSetupComplete) {
             this.onErrorCallback(error instanceof Error ? error : new Error('Unknown error parsing message'));
           }
         }
@@ -142,9 +123,9 @@ class TranscriptionService {
       ws.onerror = () => {
         if (this.ws !== ws) return;
         
-        console.error('[Transcription WS] WebSocket error observed');
+        console.error(`[Transcription WS] WebSocket error observed for ${modelName}`);
         this.connectionState = 'disconnected';
-        if (this.onErrorCallback) {
+        if (this.onErrorCallback && isSetupComplete) {
           this.onErrorCallback(new Error('WebSocket connection failed.'));
         }
         reject(new Error('WebSocket connection failed.'));
@@ -159,12 +140,50 @@ class TranscriptionService {
         }
         if (!isSetupComplete) {
           reject(new Error(`WebSocket closed before setup: ${event.reason}`));
-        }
-        if (this.onCloseCallback) {
+        } else if (this.onCloseCallback) {
           this.onCloseCallback();
         }
       };
     });
+  }
+
+  async connect(apiKey: string): Promise<void> {
+    if (this.ws) {
+      this.disconnect();
+    }
+    this.currentApiKey = apiKey;
+    this.connectionState = 'connecting';
+    this.accumulatedInterim = '';
+
+    const modelsToTry = [
+      "models/gemini-2.0-flash",
+      "models/gemini-2.5-flash",
+      "models/gemini-3.0-flash",
+      "models/gemini-3.5-flash",
+      "models/gemini-2.0-flash-lite",
+      "models/gemini-2.0-pro-exp",
+      "models/gemini-2.0-flash-exp"
+    ];
+
+    const versionsToTry = ["v1alpha", "v1beta", "v1"];
+
+    let lastError: Error | null = null;
+    
+    for (const version of versionsToTry) {
+      for (const model of modelsToTry) {
+        try {
+          await this.connectWithModel(apiKey, model, version);
+          return; // Success!
+        } catch (err) {
+          console.warn(`[Transcription WS] Model ${model} on ${version} failed:`, err instanceof Error ? err.message : String(err));
+          lastError = err instanceof Error ? err : new Error(String(err));
+        }
+      }
+    }
+    
+    // If we reach here, all combinations failed
+    this.connectionState = 'disconnected';
+    throw lastError || new Error('All model and version fallbacks failed');
   }
 
   startKeepalive(): void {
