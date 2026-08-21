@@ -110,7 +110,9 @@ export default function SessionDetailScreen() {
       <View style={styles.metaContainer}>
         <Text style={styles.metaTitle}>{session.title}</Text>
         <View style={styles.metaRow}>
-          <Text style={styles.metaText}>⏱️ {Math.ceil(session.durationMs / 60000)} min</Text>
+          <Text style={styles.metaText}>
+            ⏱️ {Math.ceil((session.durationMs > 1000000000000 ? session.durationMs - session.createdAt : session.durationMs) / 60000)} min
+          </Text>
           <View style={styles.langBadge}>
             <Text style={styles.langBadgeText}>
               {session.sourceLang.toUpperCase()} ➔ {session.targetLang.toUpperCase()}

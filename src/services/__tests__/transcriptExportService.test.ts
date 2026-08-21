@@ -1,7 +1,7 @@
 import { TranscriptExportService } from '../transcriptExportService';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 jest.mock('expo-print', () => ({
   printToFileAsync: jest.fn().mockResolvedValue({ uri: 'file://test.pdf' })
@@ -11,7 +11,7 @@ jest.mock('expo-sharing', () => ({
   shareAsync: jest.fn().mockResolvedValue(true)
 }));
 
-jest.mock('expo-file-system', () => ({
+jest.mock('expo-file-system/legacy', () => ({
   writeAsStringAsync: jest.fn().mockResolvedValue(true),
   cacheDirectory: 'file://cache/',
   EncodingType: { UTF8: 'utf8' }

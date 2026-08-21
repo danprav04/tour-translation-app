@@ -107,7 +107,7 @@ export class TranscriptDatabaseService {
       await this.db.runAsync(
         `UPDATE tour_sessions 
          SET chunk_count = chunk_count + 1,
-             duration_ms = MAX(duration_ms, ?)
+             duration_ms = ? - created_at
          WHERE id = ?`,
         [chunk.timestampMs, chunk.sessionId]
       );
@@ -117,8 +117,8 @@ export class TranscriptDatabaseService {
   async finalizeSession(sessionId: string): Promise<void> {
     const now = Date.now();
     await this.db.runAsync(
-      `UPDATE tour_sessions SET ended_at = ? WHERE id = ?`,
-      [now, sessionId]
+      `UPDATE tour_sessions SET ended_at = ?, duration_ms = ? - created_at WHERE id = ?`,
+      [now, now, sessionId]
     );
   }
 
