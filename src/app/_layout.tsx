@@ -3,13 +3,20 @@ import { StatusBar } from 'expo-status-bar';
 import { SettingsProvider } from '@/context/SettingsContext';
 import { DebugProvider } from '@/context/DebugContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { LogBox } from 'react-native';
+import { LogBox, Alert } from 'react-native';
 import BugReportButton from '@/components/BugReportButton';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { registerGlobals } from '@livekit/react-native';
+import { CustomAlert } from '@/components/CustomAlert';
 
 registerGlobals();
+
+// Override the native Alert to use our CustomAlert globally
+const originalAlert = Alert.alert;
+Alert.alert = (title: string, message?: string, buttons?: any[], options?: any) => {
+  CustomAlert.alert(title, message, buttons);
+};
 
 // Ignore the common NativeEventEmitter warnings from older native modules
 LogBox.ignoreLogs([
@@ -21,6 +28,7 @@ LogBox.ignoreLogs([
 import '@/services/foregroundService';
 
 import VersionCheck from '@/components/VersionCheck';
+import { GlobalCustomAlert } from '@/components/CustomAlert';
 
 import { DatabaseProvider } from '@/context/DatabaseContext';
 
@@ -41,6 +49,7 @@ export default function RootLayout() {
               />
               <BugReportButton />
               <VersionCheck />
+              <GlobalCustomAlert />
             </DatabaseProvider>
           </DebugProvider>
         </SettingsProvider>
