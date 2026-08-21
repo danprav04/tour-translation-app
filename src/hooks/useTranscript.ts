@@ -100,11 +100,27 @@ export const useTranscript = () => {
             translatedText
           });
         } catch (err) {
-          console.error('[useTranscript] Failed to translate or save chunk:', err);
+          console.error('[useTranscript] Failed to translate chunk:', err);
+          
+          const failedText = `[Translation failed] ${text}`;
+
           // Fallback UI update if translation failed completely
           setFinalChunks(prev => 
-            prev.map(c => c.sequence === seq ? { ...c, translatedText: '[Translation failed]' } : c)
+            prev.map(c => c.sequence === seq ? { ...c, translatedText: failedText } : c)
           );
+
+          // Save to database anyway so original text isn't lost
+          try {
+            await db.insertChunk({
+              sessionId: sessionIdRef.current,
+              sequence: seq,
+              timestampMs,
+              originalText: text,
+              translatedText: failedText
+            });
+          } catch (dbErr) {
+            console.error('[useTranscript] Failed to save chunk after translation failure:', dbErr);
+          }
         }
       });
 

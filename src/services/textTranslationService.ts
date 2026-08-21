@@ -52,16 +52,19 @@ export class TextTranslationService {
 
       return translatedText.trim();
     } catch (error) {
-      if (!isFallback) {
-        console.warn(`[TextTranslationService] Primary model failed, falling back to ${this.FALLBACK_MODEL}...`, error);
-        // Add exponential backoff for the retry
-        await new Promise(resolve => setTimeout(resolve, 500));
+      if (retryCount < 3) {
+        console.warn(`[TextTranslationService] Model ${model} failed (attempt ${retryCount + 1}/4), retrying...`, error);
+        
+        const errorMessage = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+        const isQuotaError = errorMessage.includes('429') || errorMessage.includes('quota');
+        const delay = isQuotaError ? 1000 : 2000;
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
         return this.translateText(text, sourceLang, targetLang, apiKey, customPromptInjection, retryCount + 1);
       }
       
-      console.error(`[TextTranslationService] Fallback model also failed.`, error);
-      // Return original text prefixed with error indicator so feed doesn't crash
-      return `[Translation failed] ${text}`;
+      console.error(`[TextTranslationService] All models failed after 3 retries.`, error);
+      throw error;
     }
   }
 }

@@ -1,7 +1,7 @@
 {
   "name": "tour-translation-app",
   "main": "expo-router/entry",
-  "version": "1.5.8",
+  "version": "1.5.9",
   "dependencies": {
     "@config-plugins/react-native-webrtc": "^15.0.1",
     "@expo/vector-icons": "^15.0.2",
