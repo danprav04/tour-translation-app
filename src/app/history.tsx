@@ -119,7 +119,7 @@ export default function HistoryScreen() {
 
   const renderItem = ({ item }: { item: TourSession }) => (
     <Swipeable renderRightActions={() => renderRightActions(item)}>
-      <Pressable onPress={() => router.push(\`/session-detail?id=\${item.id}\`)}>
+      <Pressable onPress={() => router.push(`/session-detail?id=${item.id}`)}>
         <GlassCard style={styles.sessionCard}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>{item.title}</Text>
