@@ -26,8 +26,8 @@ class TranscriptionService {
             model: modelName,
             generationConfig: {
               responseModalities: ["AUDIO"],
+              inputAudioTranscription: {},
             },
-            inputAudioTranscription: {},
             systemInstruction: {
               parts: [{ text: "Listen to the audio input." }]
             },

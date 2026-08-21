@@ -5,6 +5,7 @@ import { DebugProvider } from '@/context/DebugContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LogBox } from 'react-native';
 import BugReportButton from '@/components/BugReportButton';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { registerGlobals } from '@livekit/react-native';
 
@@ -25,23 +26,25 @@ import { DatabaseProvider } from '@/context/DatabaseContext';
 
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <SettingsProvider>
-        <DebugProvider>
-          <DatabaseProvider>
-            <StatusBar style="light" />
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: '#0A0E1A' },
-                animation: 'fade',
-              }}
-            />
-            <BugReportButton />
-            <VersionCheck />
-          </DatabaseProvider>
-        </DebugProvider>
-      </SettingsProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <SettingsProvider>
+          <DebugProvider>
+            <DatabaseProvider>
+              <StatusBar style="light" />
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: '#0A0E1A' },
+                  animation: 'fade',
+                }}
+              />
+              <BugReportButton />
+              <VersionCheck />
+            </DatabaseProvider>
+          </DebugProvider>
+        </SettingsProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

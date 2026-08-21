@@ -40,7 +40,7 @@ describe('TranscriptionService', () => {
     const setupMsg = JSON.parse(ws.send.mock.calls[0][0]);
     expect(setupMsg.setup.model).toBe('models/gemini-3.1-flash-live-preview');
     expect(setupMsg.setup.generationConfig.responseModalities).toEqual(['AUDIO']);
-    expect(setupMsg.setup.inputAudioTranscription).toEqual({});
+    expect(setupMsg.setup.generationConfig.inputAudioTranscription).toEqual({});
 
     // Trigger setup complete
     ws.onmessage({ data: JSON.stringify({ setupComplete: true }) });
