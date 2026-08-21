@@ -90,6 +90,19 @@ export default function SettingsScreen() {
     });
   };
 
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      handleSave();
+    }, 100);
+    return () => clearTimeout(timeoutId);
+  }, [
+    serverUrl,
+    apiKey,
+    deviceName,
+    customTextPromptInjection,
+    customVoicePromptInjection,
+  ]);
+
   const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? packageJson.version ?? '1.0.0';
   const fullVersion = `${appVersion}.${appSubversion}`;
   const appName = Constants.expoConfig?.name ?? 'TourCast';
