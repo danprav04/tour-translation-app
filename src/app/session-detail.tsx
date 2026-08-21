@@ -6,6 +6,7 @@ import { useDatabaseContext } from '@/context/DatabaseContext';
 import { TourSession, TranscriptChunk } from '@/services/transcriptDatabase';
 import { TranscriptExportService } from '@/services/transcriptExportService';
 import TranscriptChunkRow from '@/components/TranscriptChunkRow';
+import CustomModal from '@/components/CustomModal';
 import { DisplayMode } from '@/hooks/useTranscript';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -19,6 +20,7 @@ export default function SessionDetailScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [displayMode, setDisplayMode] = useState<DisplayMode>('both');
   const [isExporting, setIsExporting] = useState(false);
+  const [exportModalVisible, setExportModalVisible] = useState(false);
 
   useEffect(() => {
     const loadSession = async () => {
@@ -59,24 +61,7 @@ export default function SessionDetailScreen() {
   };
 
   const showExportMenu = () => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', 'Export as PDF', 'Export as Text File'],
-          cancelButtonIndex: 0,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) handleExport('pdf');
-          if (buttonIndex === 2) handleExport('text');
-        }
-      );
-    } else {
-      Alert.alert('Export', 'Choose format', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'PDF', onPress: () => handleExport('pdf') },
-        { text: 'Text', onPress: () => handleExport('text') }
-      ]);
-    }
+    setExportModalVisible(true);
   };
 
   if (isLoading) {
