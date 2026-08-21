@@ -7,6 +7,7 @@ export class TextTranslationService {
     sourceLang: string, 
     targetLang: string, 
     apiKey: string,
+    customPromptInjection: string = '',
     retryCount = 0
   ): Promise<string> {
     const isFallback = retryCount > 0;
@@ -26,7 +27,7 @@ export class TextTranslationService {
               role: 'user',
               parts: [
                 {
-                  text: `Translate the following text from ${sourceLang} to ${targetLang}. Output only the translation, nothing else.nnText: "${text}"`
+                  text: `Translate the following text from ${sourceLang} to ${targetLang}. Output only the translation, nothing else.${customPromptInjection ? `\n\nAdditional instructions: ${customPromptInjection}` : ''}\n\nText: "${text}"`
                 }
               ]
             }
@@ -55,7 +56,7 @@ export class TextTranslationService {
         console.warn(`[TextTranslationService] Primary model failed, falling back to ${this.FALLBACK_MODEL}...`, error);
         // Add exponential backoff for the retry
         await new Promise(resolve => setTimeout(resolve, 500));
-        return this.translateText(text, sourceLang, targetLang, apiKey, retryCount + 1);
+        return this.translateText(text, sourceLang, targetLang, apiKey, customPromptInjection, retryCount + 1);
       }
       
       console.error(`[TextTranslationService] Fallback model also failed.`, error);

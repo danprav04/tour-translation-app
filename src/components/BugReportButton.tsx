@@ -1,13 +1,9 @@
 import React, { useState } from 'react';
 import {
   StyleSheet,
-  View,
   Text,
   Pressable,
-  Modal,
   TextInput,
-  KeyboardAvoidingView,
-  Platform,
   Alert,
   ActivityIndicator,
 } from 'react-native';
@@ -16,6 +12,7 @@ import { useDebugContext } from '@/context/DebugContext';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import { appSubversion } from '@/app/settings';
+import CustomModal from './CustomModal';
 
 export default function BugReportButton() {
   const { settings, isLoaded } = useSettingsContext();
@@ -92,54 +89,42 @@ export default function BugReportButton() {
         <Text style={styles.btnText}>🐞</Text>
       </Pressable>
 
-      <Modal
+      <CustomModal
         animationType="slide"
-        transparent={true}
         visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
+        onClose={() => setModalVisible(false)}
+        title="Report a Bug"
+        showCloseButton={true}
+        useKeyboardAvoidingView={true}
       >
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        <Text style={styles.label}>Error Description</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="What went wrong?"
+          placeholderTextColor="rgba(255,255,255,0.3)"
+          value={description}
+          onChangeText={setDescription}
+          multiline
+          numberOfLines={4}
+          textAlignVertical="top"
+        />
+        
+        <Text style={styles.infoText}>
+          Submitting this will include your app settings and device info for debugging.
+        </Text>
+
+        <Pressable
+          style={styles.submitBtn}
+          onPress={handleSubmit}
+          disabled={isSubmitting}
         >
-          <View style={styles.modalContent}>
-            <View style={styles.header}>
-              <Text style={styles.title}>Report a Bug</Text>
-              <Pressable onPress={() => setModalVisible(false)}>
-                <Text style={styles.closeBtn}>✕</Text>
-              </Pressable>
-            </View>
-
-            <Text style={styles.label}>Error Description</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="What went wrong?"
-              placeholderTextColor="rgba(255,255,255,0.3)"
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-            
-            <Text style={styles.infoText}>
-              Submitting this will include your app settings and device info for debugging.
-            </Text>
-
-            <Pressable
-              style={styles.submitBtn}
-              onPress={handleSubmit}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color="#0A0E1A" />
-              ) : (
-                <Text style={styles.submitBtnText}>Submit Report</Text>
-              )}
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+          {isSubmitting ? (
+            <ActivityIndicator color="#0A0E1A" />
+          ) : (
+            <Text style={styles.submitBtnText}>Submit Report</Text>
+          )}
+        </Pressable>
+      </CustomModal>
     </>
   );
 }
@@ -161,36 +146,6 @@ const styles = StyleSheet.create({
   },
   btnText: {
     fontSize: 24,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: '#1E2336',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  title: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  closeBtn: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 20,
-    fontWeight: 'bold',
-    padding: 5,
   },
   label: {
     color: '#FFFFFF',

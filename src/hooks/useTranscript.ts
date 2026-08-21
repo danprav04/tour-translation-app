@@ -20,17 +20,20 @@ export const useTranscript = () => {
   const sourceLangRef = useRef<string>('auto');
   const targetLangRef = useRef<string>('en');
   const apiKeyRef = useRef<string | null>(null);
+  const customPromptInjectionRef = useRef<string>('');
 
   const startTranscription = useCallback(async (
     apiKey: string,
     sourceLang: string,
     targetLang: string,
-    roomCode?: string
+    roomCode?: string,
+    customPromptInjection?: string
   ) => {
     try {
       sourceLangRef.current = sourceLang;
       targetLangRef.current = targetLang;
       apiKeyRef.current = apiKey;
+      customPromptInjectionRef.current = customPromptInjection || '';
       
       // 1. Create a new DB session
       const newSessionId = await db.createSession({
@@ -46,7 +49,7 @@ export const useTranscript = () => {
       chunkSequenceRef.current = 0;
 
       // 2. Connect to transcription service
-      await transcriptionService.connect(apiKey);
+      await transcriptionService.connect(apiKey, customPromptInjection);
 
       transcriptionService.onInterimText((text) => {
         console.log('[useTranscript] onInterimText callback triggered, text length:', text?.length, 'text:', text);
@@ -79,7 +82,8 @@ export const useTranscript = () => {
             text,
             sourceLangRef.current,
             targetLangRef.current,
-            apiKeyRef.current
+            apiKeyRef.current,
+            customPromptInjectionRef.current
           );
 
           // 4. Update UI with translated text

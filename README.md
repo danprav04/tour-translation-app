@@ -23,7 +23,9 @@ Recently supercharged with **AI Real-Time Translation** powered by the Gemini 3.
 - **🔒 Room-based Sessions:** Securely create distinct rooms with unique 6-character access codes.
 - **📷 QR Code Onboarding:** Frictionless joining experience for listeners via in-app QR code scanning.
 - **👥 Audience Management:** Hosts can view connected listeners, monitor connection health, rename devices, or kick disruptive users.
-- **🎵 Background Playback:** Listeners can keep hearing the broadcast even while using other apps or locking their screens.
+- **📜 Session History & Transcripts:** Automatically saves transcripts of live sessions to a local SQLite database.
+- **📤 Transcript Export:** Export past sessions as beautifully formatted PDFs or plain text files to share with attendees.
+- **🎵 Background Execution:** Dedicated foreground services ensure the app continues streaming seamlessly. Listeners can keep hearing the broadcast, and hosts can continue broadcasting, even while using other apps or locking their screens.
 - **📱 Cross-Platform:** High-performance mobile client for both iOS and Android platforms built with Expo and React Native.
 
 ---
@@ -37,6 +39,8 @@ Recently supercharged with **AI Real-Time Translation** powered by the Gemini 3.
 - **AI Translation:** Google Gemini API (`models/gemini-3.5-live-translate-preview`)
 - **Audio & TTS:** `expo-audio` (Capture and background playback), Native TTS
 - **Camera/Scanning:** `expo-camera` / `react-native-qrcode-svg`
+- **Storage & Export:** `expo-sqlite` (Local Database), `expo-print` (PDF Generation), `expo-sharing`
+- **Background Tasks:** `react-native-background-actions` (Foreground Services)
 - **Styling:** NativeWind / TailwindCSS
 - **Language:** TypeScript
 
@@ -57,11 +61,11 @@ tour-translation-app/
 │   ├── Dockerfile          # Docker configuration for production deployment
 │   └── docker-compose.yml  # Docker Compose for local orchestration
 ├── src/                    # Mobile app source code
-│   ├── app/                # Expo Router screens (index, host, listener, stream, settings)
+│   ├── app/                # Expo Router screens (index, host, listener, stream, history, settings)
 │   ├── components/         # Reusable React components (UI, StatusBadge, AudioVisualizer)
 │   ├── context/            # Global state management
 │   ├── hooks/              # Custom React hooks (useHost, useListener, useTTS)
-│   └── services/           # LiveKit, Socket, Audio, and Gemini Translation services
+│   └── services/           # LiveKit, Socket, Audio, Gemini, Database, and Export services
 ├── app.json                # Expo configuration file
 └── package.json            # Project dependencies and scripts
 ```
@@ -126,7 +130,8 @@ To use the live AI translation features:
    - Either enter the 6-letter room code manually or use your camera to scan the host's QR code.
    - Listeners can select their desired target language for real-time translation.
 3. **Manage Listeners:** As a host, tap on any listener in your audience list to rename them or remove them from the session. You can also monitor their connection health.
-4. **End Session:** The host can disconnect at any time, which will automatically close the room for all listeners.
+4. **View & Export History:** Navigate to the History screen to view past sessions, read full transcripts, and export them as PDF or Text files to share.
+5. **End Session:** The host can disconnect at any time, which will automatically close the room for all listeners.
 
 ---
 

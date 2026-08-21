@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Modal, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import * as Battery from 'expo-battery';
 import * as IntentLauncher from 'expo-intent-launcher';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
+import CustomModal from './CustomModal';
 
 interface BatteryOptimizationGuardProps {
   children: React.ReactNode;
@@ -86,66 +87,44 @@ export default function BatteryOptimizationGuard({ children }: BatteryOptimizati
   return (
     <>
       {children}
-      <Modal
+      <CustomModal
         visible={showPrompt}
-        transparent={true}
-        animationType="fade"
+        contentStyle={{ alignItems: 'center' }}
       >
-        <View style={styles.overlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.icon}>🔋</Text>
-            <Text style={styles.title}>Battery Optimization</Text>
-            <Text style={styles.text}>
-              Your phone's battery saver may disconnect you during the tour. 
-              Tap 'Fix' to allow Tour Translator to run in the background.
-            </Text>
-            
-            {Platform.OS === 'android' && isAggressiveOEM && (
-              <Text style={styles.oemText}>
-                Note: On {Device.manufacturer} devices, you may also need to check your device's "App Launch", "Deep Sleep", or "Pause app activity" settings to prevent the app from being restricted.
-              </Text>
-            )}
-            
-            <View style={styles.actions}>
-              <Pressable
-                style={[styles.button, styles.fixButton]}
-                onPress={handleFix}
-              >
-                <Text style={styles.fixButtonText}>Fix</Text>
-              </Pressable>
-              
-              <Pressable
-                style={[styles.button, styles.dismissButton]}
-                onPress={handleDismiss}
-              >
-                <Text style={styles.dismissButtonText}>Remind me later</Text>
-              </Pressable>
-            </View>
-          </View>
+        <Text style={styles.icon}>🔋</Text>
+        <Text style={styles.title}>Battery Optimization</Text>
+        <Text style={styles.text}>
+          Your phone&apos;s battery saver may disconnect you during the tour. 
+          Tap &apos;Fix&apos; to allow Tour Translator to run in the background.
+        </Text>
+        
+        {Platform.OS === 'android' && isAggressiveOEM && (
+          <Text style={styles.oemText}>
+            Note: On {Device.manufacturer} devices, you may also need to check your device&apos;s &quot;App Launch&quot;, &quot;Deep Sleep&quot;, or &quot;Pause app activity&quot; settings to prevent the app from being restricted.
+          </Text>
+        )}
+        
+        <View style={styles.actions}>
+          <Pressable
+            style={[styles.button, styles.fixButton]}
+            onPress={handleFix}
+          >
+            <Text style={styles.fixButtonText}>Fix</Text>
+          </Pressable>
+          
+          <Pressable
+            style={[styles.button, styles.dismissButton]}
+            onPress={handleDismiss}
+          >
+            <Text style={styles.dismissButtonText}>Remind me later</Text>
+          </Pressable>
         </View>
-      </Modal>
+      </CustomModal>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(10, 14, 26, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: '#1E2333',
-    borderRadius: 20,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
   icon: {
     fontSize: 48,
     marginBottom: 16,

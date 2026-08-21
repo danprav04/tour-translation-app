@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Linking, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, StyleSheet, Linking, TouchableOpacity } from 'react-native';
 import Constants from 'expo-constants';
 import { useSettingsContext } from '@/context/SettingsContext';
+import CustomModal from './CustomModal';
 
 const isVersionLessThan = (v1: string, v2: string) => {
   const p1 = v1.split('.').map(Number);
@@ -52,9 +53,8 @@ export default function VersionCheck() {
   };
 
   return (
-    <Modal visible={true} transparent={true} animationType="fade">
-      <View style={styles.container} testID="version-check-screen">
-        <Text style={styles.title}>Update Required</Text>
+    <CustomModal visible={true} title="Update Required">
+      <View style={styles.contentContainer} testID="version-check-screen">
         <Text style={styles.message}>
           This app version is no longer supported by the server. Please update the app.
         </Text>
@@ -62,23 +62,13 @@ export default function VersionCheck() {
           <Text style={styles.buttonText}>Go to Server Landing Page</Text>
         </TouchableOpacity>
       </View>
-    </Modal>
+    </CustomModal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0E1A',
-    justifyContent: 'center',
+  contentContainer: {
     alignItems: 'center',
-    padding: 24,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 16,
   },
   message: {
     fontSize: 16,

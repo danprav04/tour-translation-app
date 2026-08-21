@@ -9,7 +9,7 @@ class TranscriptionService {
   private keepaliveInterval: ReturnType<typeof setInterval> | null = null;
   private accumulatedInterim: string = '';
 
-  private async connectWithModel(apiKey: string, modelName: string): Promise<void> {
+  private async connectWithModel(apiKey: string, modelName: string, customPromptInjection?: string): Promise<void> {
     return new Promise((resolve, reject) => {
       const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
       const ws = new WebSocket(url);
@@ -21,6 +21,11 @@ class TranscriptionService {
         if (this.ws !== ws) return;
         
         console.log(`[Transcription WS] Connected. Sending setup for model: ${modelName}...`);
+        
+        const systemInstructionText = customPromptInjection 
+          ? `Listen to the audio input.\n\nAdditional instructions: ${customPromptInjection}`
+          : "Listen to the audio input.";
+
         const setupMessage = {
           setup: {
             model: modelName,
@@ -29,7 +34,7 @@ class TranscriptionService {
             },
             inputAudioTranscription: {},
             systemInstruction: {
-              parts: [{ text: "Listen to the audio input." }]
+              parts: [{ text: systemInstructionText }]
             },
             realtimeInputConfig: {
               automaticActivityDetection: {
@@ -163,7 +168,7 @@ class TranscriptionService {
     });
   }
 
-  async connect(apiKey: string): Promise<void> {
+  async connect(apiKey: string, customPromptInjection?: string): Promise<void> {
     if (this.ws) {
       this.disconnect();
     }
@@ -180,7 +185,7 @@ class TranscriptionService {
     
     for (const model of modelsToTry) {
       try {
-        await this.connectWithModel(apiKey, model);
+        await this.connectWithModel(apiKey, model, customPromptInjection);
         return; // Success!
       } catch (err) {
         console.warn(`[Transcription WS] Model ${model} failed:`, err instanceof Error ? err.message : String(err));

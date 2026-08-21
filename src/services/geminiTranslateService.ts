@@ -14,7 +14,7 @@ class GeminiTranslateService {
     return this.consecutiveSendFailures;
   }
 
-  async connect(apiKey: string, targetLanguageCode: string): Promise<void> {
+  async connect(apiKey: string, targetLanguageCode: string, customPromptInjection?: string): Promise<void> {
     if (this.ws) {
       this.disconnect();
     }
@@ -39,6 +39,11 @@ class GeminiTranslateService {
         const setupMessage = {
           setup: {
             model: "models/gemini-3.5-live-translate-preview",
+            ...(customPromptInjection && {
+              systemInstruction: {
+                parts: [{ text: customPromptInjection }]
+              }
+            }),
             generationConfig: {
               responseModalities: ["AUDIO"],
               speechConfig: {
@@ -237,13 +242,13 @@ class GeminiTranslateService {
     this.onCloseCallback = callback;
   }
 
-  async connectOverlap(apiKey: string, targetLanguageCode: string): Promise<void> {
+  async connectOverlap(apiKey: string, targetLanguageCode: string, customPromptInjection?: string): Promise<void> {
     // Create a new WS connection without closing the old one.
     // The caller is responsible for swapping and closing the old connection.
     const oldWs = this.ws;
     this.ws = null; // Temporarily clear so connect() doesn't close old one
     try {
-      await this.connect(apiKey, targetLanguageCode);
+      await this.connect(apiKey, targetLanguageCode, customPromptInjection);
     } catch (error) {
       // If new connection fails, restore old one
       if (!this.ws && oldWs && oldWs.readyState === WebSocket.OPEN) {

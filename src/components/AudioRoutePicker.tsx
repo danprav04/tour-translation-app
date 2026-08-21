@@ -3,7 +3,6 @@ import {
   View,
   Text,
   Pressable,
-  Modal,
   ActivityIndicator,
   Platform,
   Alert,
@@ -12,6 +11,7 @@ import {
 import { AudioSession } from '@livekit/react-native';
 import GlassCard from './GlassCard';
 import audioService from '@/services/audioService';
+import CustomModal from './CustomModal';
 
 interface AudioRoutePickerProps {
   currentRoute?: string | null;
@@ -89,62 +89,56 @@ export default function AudioRoutePicker({ currentRoute, onRouteChanged }: Audio
         </GlassCard>
       </Pressable>
 
-      <Modal
+      <CustomModal
         visible={isVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setIsVisible(false)}
+        onClose={() => setIsVisible(false)}
+        title="Select Audio Output"
       >
-        <View style={styles.overlay}>
-          <View style={styles.content}>
-            <Text style={styles.modalTitle}>Select Audio Output</Text>
-            <Text style={styles.modalDesc}>
-              Note: On Android, this will also route your microphone to the selected device if it has one (like a Bluetooth headset).
-            </Text>
+        <Text style={styles.modalDesc}>
+          Note: On Android, this will also route your microphone to the selected device if it has one (like a Bluetooth headset).
+        </Text>
 
-            {isLoading ? (
-              <ActivityIndicator color="#00D4AA" style={{ marginVertical: 20 }} />
-            ) : availableOutputs.length === 0 ? (
-              <Text style={styles.emptyText}>
-                No alternate audio outputs found.
-              </Text>
-            ) : (
-              availableOutputs.map((deviceId) => (
-                <Pressable
-                  key={deviceId}
-                  style={({ pressed }) => [
-                    styles.item,
-                    pressed && styles.pressed,
-                  ]}
-                  onPress={() => handleSelect(deviceId)}
-                >
-                  <Text style={styles.itemIcon}>
-                    {deviceId === 'speaker'
-                      ? '🔊'
-                      : deviceId === 'earpiece'
-                      ? '📱'
-                      : deviceId === 'bluetooth'
-                      ? '🎧'
-                      : deviceId === 'headset'
-                      ? '🎧'
-                      : '🔈'}
-                  </Text>
-                  <Text style={styles.itemText}>
-                    {deviceId.charAt(0).toUpperCase() + deviceId.slice(1)}
-                  </Text>
-                </Pressable>
-              ))
-            )}
-
+        {isLoading ? (
+          <ActivityIndicator color="#00D4AA" style={{ marginVertical: 20 }} />
+        ) : availableOutputs.length === 0 ? (
+          <Text style={styles.emptyText}>
+            No alternate audio outputs found.
+          </Text>
+        ) : (
+          availableOutputs.map((deviceId) => (
             <Pressable
-              style={styles.cancelBtn}
-              onPress={() => setIsVisible(false)}
+              key={deviceId}
+              style={({ pressed }) => [
+                styles.item,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => handleSelect(deviceId)}
             >
-              <Text style={styles.cancelText}>Cancel</Text>
+              <Text style={styles.itemIcon}>
+                {deviceId === 'speaker'
+                  ? '🔊'
+                  : deviceId === 'earpiece'
+                  ? '📱'
+                  : deviceId === 'bluetooth'
+                  ? '🎧'
+                  : deviceId === 'headset'
+                  ? '🎧'
+                  : '🔈'}
+              </Text>
+              <Text style={styles.itemText}>
+                {deviceId.charAt(0).toUpperCase() + deviceId.slice(1)}
+              </Text>
             </Pressable>
-          </View>
-        </View>
-      </Modal>
+          ))
+        )}
+
+        <Pressable
+          style={styles.cancelBtn}
+          onPress={() => setIsVisible(false)}
+        >
+          <Text style={styles.cancelText}>Cancel</Text>
+        </Pressable>
+      </CustomModal>
     </>
   );
 }
@@ -179,25 +173,6 @@ const styles = StyleSheet.create({
   desc: {
     color: 'rgba(255,255,255,0.5)',
     fontSize: 13,
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  content: {
-    backgroundColor: '#1E2336',
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  modalTitle: {
-    color: '#FFF',
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 8,
   },
   modalDesc: {
     color: 'rgba(255,255,255,0.5)',

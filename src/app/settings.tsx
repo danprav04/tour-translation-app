@@ -42,6 +42,8 @@ export default function SettingsScreen() {
   const [micAmplification, setMicAmplification] = useState(settings.micAmplification ?? 3.0);
   const [showApiKey, setShowApiKey] = useState(false);
   const [isBatteryOptimized, setIsBatteryOptimized] = useState<boolean | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [customPromptInjection, setCustomPromptInjection] = useState(settings.customPromptInjection ?? '');
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -82,6 +84,7 @@ export default function SettingsScreen() {
       useLegacyWebSockets: useLegacy,
       showBugReportButton: showBugReport,
       micAmplification: micAmplification,
+      customPromptInjection: customPromptInjection,
     });
   };
 
@@ -348,6 +351,42 @@ export default function SettingsScreen() {
               </GlassCard>
             );
           })()}
+
+          {/* Advanced Options */}
+          <GlassCard style={styles.section}>
+            <Pressable 
+              onPress={() => setShowAdvanced(!showAdvanced)}
+              style={styles.switchRow}
+            >
+              <View style={styles.switchTextContainer}>
+                <Text style={styles.sectionTitle}>⚙️ Advanced Options</Text>
+                <Text style={styles.sectionDesc}>
+                  Custom prompt injections and other advanced settings
+                </Text>
+              </View>
+              <Text style={{ color: '#00D4AA', fontSize: 20 }}>
+                {showAdvanced ? '▼' : '▶'}
+              </Text>
+            </Pressable>
+            
+            {showAdvanced && (
+              <View style={{ marginTop: 16 }}>
+                <Text style={[styles.sectionTitle, { fontSize: 16 }]}>Custom Prompt Injection</Text>
+                <Text style={styles.sectionDesc}>
+                  Add additional instructions to the transcription and translation flow.
+                </Text>
+                <TextInput
+                  style={[styles.input, { minHeight: 80, textAlignVertical: 'top' }]}
+                  value={customPromptInjection}
+                  onChangeText={setCustomPromptInjection}
+                  onBlur={handleSave}
+                  placeholder="e.g. Please speak formally..."
+                  placeholderTextColor="rgba(255,255,255,0.2)"
+                  multiline
+                />
+              </View>
+            )}
+          </GlassCard>
 
           {/* About */}
           <GlassCard style={styles.section}>

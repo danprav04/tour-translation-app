@@ -272,7 +272,7 @@ export const useHost = () => {
           if (!geminiTranslateService.isConnected() && settings.geminiApiKey) {
             console.log('[Host] Reconnecting Gemini WS after background drop');
             try {
-              await geminiTranslateService.connectOverlap(settings.geminiApiKey, settings.targetLanguage);
+              await geminiTranslateService.connectOverlap(settings.geminiApiKey, settings.targetLanguage, settings.customPromptInjection);
             } catch (e) {
               console.error('[Host] Background reconnect for Gemini failed', e);
             }
@@ -354,13 +354,13 @@ export const useHost = () => {
       if (!settings.geminiApiKey) {
         throw new Error('Gemini API key is not configured. Please add it in Settings.');
       }
-      await geminiTranslateService.connect(settings.geminiApiKey, langCode);
+      await geminiTranslateService.connect(settings.geminiApiKey, langCode, settings.customPromptInjection);
       
       // Start parallel transcription service
       try {
         if (!isReconnect) {
           console.log('[Host] Starting transcript service...');
-          await transcript.startTranscription(settings.geminiApiKey, 'auto', langCode, roomCode || undefined);
+          await transcript.startTranscription(settings.geminiApiKey, 'auto', langCode, roomCode || undefined, settings.customPromptInjection);
           console.log('[Host] Transcript service started successfully');
         }
       } catch (err) {

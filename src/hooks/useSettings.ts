@@ -12,6 +12,7 @@ export interface Settings {
   showBugReportButton: boolean;
   preferredAudioOutput: string;
   micAmplification: number;
+  customPromptInjection: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -24,6 +25,7 @@ const DEFAULT_SETTINGS: Settings = {
   showBugReportButton: true,
   preferredAudioOutput: '',
   micAmplification: 3.0,
+  customPromptInjection: '',
 };
 
 const SETTINGS_KEY = '@tour_settings';
