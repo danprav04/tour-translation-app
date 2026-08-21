@@ -59,7 +59,7 @@ export const useTranscript = () => {
         
         // Optimistic UI update for original text while translating
         const tempChunk: TranscriptChunk = {
-          id: \`temp-\${seq}\`,
+          id: `temp-${seq}`,
           sessionId: sessionIdRef.current,
           sequence: seq,
           timestampMs,

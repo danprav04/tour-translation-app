@@ -13,7 +13,7 @@ export class TextTranslationService {
     const model = isFallback ? this.FALLBACK_MODEL : this.PRIMARY_MODEL;
     
     try {
-      const url = \`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       
       const response = await fetch(url, {
         method: 'POST',
@@ -26,7 +26,7 @@ export class TextTranslationService {
               role: 'user',
               parts: [
                 {
-                  text: \`Translate the following text from \${sourceLang} to \${targetLang}. Output only the translation, nothing else.\\n\\nText: "\${text}"\`
+                  text: `Translate the following text from ${sourceLang} to ${targetLang}. Output only the translation, nothing else.nnText: "${text}"`
                 }
               ]
             }
@@ -39,28 +39,28 @@ export class TextTranslationService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(\`Translation API Error (\${model}): \${response.status} \${errorText}\`);
+        throw new Error(`Translation API Error (${model}): ${response.status} ${errorText}`);
       }
 
       const data = await response.json();
       const translatedText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       
       if (!translatedText) {
-        throw new Error(\`Unexpected response format from \${model}\`);
+        throw new Error(`Unexpected response format from ${model}`);
       }
 
       return translatedText.trim();
     } catch (error) {
       if (!isFallback) {
-        console.warn(\`[TextTranslationService] Primary model failed, falling back to \${this.FALLBACK_MODEL}...\`, error);
+        console.warn(`[TextTranslationService] Primary model failed, falling back to ${this.FALLBACK_MODEL}...`, error);
         // Add exponential backoff for the retry
         await new Promise(resolve => setTimeout(resolve, 500));
         return this.translateText(text, sourceLang, targetLang, apiKey, retryCount + 1);
       }
       
-      console.error(\`[TextTranslationService] Fallback model also failed.\`, error);
+      console.error(`[TextTranslationService] Fallback model also failed.`, error);
       // Return original text prefixed with error indicator so feed doesn't crash
-      return \`[Translation failed] \${text}\`;
+      return `[Translation failed] ${text}`;
     }
   }
 }

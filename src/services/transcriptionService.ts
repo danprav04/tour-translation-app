@@ -18,7 +18,7 @@ class TranscriptionService {
     this.accumulatedInterim = '';
 
     // We use gemini-3-flash-live as instructed
-    const url = \`wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=\${apiKey}\`;
+    const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
 
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(url);
@@ -143,14 +143,14 @@ class TranscriptionService {
       };
 
       ws.onclose = (event) => {
-        console.log(\`[Transcription WS] Closed with code \${event.code}, reason: \${event.reason}\`);
+        console.log(`[Transcription WS] Closed with code ${event.code}, reason: ${event.reason}`);
         this.connectionState = 'disconnected';
         this.stopKeepalive();
         if (this.ws === ws) {
           this.ws = null;
         }
         if (!isSetupComplete) {
-          reject(new Error(\`WebSocket closed before setup: \${event.reason}\`));
+          reject(new Error(`WebSocket closed before setup: ${event.reason}`));
         }
         if (this.onCloseCallback) {
           this.onCloseCallback();
