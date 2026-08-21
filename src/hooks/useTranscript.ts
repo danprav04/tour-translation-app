@@ -48,10 +48,12 @@ export const useTranscript = () => {
       await transcriptionService.connect(apiKey);
 
       transcriptionService.onInterimText((text) => {
+        console.log('[useTranscript] onInterimText callback triggered, text length:', text?.length, 'text:', text);
         setInterimText(text);
       });
 
       transcriptionService.onFinalText(async (text) => {
+        console.log('[useTranscript] onFinalText callback triggered, text:', text);
         if (!text || !sessionIdRef.current || !apiKeyRef.current) return;
         
         const timestampMs = Date.now();
@@ -131,6 +133,8 @@ export const useTranscript = () => {
   const sendAudioChunk = useCallback((base64Data: string) => {
     if (isActive) {
       transcriptionService.sendAudioChunk(base64Data);
+    } else {
+      // console.log('[useTranscript] sendAudioChunk ignored because not active');
     }
   }, [isActive]);
 

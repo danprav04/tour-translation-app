@@ -197,12 +197,10 @@ class GeminiTranslateService {
 
     const message = {
       realtimeInput: {
-        mediaChunks: [
-          {
-            mimeType: "audio/pcm;rate=16000",
-            data: base64PcmData
-          }
-        ]
+        audio: {
+          mimeType: "audio/pcm;rate=16000",
+          data: base64PcmData
+        }
       }
     };
     try {

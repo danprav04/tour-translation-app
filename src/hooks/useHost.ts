@@ -359,10 +359,12 @@ export const useHost = () => {
       // Start parallel transcription service
       try {
         if (!isReconnect) {
+          console.log('[Host] Starting transcript service...');
           await transcript.startTranscription(settings.geminiApiKey, 'auto', langCode, roomCode || undefined);
+          console.log('[Host] Transcript service started successfully');
         }
       } catch (err) {
-        console.error('Failed to start transcription service', err);
+        console.error('[Host] Failed to start transcription service', err);
       }
       
       // On success, reset the reconnect flag
@@ -623,7 +625,7 @@ export const useHost = () => {
     return () => clearTimeout(lowAudioTimer);
   }, [isMicActive, audioLevel]);
 
-  const stopTranslation = async () => {
+  async function stopTranslation() {
     addDebugEvent('stopTranslation called');
     isTranslatingRef.current = false;
     isReconnectingGeminiRef.current = false;
@@ -636,7 +638,7 @@ export const useHost = () => {
     if (!settings.useLegacyWebSockets && isMicActiveRef.current) {
       await audioService.stopCapture();
     }
-  };
+  }
 
   const toggleTranslation = async () => {
     if (isTranslating) {

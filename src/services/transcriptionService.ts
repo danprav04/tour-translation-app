@@ -34,9 +34,8 @@ class TranscriptionService {
           setup: {
             model: "models/gemini-3.1-flash-live-preview",
             generationConfig: {
-              responseModalities: ["AUDIO"],
+              responseModalities: ["TEXT"],
             },
-            outputAudioTranscription: {},
             systemInstruction: {
               parts: [{ text: "Transcribe the following spoken audio exactly as heard. Output only the transcription, nothing else." }]
             },
@@ -85,12 +84,12 @@ class TranscriptionService {
           const messages = Array.isArray(message) ? message : [message];
 
           for (const msg of messages) {
-            console.log('[Transcription WS] Received message:', JSON.stringify(msg, (key, value) => {
-              if (typeof value === 'string' && value.length > 200 && key !== 'text') {
-                return '[BASE64_DATA]';
-              }
-              return value;
-            }, 2));
+            // Add detailed debug logging for transcription responses
+            console.log('[Transcription WS] Received message keys:', Object.keys(msg));
+            if (msg.serverContent) {
+               console.log('[Transcription WS] serverContent:', JSON.stringify(msg.serverContent, null, 2));
+            }
+
             if (msg.setupComplete) {
               console.log('[Transcription WS] Setup complete received.');
               this.connectionState = 'connected';
@@ -102,6 +101,7 @@ class TranscriptionService {
               for (const part of parts) {
                 if (part.text) {
                   // For live API, text parts are usually interim until turnComplete
+                  console.log('[Transcription WS] received text part:', part.text);
                   this.accumulatedInterim += part.text;
                   if (this.onInterimTextCallback) {
                     this.onInterimTextCallback(this.accumulatedInterim);
@@ -111,6 +111,7 @@ class TranscriptionService {
             } 
             
             if (msg.serverContent?.turnComplete) {
+              console.log('[Transcription WS] turnComplete received. Accumulated:', this.accumulatedInterim);
               // The API has finished an utterance turn (silence detected)
               if (this.accumulatedInterim.trim() && this.onFinalTextCallback) {
                 this.onFinalTextCallback(this.accumulatedInterim.trim());
@@ -183,9 +184,16 @@ class TranscriptionService {
     }
   }
 
+  private chunkCount = 0;
+
   sendAudioChunk(base64PcmData: string): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       return;
+    }
+
+    this.chunkCount++;
+    if (this.chunkCount % 100 === 0) {
+      console.log(`[Transcription WS] Sent ${this.chunkCount} audio chunks`);
     }
 
     const message = {
