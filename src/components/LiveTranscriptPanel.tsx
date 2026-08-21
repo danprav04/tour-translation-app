@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { View, Text, Pressable, StyleSheet, NativeSyntheticEvent, NativeScrollEvent, FlatList } from 'react-native';
+import { View, Text, Pressable, StyleSheet, NativeSyntheticEvent, NativeScrollEvent, ScrollView } from 'react-native';
 import { TranscriptChunk } from '@/services/transcriptDatabase';
 import { DisplayMode } from '@/hooks/useTranscript';
 import TranscriptChunkRow from './TranscriptChunkRow';
@@ -21,7 +21,7 @@ export default function LiveTranscriptPanel({
   onDisplayModeChange,
   isActive
 }: LiveTranscriptPanelProps) {
-  const listRef = useRef<FlatList>(null);
+  const listRef = useRef<ScrollView>(null);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -56,10 +56,12 @@ export default function LiveTranscriptPanel({
   const InterimRow = () => {
     if (!interimText) return null;
     return (
-      <Animated.View entering={FadeIn} style={styles.interimContainer}>
-        <View style={styles.liveIndicator} />
-        <View style={styles.textContainer}>
-          <Text style={styles.interimText}>{interimText}</Text>
+      <Animated.View entering={FadeIn}>
+        <View style={styles.interimContainer}>
+          <View style={styles.liveIndicator} />
+          <View style={styles.textContainer}>
+            <Text style={styles.interimText}>{interimText}</Text>
+          </View>
         </View>
       </Animated.View>
     );
@@ -110,16 +112,18 @@ export default function LiveTranscriptPanel({
                 <Text style={styles.emptyText}>Transcript will appear here...</Text>
               </View>
             ) : (
-              <FlatList
+              <ScrollView
                 ref={listRef}
-                data={finalChunks}
-                keyExtractor={(item) => item.id}
-                renderItem={renderItem}
                 onScroll={handleScroll}
                 scrollEventThrottle={16}
                 contentContainerStyle={styles.listContent}
-                ListFooterComponent={<InterimRow />}
-              />
+                nestedScrollEnabled={true}
+              >
+                {finalChunks.map(item => (
+                  <TranscriptChunkRow key={item.id} item={item} displayMode={displayMode} />
+                ))}
+                <InterimRow />
+              </ScrollView>
             )}
 
             {/* Scroll to bottom button */}
