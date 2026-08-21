@@ -32,7 +32,7 @@ class TranscriptionService {
         console.log('[Transcription WS] Connected. Sending setup...');
         const setupMessage = {
           setup: {
-            model: "models/gemini-3-flash-live",
+            model: "models/gemini-3.0-flash",
             generationConfig: {
               responseModalities: ["TEXT"],
             },
