@@ -2,6 +2,7 @@ import transcriptionService from '../transcriptionService';
 
 // Mock WebSocket
 class MockWebSocket {
+  static OPEN = 1;
   onopen: any;
   onmessage: any;
   onerror: any;
@@ -37,8 +38,9 @@ describe('TranscriptionService', () => {
     
     expect(ws.send).toHaveBeenCalled();
     const setupMsg = JSON.parse(ws.send.mock.calls[0][0]);
-    expect(setupMsg.setup.model).toBe('models/gemini-3-flash');
-    expect(setupMsg.setup.generationConfig.responseModalities).toEqual(['TEXT']);
+    expect(setupMsg.setup.model).toBe('models/gemini-3.1-flash-live-preview');
+    expect(setupMsg.setup.generationConfig.responseModalities).toEqual(['AUDIO']);
+    expect(setupMsg.setup.inputAudioTranscription).toEqual({});
 
     // Trigger setup complete
     ws.onmessage({ data: JSON.stringify({ setupComplete: true }) });
@@ -47,7 +49,7 @@ describe('TranscriptionService', () => {
     expect(transcriptionService.connectionState).toBe('connected');
   });
 
-  it('handles interim and final text', async () => {
+  it('handles interim and final text via inputTranscription', async () => {
     const onInterimText = jest.fn();
     const onFinalText = jest.fn();
     
@@ -56,20 +58,21 @@ describe('TranscriptionService', () => {
     
     transcriptionService.connect('test-key');
     const ws = (transcriptionService as any).ws;
+    ws.onopen();
     ws.onmessage({ data: JSON.stringify({ setupComplete: true }) });
 
-    // Interim chunk
+    // Input transcription chunk
     ws.onmessage({
       data: JSON.stringify({
         serverContent: {
-          modelTurn: { parts: [{ text: 'Hello ' }] }
+          inputTranscription: { text: 'Hello ' }
         }
       })
     });
     
     expect(onInterimText).toHaveBeenCalledWith('Hello ');
     
-    // Final chunk
+    // Turn complete
     ws.onmessage({
       data: JSON.stringify({
         serverContent: {
@@ -91,6 +94,6 @@ describe('TranscriptionService', () => {
     expect(ws.send).toHaveBeenCalledTimes(2); // Setup + audio chunk
     
     const audioMsg = JSON.parse(ws.send.mock.calls[1][0]);
-    expect(audioMsg.realtimeInput.mediaChunks[0].data).toBe('base64data');
+    expect(audioMsg.realtimeInput.audio.data).toBe('base64data');
   });
 });

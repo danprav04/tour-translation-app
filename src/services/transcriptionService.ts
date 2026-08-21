@@ -9,9 +9,9 @@ class TranscriptionService {
   private keepaliveInterval: ReturnType<typeof setInterval> | null = null;
   private accumulatedInterim: string = '';
 
-  private async connectWithModel(apiKey: string, modelName: string, version: string = 'v1alpha'): Promise<void> {
+  private async connectWithModel(apiKey: string, modelName: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.${version}.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+      const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
       const ws = new WebSocket(url);
       this.ws = ws;
 
@@ -25,10 +25,11 @@ class TranscriptionService {
           setup: {
             model: modelName,
             generationConfig: {
-              responseModalities: ["TEXT"],
+              responseModalities: ["AUDIO"],
             },
+            inputAudioTranscription: {},
             systemInstruction: {
-              parts: [{ text: "Transcribe the following spoken audio exactly as heard. Output only the transcription, nothing else." }]
+              parts: [{ text: "Listen to the audio input." }]
             },
             realtimeInputConfig: {
               automaticActivityDetection: {
@@ -81,17 +82,18 @@ class TranscriptionService {
               isSetupComplete = true;
               this.startKeepalive();
               resolve();
-            } else if (msg.serverContent?.modelTurn?.parts) {
-              const parts = msg.serverContent.modelTurn.parts;
-              for (const part of parts) {
-                if (part.text) {
-                  this.accumulatedInterim += part.text;
-                  if (this.onInterimTextCallback) {
-                    this.onInterimTextCallback(this.accumulatedInterim);
-                  }
-                }
+            }
+
+            // Handle input transcription (user's speech → text)
+            if (msg.serverContent?.inputTranscription?.text) {
+              const text = msg.serverContent.inputTranscription.text;
+              this.accumulatedInterim += text;
+              if (this.onInterimTextCallback) {
+                this.onInterimTextCallback(this.accumulatedInterim);
               }
-            } 
+            }
+
+            // Ignore model audio output (inlineData) — we only need the input transcription
             
             if (msg.serverContent?.turnComplete) {
               if (this.accumulatedInterim.trim() && this.onFinalTextCallback) {
@@ -156,34 +158,25 @@ class TranscriptionService {
     this.accumulatedInterim = '';
 
     const modelsToTry = [
-      "models/gemini-2.0-flash",
-      "models/gemini-2.5-flash",
-      "models/gemini-3.0-flash",
-      "models/gemini-3.5-flash",
-      "models/gemini-2.0-flash-lite",
-      "models/gemini-2.0-pro-exp",
-      "models/gemini-2.0-flash-exp"
+      "models/gemini-3.1-flash-live-preview",
+      "models/gemini-2.5-flash-native-audio",
     ];
-
-    const versionsToTry = ["v1alpha", "v1beta", "v1"];
 
     let lastError: Error | null = null;
     
-    for (const version of versionsToTry) {
-      for (const model of modelsToTry) {
-        try {
-          await this.connectWithModel(apiKey, model, version);
-          return; // Success!
-        } catch (err) {
-          console.warn(`[Transcription WS] Model ${model} on ${version} failed:`, err instanceof Error ? err.message : String(err));
-          lastError = err instanceof Error ? err : new Error(String(err));
-        }
+    for (const model of modelsToTry) {
+      try {
+        await this.connectWithModel(apiKey, model);
+        return; // Success!
+      } catch (err) {
+        console.warn(`[Transcription WS] Model ${model} failed:`, err instanceof Error ? err.message : String(err));
+        lastError = err instanceof Error ? err : new Error(String(err));
       }
     }
     
-    // If we reach here, all combinations failed
+    // If we reach here, all models failed
     this.connectionState = 'disconnected';
-    throw lastError || new Error('All model and version fallbacks failed');
+    throw lastError || new Error('All model fallbacks failed');
   }
 
   startKeepalive(): void {
