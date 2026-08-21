@@ -8,6 +8,7 @@ class TranscriptionService {
   public connectionState: 'disconnected' | 'connecting' | 'connected' = 'disconnected';
   private keepaliveInterval: ReturnType<typeof setInterval> | null = null;
   private accumulatedInterim: string = '';
+  private chunksSinceLastTurn: number = 0;
 
   private async connectWithModel(apiKey: string, modelName: string, customPromptInjection?: string): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -100,9 +101,7 @@ class TranscriptionService {
               const text = msg.serverContent.inputTranscription.text;
               if (text) {
                 this.accumulatedInterim += text;
-                if (this.onInterimTextCallback) {
-                  this.onInterimTextCallback(this.accumulatedInterim);
-                }
+                this.processInterimText();
               }
             }
 
@@ -115,6 +114,7 @@ class TranscriptionService {
             
             if (msg.serverContent?.turnComplete) {
               console.log(`[Transcription WS] turnComplete. accumulatedInterim: "${this.accumulatedInterim}"`);
+              this.chunksSinceLastTurn = 0;
               if (this.accumulatedInterim.trim() && this.onFinalTextCallback) {
                 this.onFinalTextCallback(this.accumulatedInterim.trim());
               }
@@ -175,6 +175,7 @@ class TranscriptionService {
     this.currentApiKey = apiKey;
     this.connectionState = 'connecting';
     this.accumulatedInterim = '';
+    this.chunksSinceLastTurn = 0;
 
     const modelsToTry = [
       "models/gemini-3.1-flash-live-preview",
@@ -223,6 +224,7 @@ class TranscriptionService {
     }
 
     this.chunkCount++;
+    this.chunksSinceLastTurn++;
     if (this.chunkCount === 1 || this.chunkCount % 50 === 0) {
       console.log(`[Transcription WS] Sent ${this.chunkCount} audio chunks (data length: ${base64PcmData.length})`);
     }
@@ -240,6 +242,65 @@ class TranscriptionService {
     } catch (e) {
       console.warn('[Transcription WS] Failed to send audio chunk:', e);
     }
+    
+    if (this.chunksSinceLastTurn >= 40) {
+      console.log(`[Transcription WS] Forcing server VAD trigger with 1.2s of artificial silence after ${this.chunksSinceLastTurn} chunks`);
+      try {
+        // 1.2 seconds of 16kHz 16-bit PCM silence is 38,400 bytes of zeros.
+        // In base64, every 3 zero bytes = 4 'A's. 38400 / 3 * 4 = 51200 'A's.
+        const silentBase64 = 'A'.repeat(51200);
+        this.ws.send(JSON.stringify({
+          realtimeInput: {
+            audio: {
+              mimeType: "audio/pcm;rate=16000",
+              data: silentBase64
+            }
+          }
+        }));
+      } catch (e) {
+        console.warn('[Transcription WS] Failed to send artificial silence:', e);
+      }
+      this.chunksSinceLastTurn = 0;
+    }
+  }
+
+  private processInterimText() {
+    let forcedChunk = false;
+    const sentenceMatches = this.accumulatedInterim.match(/[^.?!。？！]+[.?!。？！]+/g);
+    const sentenceCount = sentenceMatches ? sentenceMatches.length : 0;
+    const isLong = this.accumulatedInterim.length > 150;
+    
+    if (sentenceCount >= 2 || (isLong && sentenceCount >= 1)) {
+      const match = this.accumulatedInterim.match(/.*[.?!。？！](?=\s|$)/);
+      if (match) {
+        const splitIndex = match[0].length;
+        const chunkToFinalize = this.accumulatedInterim.substring(0, splitIndex).trim();
+        const remaining = this.accumulatedInterim.substring(splitIndex).trimStart();
+        
+        if (chunkToFinalize && this.onFinalTextCallback) {
+          console.log(`[Transcription WS] Forcing chunk (sentences): "${chunkToFinalize}"`);
+          this.onFinalTextCallback(chunkToFinalize);
+          this.accumulatedInterim = remaining;
+          forcedChunk = true;
+        }
+      }
+    } else if (this.accumulatedInterim.length > 250) {
+      const lastSpace = this.accumulatedInterim.lastIndexOf(' ');
+      if (lastSpace > 0) {
+        const chunkToFinalize = this.accumulatedInterim.substring(0, lastSpace).trim();
+        const remaining = this.accumulatedInterim.substring(lastSpace).trimStart();
+        if (chunkToFinalize && this.onFinalTextCallback) {
+          console.log(`[Transcription WS] Forcing chunk (length fallback): "${chunkToFinalize}"`);
+          this.onFinalTextCallback(chunkToFinalize);
+          this.accumulatedInterim = remaining;
+          forcedChunk = true;
+        }
+      }
+    }
+    
+    if (this.onInterimTextCallback) {
+      this.onInterimTextCallback(this.accumulatedInterim);
+    }
   }
 
   disconnect(): void {
@@ -253,6 +314,7 @@ class TranscriptionService {
     }
     this.connectionState = 'disconnected';
     this.accumulatedInterim = '';
+    this.chunksSinceLastTurn = 0;
   }
 
   onInterimText(callback: (text: string) => void): void {
