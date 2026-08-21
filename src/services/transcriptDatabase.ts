@@ -76,11 +76,11 @@ export class TranscriptDatabaseService {
       hour: 'numeric',
       minute: '2-digit'
     });
-    const title = \`Tour – \${dateStr}\`;
+    const title = `Tour – ${dateStr}`;
 
     await this.db.runAsync(
-      \`INSERT INTO tour_sessions (id, title, created_at, source_lang, target_lang, room_code)
-       VALUES (?, ?, ?, ?, ?, ?)\`,
+      `INSERT INTO tour_sessions (id, title, created_at, source_lang, target_lang, room_code)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [id, title, now, session.sourceLang, session.targetLang, session.roomCode || null]
     );
 
@@ -99,16 +99,16 @@ export class TranscriptDatabaseService {
     
     await this.db.withTransactionAsync(async () => {
       await this.db.runAsync(
-        \`INSERT INTO transcript_chunks (id, session_id, sequence, timestamp_ms, original_text, translated_text, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)\`,
+        `INSERT INTO transcript_chunks (id, session_id, sequence, timestamp_ms, original_text, translated_text, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [id, chunk.sessionId, chunk.sequence, chunk.timestampMs, chunk.originalText, chunk.translatedText, now]
       );
 
       await this.db.runAsync(
-        \`UPDATE tour_sessions 
+        `UPDATE tour_sessions 
          SET chunk_count = chunk_count + 1,
              duration_ms = MAX(duration_ms, ?)
-         WHERE id = ?\`,
+         WHERE id = ?`,
         [chunk.timestampMs, chunk.sessionId]
       );
     });
@@ -117,7 +117,7 @@ export class TranscriptDatabaseService {
   async finalizeSession(sessionId: string): Promise<void> {
     const now = Date.now();
     await this.db.runAsync(
-      \`UPDATE tour_sessions SET ended_at = ? WHERE id = ?\`,
+      `UPDATE tour_sessions SET ended_at = ? WHERE id = ?`,
       [now, sessionId]
     );
   }
@@ -127,20 +127,20 @@ export class TranscriptDatabaseService {
     const offset = options?.offset ?? 0;
 
     if (options?.search) {
-      const searchPattern = \`%\${options.search}%\`;
+      const searchPattern = `%${options.search}%`;
       const rows = await this.db.getAllAsync<any>(
-        \`SELECT DISTINCT s.* FROM tour_sessions s
+        `SELECT DISTINCT s.* FROM tour_sessions s
          LEFT JOIN transcript_chunks c ON s.id = c.session_id
          WHERE s.title LIKE ? OR c.original_text LIKE ? OR c.translated_text LIKE ?
          ORDER BY s.created_at DESC
-         LIMIT ? OFFSET ?\`,
+         LIMIT ? OFFSET ?`,
         [searchPattern, searchPattern, searchPattern, limit, offset]
       );
       return rows.map(this.mapSessionRow);
     }
 
     const rows = await this.db.getAllAsync<any>(
-      \`SELECT * FROM tour_sessions ORDER BY created_at DESC LIMIT ? OFFSET ?\`,
+      `SELECT * FROM tour_sessions ORDER BY created_at DESC LIMIT ? OFFSET ?`,
       [limit, offset]
     );
     return rows.map(this.mapSessionRow);
@@ -148,7 +148,7 @@ export class TranscriptDatabaseService {
 
   async getSessionWithChunks(sessionId: string): Promise<{ session: TourSession | null, chunks: TranscriptChunk[] }> {
     const sessionRow = await this.db.getFirstAsync<any>(
-      \`SELECT * FROM tour_sessions WHERE id = ?\`,
+      `SELECT * FROM tour_sessions WHERE id = ?`,
       [sessionId]
     );
     
@@ -157,7 +157,7 @@ export class TranscriptDatabaseService {
     }
 
     const chunkRows = await this.db.getAllAsync<any>(
-      \`SELECT * FROM transcript_chunks WHERE session_id = ? ORDER BY sequence ASC\`,
+      `SELECT * FROM transcript_chunks WHERE session_id = ? ORDER BY sequence ASC`,
       [sessionId]
     );
 
@@ -168,7 +168,7 @@ export class TranscriptDatabaseService {
   }
 
   async deleteSession(sessionId: string): Promise<void> {
-    await this.db.runAsync(\`DELETE FROM tour_sessions WHERE id = ?\`, [sessionId]);
+    await this.db.runAsync(`DELETE FROM tour_sessions WHERE id = ?`, [sessionId]);
   }
 
   private mapSessionRow(row: any): TourSession {
