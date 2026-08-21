@@ -32,10 +32,11 @@ class TranscriptionService {
         console.log('[Transcription WS] Connected. Sending setup...');
         const setupMessage = {
           setup: {
-            model: "models/gemini-3.0-flash-live",
+            model: "models/gemini-3.1-flash-live-preview",
             generationConfig: {
-              responseModalities: ["TEXT"],
+              responseModalities: ["AUDIO"],
             },
+            outputAudioTranscription: {},
             systemInstruction: {
               parts: [{ text: "Transcribe the following spoken audio exactly as heard. Output only the transcription, nothing else." }]
             },
@@ -84,6 +85,12 @@ class TranscriptionService {
           const messages = Array.isArray(message) ? message : [message];
 
           for (const msg of messages) {
+            console.log('[Transcription WS] Received message:', JSON.stringify(msg, (key, value) => {
+              if (typeof value === 'string' && value.length > 200 && key !== 'text') {
+                return '[BASE64_DATA]';
+              }
+              return value;
+            }, 2));
             if (msg.setupComplete) {
               console.log('[Transcription WS] Setup complete received.');
               this.connectionState = 'connected';
@@ -183,12 +190,10 @@ class TranscriptionService {
 
     const message = {
       realtimeInput: {
-        mediaChunks: [
-          {
-            mimeType: "audio/pcm;rate=16000",
-            data: base64PcmData
-          }
-        ]
+        audio: {
+          mimeType: "audio/pcm;rate=16000",
+          data: base64PcmData
+        }
       }
     };
     try {

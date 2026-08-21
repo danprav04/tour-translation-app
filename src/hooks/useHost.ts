@@ -724,6 +724,7 @@ export const useHost = () => {
     toggleMic,
     toggleTranslation,
     toggleEcho,
+    startTranslation,
     setLanguage,
     kickListener,
     renameListener,
