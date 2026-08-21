@@ -76,6 +76,11 @@ class TranscriptionService {
           const messages = Array.isArray(message) ? message : [message];
 
           for (const msg of messages) {
+            // DEBUG: Log all incoming message keys to diagnose transcription
+            const topKeys = Object.keys(msg);
+            const serverContentKeys = msg.serverContent ? Object.keys(msg.serverContent) : [];
+            console.log(`[Transcription WS] MSG keys: [${topKeys.join(',')}], serverContent keys: [${serverContentKeys.join(',')}]`);
+
             if (msg.setupComplete) {
               console.log(`[Transcription WS] Setup complete received for ${modelName}.`);
               this.connectionState = 'connected';
@@ -85,17 +90,26 @@ class TranscriptionService {
             }
 
             // Handle input transcription (user's speech → text)
-            if (msg.serverContent?.inputTranscription?.text) {
+            if (msg.serverContent?.inputTranscription) {
+              console.log(`[Transcription WS] inputTranscription received:`, JSON.stringify(msg.serverContent.inputTranscription));
               const text = msg.serverContent.inputTranscription.text;
-              this.accumulatedInterim += text;
-              if (this.onInterimTextCallback) {
-                this.onInterimTextCallback(this.accumulatedInterim);
+              if (text) {
+                this.accumulatedInterim += text;
+                if (this.onInterimTextCallback) {
+                  this.onInterimTextCallback(this.accumulatedInterim);
+                }
               }
+            }
+
+            // Also check for legacy modelTurn text (fallback)
+            if (msg.serverContent?.modelTurn?.parts) {
+              console.log(`[Transcription WS] modelTurn received:`, JSON.stringify(msg.serverContent.modelTurn.parts.map((p: any) => ({ text: p.text, hasInlineData: !!p.inlineData }))));
             }
 
             // Ignore model audio output (inlineData) — we only need the input transcription
             
             if (msg.serverContent?.turnComplete) {
+              console.log(`[Transcription WS] turnComplete. accumulatedInterim: "${this.accumulatedInterim}"`);
               if (this.accumulatedInterim.trim() && this.onFinalTextCallback) {
                 this.onFinalTextCallback(this.accumulatedInterim.trim());
               }
@@ -204,8 +218,8 @@ class TranscriptionService {
     }
 
     this.chunkCount++;
-    if (this.chunkCount % 100 === 0) {
-      console.log(`[Transcription WS] Sent ${this.chunkCount} audio chunks`);
+    if (this.chunkCount === 1 || this.chunkCount % 50 === 0) {
+      console.log(`[Transcription WS] Sent ${this.chunkCount} audio chunks (data length: ${base64PcmData.length})`);
     }
 
     const message = {
