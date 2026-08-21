@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator, Alert, ActionSheetIOS, Platform } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useDatabaseContext } from '@/context/DatabaseContext';
@@ -139,6 +139,45 @@ export default function SessionDetailScreen() {
           </View>
         }
       />
+      <CustomModal
+        visible={exportModalVisible}
+        onClose={() => setExportModalVisible(false)}
+        title="Export"
+        showCloseButton={true}
+      >
+        <Text style={styles.exportDesc}>Choose format</Text>
+        
+        <View style={styles.exportOptions}>
+          <Pressable
+            style={styles.exportOptionBtn}
+            onPress={() => {
+              setExportModalVisible(false);
+              handleExport('pdf');
+            }}
+          >
+            <MaterialIcons name="picture-as-pdf" size={24} color="#FFF" style={styles.exportOptionIcon} />
+            <Text style={styles.exportOptionText}>PDF</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.exportOptionBtn}
+            onPress={() => {
+              setExportModalVisible(false);
+              handleExport('text');
+            }}
+          >
+            <MaterialIcons name="description" size={24} color="#FFF" style={styles.exportOptionIcon} />
+            <Text style={styles.exportOptionText}>Text</Text>
+          </Pressable>
+        </View>
+
+        <Pressable
+          style={styles.exportCancelBtn}
+          onPress={() => setExportModalVisible(false)}
+        >
+          <Text style={styles.exportCancelText}>Cancel</Text>
+        </Pressable>
+      </CustomModal>
     </SafeAreaView>
   );
 }
@@ -164,5 +203,12 @@ const styles = StyleSheet.create({
   toggleTextActive: { color: '#7C5CFC' },
   listContent: { padding: 20, paddingBottom: 40 },
   emptyContainer: { padding: 40, alignItems: 'center' },
-  emptyText: { color: 'rgba(255,255,255,0.4)', fontSize: 15, textAlign: 'center' }
+  emptyText: { color: 'rgba(255,255,255,0.4)', fontSize: 15, textAlign: 'center' },
+  exportDesc: { color: 'rgba(255,255,255,0.7)', fontSize: 15, marginBottom: 20 },
+  exportOptions: { flexDirection: 'column', gap: 12, marginBottom: 24 },
+  exportOptionBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  exportOptionIcon: { marginRight: 12 },
+  exportOptionText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
+  exportCancelBtn: { alignItems: 'center', padding: 16, borderRadius: 16, backgroundColor: 'rgba(255,71,87,0.1)' },
+  exportCancelText: { color: '#FF4757', fontSize: 16, fontWeight: '700' }
 });

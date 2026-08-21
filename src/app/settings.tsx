@@ -43,7 +43,8 @@ export default function SettingsScreen() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [isBatteryOptimized, setIsBatteryOptimized] = useState<boolean | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [customPromptInjection, setCustomPromptInjection] = useState(settings.customPromptInjection ?? '');
+  const [customTextPromptInjection, setCustomTextPromptInjection] = useState(settings.customTextPromptInjection ?? '');
+  const [customVoicePromptInjection, setCustomVoicePromptInjection] = useState(settings.customVoicePromptInjection ?? '');
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -84,7 +85,8 @@ export default function SettingsScreen() {
       useLegacyWebSockets: useLegacy,
       showBugReportButton: showBugReport,
       micAmplification: micAmplification,
-      customPromptInjection: customPromptInjection,
+      customTextPromptInjection: customTextPromptInjection,
+      customVoicePromptInjection: customVoicePromptInjection,
     });
   };
 
@@ -372,14 +374,28 @@ export default function SettingsScreen() {
             
             {showAdvanced && (
               <View style={{ marginTop: 16 }}>
-                <Text style={[styles.sectionTitle, { fontSize: 16 }]}>Custom Prompt Injection</Text>
+                <Text style={[styles.sectionTitle, { fontSize: 16 }]}>Text/Transcription Prompt</Text>
                 <Text style={styles.sectionDesc}>
-                  Add additional instructions to the transcription and translation flow.
+                  Add additional instructions to the text transcription and text translation flow.
+                </Text>
+                <TextInput
+                  style={[styles.input, { minHeight: 80, textAlignVertical: 'top', marginBottom: 16 }]}
+                  value={customTextPromptInjection}
+                  onChangeText={setCustomTextPromptInjection}
+                  onBlur={handleSave}
+                  placeholder="e.g. Please speak formally..."
+                  placeholderTextColor="rgba(255,255,255,0.2)"
+                  multiline
+                />
+
+                <Text style={[styles.sectionTitle, { fontSize: 16 }]}>Voice Translation Prompt</Text>
+                <Text style={styles.sectionDesc}>
+                  Add additional instructions to the live voice-to-voice translation flow.
                 </Text>
                 <TextInput
                   style={[styles.input, { minHeight: 80, textAlignVertical: 'top' }]}
-                  value={customPromptInjection}
-                  onChangeText={setCustomPromptInjection}
+                  value={customVoicePromptInjection}
+                  onChangeText={setCustomVoicePromptInjection}
                   onBlur={handleSave}
                   placeholder="e.g. Please speak formally..."
                   placeholderTextColor="rgba(255,255,255,0.2)"
