@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { View, Text, Pressable, StyleSheet, NativeSyntheticEvent, NativeScrollEvent, ScrollView } from 'react-native';
+import { View, Text, Pressable, StyleSheet, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { TranscriptChunk } from '@/services/transcriptDatabase';
 import { DisplayMode } from '@/hooks/useTranscript';
 import TranscriptChunkRow from './TranscriptChunkRow';
@@ -21,7 +22,7 @@ export default function LiveTranscriptPanel({
   onDisplayModeChange,
   isActive
 }: LiveTranscriptPanelProps) {
-  const listRef = useRef<ScrollView>(null);
+  const listRef = useRef<FlashList<TranscriptChunk>>(null);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -112,18 +113,18 @@ export default function LiveTranscriptPanel({
                 <Text style={styles.emptyText}>Transcript will appear here...</Text>
               </View>
             ) : (
-              <ScrollView
+              <FlashList
                 ref={listRef}
                 onScroll={handleScroll}
                 scrollEventThrottle={16}
                 contentContainerStyle={styles.listContent}
                 nestedScrollEnabled={true}
-              >
-                {finalChunks.map(item => (
-                  <TranscriptChunkRow key={item.id} item={item} displayMode={displayMode} />
-                ))}
-                <InterimRow />
-              </ScrollView>
+                data={finalChunks}
+                renderItem={renderItem}
+                keyExtractor={(item) => item.id}
+                estimatedItemSize={100}
+                ListFooterComponent={InterimRow}
+              />
             )}
 
             {/* Scroll to bottom button */}
