@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useSettingsContext } from '@/context/SettingsContext';
 import { useDebugContext } from '@/context/DebugContext';
+import { useDatabaseContext } from '@/context/DatabaseContext';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import { appSubversion } from '@/app/settings';
@@ -17,6 +18,7 @@ import CustomModal from './CustomModal';
 export default function BugReportButton() {
   const { settings, isLoaded } = useSettingsContext();
   const { getDebugData } = useDebugContext();
+  const db = useDatabaseContext();
   const [modalVisible, setModalVisible] = useState(false);
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,10 +40,25 @@ export default function BugReportButton() {
 
     setIsSubmitting(true);
     try {
+      // Fetch up to 3 recent sessions (includes current live one if active)
+      const sessions = await db.getSessions({ limit: 3 });
+      const recentTranscripts = await Promise.all(
+        sessions.map(async (session) => {
+          const { chunks } = await db.getSessionWithChunks(session.id);
+          return {
+            session,
+            chunks,
+          };
+        })
+      );
+
+      const debugData = getDebugData();
+
       const payload = {
         description: description.trim(),
         settings: settings,
-        debugData: getDebugData(),
+        debugData: debugData,
+        recentTranscripts,
         deviceInfo: {
           brand: Device.brand,
           modelName: Device.modelName,

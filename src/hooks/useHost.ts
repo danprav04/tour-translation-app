@@ -214,6 +214,7 @@ export const useHost = () => {
     isTranslatingRef.current = false;
     geminiTranslateService.disconnect();
     transcript.stopTranscription();
+    transcript.clearTranscript();
     setIsTranslating(false);
     
     // Unconditionally stop mic capture to prevent zombie streams

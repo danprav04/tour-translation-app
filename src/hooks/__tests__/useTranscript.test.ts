@@ -1,10 +1,12 @@
 import { renderHook, act } from '@testing-library/react-native';
 import { useTranscript } from '../useTranscript';
 import { useDatabaseContext } from '@/context/DatabaseContext';
+import { useDebugContext } from '@/context/DebugContext';
 import transcriptionService from '@/services/transcriptionService';
 import { TextTranslationService } from '@/services/textTranslationService';
 
 jest.mock('@/context/DatabaseContext');
+jest.mock('@/context/DebugContext');
 jest.mock('@/services/transcriptionService');
 jest.mock('@/services/textTranslationService');
 
@@ -18,6 +20,9 @@ describe('useTranscript', () => {
       finalizeSession: jest.fn(),
     };
     (useDatabaseContext as jest.Mock).mockReturnValue(mockDb);
+    (useDebugContext as jest.Mock).mockReturnValue({
+      setDebugState: jest.fn(),
+    });
 
     (transcriptionService.connect as jest.Mock).mockResolvedValue(undefined);
     (transcriptionService.onInterimText as jest.Mock).mockImplementation((cb) => cb);

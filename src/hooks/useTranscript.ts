@@ -1,13 +1,15 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import transcriptionService from '@/services/transcriptionService';
 import { TextTranslationService } from '@/services/textTranslationService';
 import { useDatabaseContext } from '@/context/DatabaseContext';
+import { useDebugContext } from '@/context/DebugContext';
 import { TranscriptChunk } from '@/services/transcriptDatabase';
 
 export type DisplayMode = 'translated' | 'original' | 'both';
 
 export const useTranscript = () => {
   const db = useDatabaseContext();
+  const { setDebugState } = useDebugContext();
   const [finalChunks, setFinalChunks] = useState<TranscriptChunk[]>([]);
   const [interimText, setInterimText] = useState<string>('');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('both');
@@ -21,6 +23,13 @@ export const useTranscript = () => {
   const targetLangRef = useRef<string>('en');
   const apiKeyRef = useRef<string | null>(null);
   const customTextPromptInjectionRef = useRef<string>('');
+
+  useEffect(() => {
+    setDebugState('liveTranscript', {
+      interimText,
+      finalChunks
+    });
+  }, [interimText, finalChunks, setDebugState]);
 
   const startTranscription = useCallback(async (
     apiKey: string,
@@ -160,6 +169,12 @@ export const useTranscript = () => {
     }
   }, []);
 
+  const clearTranscript = useCallback(() => {
+    setFinalChunks([]);
+    setInterimText('');
+    chunkSequenceRef.current = 0;
+  }, []);
+
   return {
     finalChunks,
     interimText,
@@ -169,6 +184,7 @@ export const useTranscript = () => {
     sessionId,
     startTranscription,
     stopTranscription,
-    sendAudioChunk
+    sendAudioChunk,
+    clearTranscript
   };
 };
