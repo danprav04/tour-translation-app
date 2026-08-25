@@ -13,6 +13,8 @@ class AudioService {
   private isPlaying: boolean = false;
   private playlist: AudioPlaylist | null = null;
   private playlistItemCount: number = 0;
+  private audioLevelQueue: { time: number, level: number }[] = [];
+  private levelInterval: ReturnType<typeof setInterval> | null = null;
   private bufferFlushTimeout: ReturnType<typeof setTimeout> | null = null;
   private onChunkCallback: ((base64Data: string) => void) | null = null;
   private onAudioLevelCallback: ((level: number) => void) | null = null;
@@ -196,6 +198,19 @@ class AudioService {
           audioChunks = [];
           currentBufferSize = 0;
 
+          // NOISE GATE: Check if chunk is too quiet to prevent AI hallucinating on static
+          const dataView = new DataView(combined.buffer, combined.byteOffset, combined.byteLength);
+          let maxPeak = 0;
+          for (let i = 0; i < combined.byteLength - 1; i += 2) {
+            const val = Math.abs(dataView.getInt16(i, true));
+            if (val > maxPeak) maxPeak = val;
+          }
+          
+          // Threshold of 500 out of 32768 (~1.5% max volume)
+          if (maxPeak < 500) {
+            combined.fill(0);
+          }
+
           // Fast base64 encoding for the combined PCM chunk
           callback(uint8ArrayToBase64(combined));
         }
@@ -333,6 +348,12 @@ class AudioService {
     this.jitterBuffer = [];
     this.lastPlayedSeq = -1;
     this.estimatedPlaybackEnd = 0;
+    
+    if (this.levelInterval) {
+      clearInterval(this.levelInterval);
+      this.levelInterval = null;
+    }
+    this.audioLevelQueue = [];
   }
 
   private processJitterBuffer(sampleRate: number, forceFlush: boolean) {
@@ -443,7 +464,7 @@ class AudioService {
         this.estimatedPlaybackEnd = now + 150; 
       }
       
-      let delay = this.estimatedPlaybackEnd - now;
+      let scheduledTime = this.estimatedPlaybackEnd;
       
       // Split into 100ms chunks and schedule levels
       const sliceDurationMs = 100;
@@ -466,11 +487,24 @@ class AudioService {
         const rawLevel = maxPeak / 32768;
         const level = Math.min(1, Math.sqrt(rawLevel) * 1.5);
         
-        setTimeout(() => {
-          if (this.onAudioLevelCallback) this.onAudioLevelCallback(level);
-        }, delay);
-        
-        delay += sliceDurationMs;
+        this.audioLevelQueue.push({ time: scheduledTime, level });
+        scheduledTime += sliceDurationMs;
+      }
+      
+      if (!this.levelInterval) {
+        this.levelInterval = setInterval(() => {
+          const currentTime = Date.now();
+          while (this.audioLevelQueue.length > 0 && this.audioLevelQueue[0].time <= currentTime) {
+            const item = this.audioLevelQueue.shift();
+            if (item && this.onAudioLevelCallback) {
+              this.onAudioLevelCallback(item.level);
+            }
+          }
+          if (this.audioLevelQueue.length === 0 && this.levelInterval) {
+            clearInterval(this.levelInterval);
+            this.levelInterval = null;
+          }
+        }, 50);
       }
     }
 
