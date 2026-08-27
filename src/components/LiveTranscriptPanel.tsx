@@ -69,7 +69,7 @@ export default function LiveTranscriptPanel({
               </Text>
             ) : null}
             {displayMode !== 'original' && interimTranslatedText ? (
-              <Text style={styles.interimText}>{interimTranslatedText}</Text>
+              <Text style={styles.interimTranslatedText}>{interimTranslatedText}</Text>
             ) : null}
           </View>
         </View>
@@ -237,6 +237,12 @@ const styles = StyleSheet.create({
   interimText: {
     color: '#00D4AA',
     fontSize: 15,
+    fontStyle: 'italic',
+  },
+  interimTranslatedText: {
+    color: '#7C5CFC',
+    fontSize: 16,
+    fontWeight: '500',
     fontStyle: 'italic',
   },
   dimmedText: {
