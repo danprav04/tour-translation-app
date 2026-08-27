@@ -5,11 +5,13 @@ import { TranscriptChunk } from '@/services/transcriptDatabase';
 import { DisplayMode } from '@/hooks/useTranscript';
 import TranscriptChunkRow from './TranscriptChunkRow';
 import Animated, { FadeIn, FadeOut, FadeInUp } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import GlassCard from './GlassCard';
 
 interface LiveTranscriptPanelProps {
   finalChunks: TranscriptChunk[];
   interimText: string;
+  interimTranslatedText: string;
   displayMode: DisplayMode;
   onDisplayModeChange: (mode: DisplayMode) => void;
   isActive: boolean;
@@ -18,6 +20,7 @@ interface LiveTranscriptPanelProps {
 export default function LiveTranscriptPanel({
   finalChunks,
   interimText,
+  interimTranslatedText,
   displayMode,
   onDisplayModeChange,
   isActive
@@ -38,14 +41,14 @@ export default function LiveTranscriptPanel({
     setIsScrolledUp(false);
   };
 
-  // Auto-scroll when new chunks arrive
+  // Auto-scroll when new chunks or interim text arrives
   React.useEffect(() => {
-    if (!isScrolledUp && finalChunks.length > 0 && !isCollapsed) {
+    if (!isScrolledUp && !isCollapsed) {
       setTimeout(() => {
         listRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [finalChunks.length, isScrolledUp, isCollapsed]);
+  }, [finalChunks.length, interimText, interimTranslatedText, isScrolledUp, isCollapsed]);
 
   const renderItem = useCallback(
     ({ item }: { item: TranscriptChunk }) => (
@@ -55,13 +58,20 @@ export default function LiveTranscriptPanel({
   );
 
   const InterimRow = () => {
-    if (!interimText) return null;
+    if (!interimText && !interimTranslatedText) return null;
     return (
       <Animated.View entering={FadeIn}>
         <View style={styles.interimContainer}>
           <View style={styles.liveIndicator} />
           <View style={styles.textContainer}>
-            <Text style={styles.interimText}>{interimText}</Text>
+            {displayMode !== 'translated' && interimText ? (
+              <Text style={[styles.interimText, displayMode === 'both' && styles.dimmedText]}>
+                {interimText}
+              </Text>
+            ) : null}
+            {displayMode !== 'original' && interimTranslatedText ? (
+              <Text style={styles.interimTranslatedText}>{interimTranslatedText}</Text>
+            ) : null}
           </View>
         </View>
       </Animated.View>
@@ -131,7 +141,7 @@ export default function LiveTranscriptPanel({
             {isScrolledUp && (
               <Animated.View entering={FadeInUp} exiting={FadeOut} style={styles.floatingBtnContainer}>
                 <Pressable style={styles.scrollBtn} onPress={scrollToBottom}>
-                  <Text style={styles.scrollBtnText}>↓ New text below</Text>
+                  <Ionicons name="arrow-down" size={20} color="#00D4AA" />
                 </Pressable>
               </Animated.View>
             )}
@@ -230,22 +240,35 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontStyle: 'italic',
   },
+  interimTranslatedText: {
+    color: '#7C5CFC',
+    fontSize: 16,
+    fontWeight: '500',
+    fontStyle: 'italic',
+  },
+  dimmedText: {
+    opacity: 0.6,
+    marginBottom: 4,
+  },
   floatingBtnContainer: {
     position: 'absolute',
     bottom: 16,
-    alignSelf: 'center',
+    right: 16,
+    zIndex: 10,
   },
   scrollBtn: {
-    backgroundColor: 'rgba(30, 41, 59, 0.9)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    backgroundColor: 'rgba(30, 41, 59, 0.95)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  scrollBtnText: {
-    color: '#00D4AA',
-    fontSize: 13,
-    fontWeight: '600',
+    borderColor: 'rgba(255,255,255,0.15)',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
   },
 });

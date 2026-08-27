@@ -675,6 +675,7 @@ export default function HostScreen() {
         <LiveTranscriptPanel
           finalChunks={transcript.finalChunks}
           interimText={transcript.interimText}
+          interimTranslatedText={transcript.interimTranslatedText}
           displayMode={transcript.displayMode}
           onDisplayModeChange={transcript.setDisplayMode}
           isActive={transcript.isActive}

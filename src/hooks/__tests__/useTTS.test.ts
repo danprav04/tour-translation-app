@@ -26,9 +26,9 @@ describe('useTTS Hook', () => {
     const onTTSStart = jest.fn();
     const onTTSEnd = jest.fn();
 
-    const { result } = renderHook(() => useTTS({ apiKey: 'dummy', onTTSStart, onTTSEnd }));
+    const { result, unmount } = await renderHook(() => useTTS({ apiKey: 'dummy', onTTSStart, onTTSEnd }));
 
-    act(() => {
+    await act(async () => {
       result.current.setTTSText('hello');
     });
 
@@ -38,15 +38,16 @@ describe('useTTS Hook', () => {
 
     expect(ttsService.generateTTS).toHaveBeenCalledWith('hello', 'dummy');
     expect(result.current.hasAudio).toBe(true);
+    unmount();
   });
 
   it('should handle playback', async () => {
     const onTTSStart = jest.fn();
     const onTTSEnd = jest.fn();
 
-    const { result } = renderHook(() => useTTS({ apiKey: 'dummy', onTTSStart, onTTSEnd }));
+    const { result, unmount } = await renderHook(() => useTTS({ apiKey: 'dummy', onTTSStart, onTTSEnd }));
 
-    act(() => {
+    await act(async () => {
       result.current.setTTSText('hello');
     });
 
@@ -61,23 +62,25 @@ describe('useTTS Hook', () => {
     expect(onTTSStart).toHaveBeenCalled();
     expect(result.current.isTTSPlaying).toBe(true);
 
-    act(() => {
+    await act(async () => {
       result.current.pause();
     });
 
     expect(result.current.isTTSPlaying).toBe(false);
     expect(onTTSEnd).toHaveBeenCalled();
+    unmount();
   });
 
-  it('should format time correctly', () => {
-    const { result } = renderHook(() => useTTS({ apiKey: 'dummy', onTTSStart: jest.fn(), onTTSEnd: jest.fn() }));
+  it('should format time correctly', async () => {
+    const { result, unmount } = await renderHook(() => useTTS({ apiKey: 'dummy', onTTSStart: jest.fn(), onTTSEnd: jest.fn() }));
     expect(result.current.formatTime(65)).toBe('1:05');
+    unmount();
   });
 
   it('should clear', async () => {
-    const { result } = renderHook(() => useTTS({ apiKey: 'dummy', onTTSStart: jest.fn(), onTTSEnd: jest.fn() }));
+    const { result, unmount } = await renderHook(() => useTTS({ apiKey: 'dummy', onTTSStart: jest.fn(), onTTSEnd: jest.fn() }));
     
-    act(() => {
+    await act(async () => {
       result.current.setTTSText('hello');
     });
     
@@ -85,11 +88,12 @@ describe('useTTS Hook', () => {
       await result.current.generate();
     });
     
-    act(() => {
+    await act(async () => {
       result.current.clear();
     });
 
     expect(result.current.ttsText).toBe('');
     expect(result.current.hasAudio).toBe(false);
+    unmount();
   });
 });

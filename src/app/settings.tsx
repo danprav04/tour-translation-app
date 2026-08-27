@@ -29,7 +29,7 @@ const DONT_KILL_MY_APP_SCORES: Record<string, number> = {
   'google': 0, 'nokia': 0, 'htc': 0, 'stock-android': 0,
 };
 
-export const appSubversion = '02';
+export const appSubversion = '00';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -45,6 +45,8 @@ export default function SettingsScreen() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [customTextPromptInjection, setCustomTextPromptInjection] = useState(settings.customTextPromptInjection ?? '');
   const [customVoicePromptInjection, setCustomVoicePromptInjection] = useState(settings.customVoicePromptInjection ?? '');
+  const [transcriptionMode, setTranscriptionMode] = useState<'SMART' | 'VERBATIM'>(settings.transcriptionMode ?? 'SMART');
+  const [customVocabulary, setCustomVocabulary] = useState(settings.customVocabulary ?? '');
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -87,6 +89,8 @@ export default function SettingsScreen() {
       micAmplification: micAmplification,
       customTextPromptInjection: customTextPromptInjection,
       customVoicePromptInjection: customVoicePromptInjection,
+      transcriptionMode: transcriptionMode,
+      customVocabulary: customVocabulary,
     });
   };
 
@@ -101,6 +105,8 @@ export default function SettingsScreen() {
     deviceName,
     customTextPromptInjection,
     customVoicePromptInjection,
+    transcriptionMode,
+    customVocabulary,
   ]);
 
   const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? packageJson.version ?? '1.0.0';
@@ -387,9 +393,39 @@ export default function SettingsScreen() {
             
             {showAdvanced && (
               <View style={{ marginTop: 16 }}>
-                <Text style={[styles.sectionTitle, { fontSize: 16 }]}>Text/Transcription Prompt</Text>
+                <Text style={[styles.sectionTitle, { fontSize: 16 }]}>Smart Transcription</Text>
+                <View style={[styles.switchRow, { marginBottom: 16, marginTop: 4 }]}>
+                  <View style={styles.switchTextContainer}>
+                    <Text style={styles.sectionDesc}>
+                      Automatically remove filler words ("um", "uh") and format dates/numbers. Turn off for word-for-word Verbatim mode.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={transcriptionMode === 'SMART'}
+                    onValueChange={(val) => {
+                      setTranscriptionMode(val ? 'SMART' : 'VERBATIM');
+                    }}
+                    trackColor={{ false: 'rgba(255,255,255,0.1)', true: '#00D4AA' }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+
+                <Text style={[styles.sectionTitle, { fontSize: 16 }]}>Custom Vocabulary</Text>
                 <Text style={styles.sectionDesc}>
-                  Add additional instructions to the text transcription and text translation flow.
+                  Comma-separated domain terms (e.g. "Eiffel Tower, Louvre") to improve recognition. Max 1,000 terms.
+                </Text>
+                <TextInput
+                  style={[styles.input, { marginBottom: 16 }]}
+                  value={customVocabulary}
+                  onChangeText={setCustomVocabulary}
+                  onBlur={handleSave}
+                  placeholder="e.g. Louvre, Mona Lisa"
+                  placeholderTextColor="rgba(255,255,255,0.2)"
+                />
+
+                <Text style={[styles.sectionTitle, { fontSize: 16 }]}>Text Translation Prompt</Text>
+                <Text style={styles.sectionDesc}>
+                  Add additional instructions to the text translation flow (e.g. tone, style).
                 </Text>
                 <TextInput
                   style={[styles.input, { minHeight: 80, textAlignVertical: 'top', marginBottom: 16 }]}

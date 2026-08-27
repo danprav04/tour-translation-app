@@ -12,6 +12,7 @@ export const useTranscript = () => {
   const { setDebugState } = useDebugContext();
   const [finalChunks, setFinalChunks] = useState<TranscriptChunk[]>([]);
   const [interimText, setInterimText] = useState<string>('');
+  const [interimTranslatedText, setInterimTranslatedText] = useState<string>('');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('both');
   const [isActive, setIsActive] = useState(false);
   const isActiveRef = useRef(false);
@@ -23,6 +24,10 @@ export const useTranscript = () => {
   const targetLangRef = useRef<string>('en');
   const apiKeyRef = useRef<string | null>(null);
   const customTextPromptInjectionRef = useRef<string>('');
+  const interimTranslationDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const latestInterimAbortControllerRef = useRef<AbortController | null>(null);
+
+  const lastInterimTranslationTimeRef = useRef<number>(0);
 
   useEffect(() => {
     setDebugState('liveTranscript', {
@@ -36,7 +41,9 @@ export const useTranscript = () => {
     sourceLang: string,
     targetLang: string,
     roomCode?: string,
-    customTextPromptInjection?: string
+    customTextPromptInjection?: string,
+    transcriptionMode: 'SMART' | 'VERBATIM' = 'SMART',
+    customVocabularyStr: string = ''
   ) => {
     try {
       sourceLangRef.current = sourceLang;
@@ -55,19 +62,87 @@ export const useTranscript = () => {
       sessionIdRef.current = newSessionId;
       setFinalChunks([]);
       setInterimText('');
+      setInterimTranslatedText('');
       chunkSequenceRef.current = 0;
+      lastInterimTranslationTimeRef.current = 0;
 
       // 2. Connect to transcription service
-      await transcriptionService.connect(apiKey, customTextPromptInjection);
+      const parsedVocab = customVocabularyStr.split(',').map(s => s.trim()).filter(s => s.length > 0);
+      await transcriptionService.connect(apiKey, transcriptionMode, parsedVocab);
 
       transcriptionService.onInterimText((text) => {
-        console.log('[useTranscript] onInterimText callback triggered, text length:', text?.length, 'text:', text);
         setInterimText(text);
+        
+        if (interimTranslationDebounceTimerRef.current) {
+          clearTimeout(interimTranslationDebounceTimerRef.current);
+        }
+        
+        if (!text) {
+          setInterimTranslatedText('');
+          if (latestInterimAbortControllerRef.current) {
+            latestInterimAbortControllerRef.current.abort();
+            latestInterimAbortControllerRef.current = null;
+          }
+          return;
+        }
+
+        const now = Date.now();
+        const timeSinceLast = now - lastInterimTranslationTimeRef.current;
+        const throttleMs = 1200; // Translate at most once every 1.2 seconds
+
+        const executeTranslation = async (textToTranslate: string) => {
+          if (!apiKeyRef.current) return;
+          
+          lastInterimTranslationTimeRef.current = Date.now();
+          
+          if (latestInterimAbortControllerRef.current) {
+            latestInterimAbortControllerRef.current.abort();
+          }
+          const abortController = new AbortController();
+          latestInterimAbortControllerRef.current = abortController;
+          
+          try {
+            await TextTranslationService.translateTextStreaming(
+              textToTranslate,
+              targetLangRef.current,
+              apiKeyRef.current,
+              customTextPromptInjectionRef.current,
+              (partialTranslation) => {
+                if (!abortController.signal.aborted) {
+                   setInterimTranslatedText(partialTranslation);
+                }
+              },
+              0,
+              abortController.signal
+            );
+          } catch (e: any) {
+            if (e.name !== 'AbortError' && !abortController.signal.aborted) {
+              console.warn('[useTranscript] Interim translation failed', e);
+            }
+          }
+        };
+
+        if (timeSinceLast >= throttleMs) {
+          executeTranslation(text);
+        } else {
+          interimTranslationDebounceTimerRef.current = setTimeout(() => {
+            executeTranslation(text);
+          }, throttleMs - timeSinceLast);
+        }
       });
 
       transcriptionService.onFinalText(async (text) => {
-        console.log('[useTranscript] onFinalText callback triggered, text:', text);
         if (!text || !sessionIdRef.current || !apiKeyRef.current) return;
+        
+        if (interimTranslationDebounceTimerRef.current) {
+          clearTimeout(interimTranslationDebounceTimerRef.current);
+        }
+        if (latestInterimAbortControllerRef.current) {
+          latestInterimAbortControllerRef.current.abort();
+          latestInterimAbortControllerRef.current = null;
+        }
+        setInterimText('');
+        setInterimTranslatedText('');
         
         const timestampMs = Date.now();
         const seq = chunkSequenceRef.current++;
@@ -79,34 +154,38 @@ export const useTranscript = () => {
           sequence: seq,
           timestampMs,
           originalText: text,
-          translatedText: '...', // Loading indicator
+          translatedText: '', // Empty initially, will stream in
           createdAt: timestampMs
         };
         
         setFinalChunks(prev => [...prev, tempChunk]);
 
         try {
-          // 3. Translate the finalized text
-          const translatedText = await TextTranslationService.translateText(
+          // 3. Translate the finalized text progressively
+          const finalTranslatedText = await TextTranslationService.translateTextStreaming(
             text,
-            sourceLangRef.current,
             targetLangRef.current,
             apiKeyRef.current,
-            customTextPromptInjectionRef.current
+            customTextPromptInjectionRef.current,
+            (partialTranslation) => {
+              // 4. Update UI progressively
+              setFinalChunks(prev => 
+                prev.map(c => c.sequence === seq ? { ...c, translatedText: partialTranslation } : c)
+              );
+            }
           );
 
-          // 4. Update UI with translated text
+          // 5. Final state update and save to database
           setFinalChunks(prev => 
-            prev.map(c => c.sequence === seq ? { ...c, translatedText } : c)
+            prev.map(c => c.sequence === seq ? { ...c, translatedText: finalTranslatedText } : c)
           );
 
-          // 5. Save to database
           await db.insertChunk({
             sessionId: sessionIdRef.current,
             sequence: seq,
             timestampMs,
             originalText: text,
-            translatedText
+            translatedText: finalTranslatedText
           });
         } catch (err) {
           console.error('[useTranscript] Failed to translate chunk:', err);
@@ -172,12 +251,14 @@ export const useTranscript = () => {
   const clearTranscript = useCallback(() => {
     setFinalChunks([]);
     setInterimText('');
+    setInterimTranslatedText('');
     chunkSequenceRef.current = 0;
   }, []);
 
   return {
     finalChunks,
     interimText,
+    interimTranslatedText,
     displayMode,
     setDisplayMode,
     isActive,

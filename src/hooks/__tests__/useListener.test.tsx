@@ -1,6 +1,7 @@
 import { renderHook, act } from '@testing-library/react-native';
 import { useListener } from '../useListener';
 import { SettingsContext } from '@/context/SettingsContext';
+import { DebugContext } from '@/context/DebugContext';
 import React from 'react';
 import socketService from '@/services/socketService';
 import foregroundService from '@/services/foregroundService';
@@ -14,6 +15,11 @@ jest.mock('@/services/socketService', () => ({
   onRenamed: jest.fn(),
   onRoomClosed: jest.fn(),
   onAudioData: jest.fn(),
+  onHostDisconnected: jest.fn(),
+  onHostReconnected: jest.fn(),
+  onHostStatus: jest.fn(),
+  onSpeakingState: jest.fn(),
+  onTranscriptChunk: jest.fn(),
   off: jest.fn(),
   refreshConnection: jest.fn(),
 }));
@@ -41,14 +47,18 @@ const mockSettings = {
   serverUrl: 'http://localhost',
   deviceName: 'ListenerDevice',
   useLegacyWebSockets: true,
+  preferredAudioOutput: 'speaker',
 };
 
 const updateSettingsMock = jest.fn();
+const mockSetDebugState = jest.fn();
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <SettingsContext.Provider value={{ settings: mockSettings, updateSettings: updateSettingsMock } as any}>
-    {children}
-  </SettingsContext.Provider>
+  <DebugContext.Provider value={{ debugState: {}, setDebugState: mockSetDebugState, addDebugEvent: jest.fn(), clearDebugLogs: jest.fn() }}>
+    <SettingsContext.Provider value={{ settings: mockSettings, updateSettings: updateSettingsMock } as any}>
+      {children}
+    </SettingsContext.Provider>
+  </DebugContext.Provider>
 );
 
 describe('useListener Hook', () => {
@@ -56,14 +66,15 @@ describe('useListener Hook', () => {
     jest.clearAllMocks();
   });
 
-  it('should initialize correctly', () => {
-    const { result } = renderHook(() => useListener(), { wrapper });
+  it('should initialize correctly', async () => {
+    const { result, unmount } = await renderHook(() => useListener(), { wrapper });
     expect(result.current.roomCode).toBeNull();
     expect(result.current.isConnected).toBe(false);
+    unmount();
   });
 
   it('should connect to room using legacy websockets', async () => {
-    const { result } = renderHook(() => useListener(), { wrapper });
+    const { result, unmount } = await renderHook(() => useListener(), { wrapper });
     
     await act(async () => {
       await result.current.connect('ROOM12');
@@ -75,21 +86,23 @@ describe('useListener Hook', () => {
     expect(result.current.isConnected).toBe(true);
     expect(foregroundService.start).toHaveBeenCalled();
     expect(audioService.setPreferredAudioOutput).toHaveBeenCalled();
+    unmount();
   });
 
-  it('should toggle mute', () => {
-    const { result } = renderHook(() => useListener(), { wrapper });
+  it('should toggle mute', async () => {
+    const { result, unmount } = await renderHook(() => useListener(), { wrapper });
     
-    act(() => {
+    await act(async () => {
       result.current.toggleMute();
     });
     
     expect(result.current.isMuted).toBe(true);
     expect(audioService.setMuted).toHaveBeenCalledWith(true);
+    unmount();
   });
 
   it('should disconnect from room', async () => {
-    const { result } = renderHook(() => useListener(), { wrapper });
+    const { result, unmount } = await renderHook(() => useListener(), { wrapper });
     
     await act(async () => {
       await result.current.connect('ROOM12');
@@ -100,5 +113,6 @@ describe('useListener Hook', () => {
     expect(foregroundService.stop).toHaveBeenCalled();
     expect(result.current.isConnected).toBe(false);
     expect(result.current.roomCode).toBeNull();
+    unmount();
   });
 });

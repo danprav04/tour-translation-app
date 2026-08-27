@@ -8,7 +8,6 @@ class GeminiTranslateService {
   public currentLangCode: string | null = null;
   public connectionState: 'disconnected' | 'connecting' | 'connected' = 'disconnected';
   public consecutiveSendFailures: number = 0;
-  private keepaliveInterval: ReturnType<typeof setInterval> | null = null;
 
   getConsecutiveSendFailures(): number {
     return this.consecutiveSendFailures;
@@ -111,7 +110,6 @@ class GeminiTranslateService {
               console.log('[Gemini WS] Setup complete received.');
               this.connectionState = 'connected';
               isSetupComplete = true;
-              this.startKeepalive();
               resolve();
             } else if (msg.serverContent?.modelTurn?.parts) {
               const parts = msg.serverContent.modelTurn.parts;
@@ -159,7 +157,6 @@ class GeminiTranslateService {
       ws.onclose = (event) => {
         console.log(`[Gemini WS] Closed with code ${event.code}, reason: ${event.reason}`);
         this.connectionState = 'disconnected';
-        this.stopKeepalive();
         if (this.ws === ws) {
           this.ws = null;
         }
@@ -171,25 +168,6 @@ class GeminiTranslateService {
         }
       };
     });
-  }
-
-  startKeepalive(): void {
-    if (this.keepaliveInterval) return;
-    // 50ms of silence at 16kHz 16-bit mono = 1600 bytes
-    // Base64 encode an array of zeros
-    const silentChunk = btoa(String.fromCharCode(...new Uint8Array(1600)));
-    this.keepaliveInterval = setInterval(() => {
-      if (this.ws?.readyState === WebSocket.OPEN) {
-        this.sendAudioChunk(silentChunk);
-      }
-    }, 8000);
-  }
-
-  stopKeepalive(): void {
-    if (this.keepaliveInterval) {
-      clearInterval(this.keepaliveInterval);
-      this.keepaliveInterval = null;
-    }
   }
 
   sendAudioChunk(base64PcmData: string): void {
@@ -220,7 +198,6 @@ class GeminiTranslateService {
   disconnect(): void {
     this.onCloseCallback = null;
     this.onErrorCallback = null;
-    this.stopKeepalive();
     if (this.ws) {
       this.ws.onclose = null;
       this.ws.close();

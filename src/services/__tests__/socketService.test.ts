@@ -1,21 +1,18 @@
 import socketService from '../socketService';
+import { io } from 'socket.io-client';
 
 describe('SocketService', () => {
   let mockSocket: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
-    // The jest.setup.js mocks 'socket.io-client' 
-    const ioMock = require('socket.io-client');
-    mockSocket = ioMock();
+    mockSocket = (io as jest.Mock)();
     socketService.disconnect();
   });
 
   it('should connect to server', () => {
     socketService.connect('http://localhost');
-    const ioMock = require('socket.io-client');
-    expect(ioMock).toHaveBeenCalledWith('http://localhost', expect.any(Object));
+    expect(io).toHaveBeenCalledWith('http://localhost', expect.any(Object));
   });
 
   it('should create room', async () => {
@@ -48,7 +45,11 @@ describe('SocketService', () => {
   it('should send audio chunks', async () => {
     socketService.connect('http://localhost');
     // fake create room to set currentRoomCode
-    mockSocket.emit.mockImplementation((e: string, d: any, cb: Function) => cb({success:true, roomCode: 'R'}));
+    mockSocket.emit.mockImplementation((e: string, d: any, cb?: Function) => {
+      if (e === 'create-room' && typeof cb === 'function') {
+        cb({ success: true, roomCode: 'R' });
+      }
+    });
     await socketService.createRoom();
 
     socketService.sendAudioChunk(new ArrayBuffer(10), 16000, true);

@@ -46,10 +46,12 @@ export const useHost = () => {
 
   const isTranslatingRef = useRef(isTranslating);
   const isEchoEnabledRef = useRef(isEchoEnabled);
+  const isMountedRef = useRef(true);
   const [isTTSActive, setIsTTSActive] = useState(false);
   const wasStreamingBeforeTTSRef = useRef(false);
   const isMicActiveRef = useRef(false);
   const reconnectAttempts = useRef(0);
+  const reconnectTimerRef = useRef<any>(null);
   const isReconnectingGeminiRef = useRef(false);
   const geminiFirstErrorTimeRef = useRef<number | null>(null);
 
@@ -210,12 +212,18 @@ export const useHost = () => {
   const stopRoom = async () => {
     addDebugEvent('stopRoom called');
     connectionHealthService.stop();
+    if (reconnectTimerRef.current) {
+      BackgroundTimer.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
     // Unconditionally clean up translation state
     isTranslatingRef.current = false;
     geminiTranslateService.disconnect();
     transcript.stopTranscription();
     transcript.clearTranscript();
-    setIsTranslating(false);
+    if (isMountedRef.current) {
+      setIsTranslating(false);
+    }
     
     // Unconditionally stop mic capture to prevent zombie streams
     try {
@@ -228,12 +236,14 @@ export const useHost = () => {
     socketService.disconnect();
 
     await foregroundService.stop();
-    setIsConnected(false);
-    setRoomCode(null);
-    setLivekitToken(null);
-    setLivekitUrl(null);
-    setIsMicActive(false);
-    setListeners([]);
+    if (isMountedRef.current) {
+      setIsConnected(false);
+      setRoomCode(null);
+      setLivekitToken(null);
+      setLivekitUrl(null);
+      setIsMicActive(false);
+      setListeners([]);
+    }
     await AsyncStorage.removeItem('activeSession');
   };
 
@@ -303,7 +313,7 @@ export const useHost = () => {
       }
     });
 
-    return () => subscription.remove();
+    return () => subscription?.remove?.();
   }, [settings.useLegacyWebSockets, settings.geminiApiKey, settings.targetLanguage]);
 
   const toggleMic = async () => {
@@ -361,7 +371,15 @@ export const useHost = () => {
       try {
         if (!isReconnect) {
           console.log('[Host] Starting transcript service...');
-          await transcript.startTranscription(settings.geminiApiKey, 'auto', langCode, roomCode || undefined, settings.customTextPromptInjection);
+          await transcript.startTranscription(
+            settings.geminiApiKey,
+            'auto',
+            langCode,
+            roomCode || undefined,
+            settings.customTextPromptInjection,
+            settings.transcriptionMode,
+            settings.customVocabulary
+          );
           console.log('[Host] Transcript service started successfully');
         }
       } catch (err) {
@@ -431,7 +449,11 @@ export const useHost = () => {
           let delay = Math.min(2000 * Math.pow(2, reconnectAttempts.current - 1), 30000);
           if (!netState.isConnected) delay = Math.max(delay, 5000); // at least 5s if offline
           
-          BackgroundTimer.setTimeout(() => {
+          if (reconnectTimerRef.current) {
+            BackgroundTimer.clearTimeout(reconnectTimerRef.current);
+          }
+          reconnectTimerRef.current = BackgroundTimer.setTimeout(() => {
+            reconnectTimerRef.current = null;
             if (isTranslatingRef.current) {
               startTranslation(selectedLanguageRef.current, true).catch(() => {
                 isReconnectingGeminiRef.current = false;
@@ -628,12 +650,18 @@ export const useHost = () => {
 
   async function stopTranslation() {
     addDebugEvent('stopTranslation called');
+    if (reconnectTimerRef.current) {
+      BackgroundTimer.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
     isTranslatingRef.current = false;
     isReconnectingGeminiRef.current = false;
     connectionHealthService.setGeminiReconnecting(false);
     geminiTranslateService.disconnect();
     transcript.stopTranscription();
-    setIsTranslating(false);
+    if (isMountedRef.current) {
+      setIsTranslating(false);
+    }
     
     // If LiveKit mode and the mic is on, stop our manual capture so LiveKit can take it back
     if (!settings.useLegacyWebSockets && isMicActiveRef.current) {
@@ -704,7 +732,9 @@ export const useHost = () => {
   };
 
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
       stopRoom();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
