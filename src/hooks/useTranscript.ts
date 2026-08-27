@@ -12,6 +12,7 @@ export const useTranscript = () => {
   const { setDebugState } = useDebugContext();
   const [finalChunks, setFinalChunks] = useState<TranscriptChunk[]>([]);
   const [interimText, setInterimText] = useState<string>('');
+  const [interimTranslatedText, setInterimTranslatedText] = useState<string>('');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('both');
   const [isActive, setIsActive] = useState(false);
   const isActiveRef = useRef(false);
@@ -23,6 +24,8 @@ export const useTranscript = () => {
   const targetLangRef = useRef<string>('en');
   const apiKeyRef = useRef<string | null>(null);
   const customTextPromptInjectionRef = useRef<string>('');
+  const interimTranslationDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const latestInterimAbortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setDebugState('liveTranscript', {
@@ -65,10 +68,60 @@ export const useTranscript = () => {
 
       transcriptionService.onInterimText((text) => {
         setInterimText(text);
+        
+        if (interimTranslationDebounceTimerRef.current) {
+          clearTimeout(interimTranslationDebounceTimerRef.current);
+        }
+        
+        if (!text) {
+          setInterimTranslatedText('');
+          if (latestInterimAbortControllerRef.current) {
+            latestInterimAbortControllerRef.current.abort();
+            latestInterimAbortControllerRef.current = null;
+          }
+          return;
+        }
+
+        interimTranslationDebounceTimerRef.current = setTimeout(async () => {
+          if (!apiKeyRef.current) return;
+          
+          if (latestInterimAbortControllerRef.current) {
+            latestInterimAbortControllerRef.current.abort();
+          }
+          const abortController = new AbortController();
+          latestInterimAbortControllerRef.current = abortController;
+          
+          try {
+            await TextTranslationService.translateTextStreaming(
+              text,
+              targetLangRef.current,
+              apiKeyRef.current,
+              customTextPromptInjectionRef.current,
+              (partialTranslation) => {
+                if (!abortController.signal.aborted) {
+                   setInterimTranslatedText(partialTranslation);
+                }
+              },
+              0,
+              abortController.signal
+            );
+          } catch (e: any) {
+            if (e.name !== 'AbortError' && !abortController.signal.aborted) {
+              console.warn('[useTranscript] Interim translation failed', e);
+            }
+          }
+        }, 500);
       });
 
       transcriptionService.onFinalText(async (text) => {
         if (!text || !sessionIdRef.current || !apiKeyRef.current) return;
+        
+        if (latestInterimAbortControllerRef.current) {
+          latestInterimAbortControllerRef.current.abort();
+          latestInterimAbortControllerRef.current = null;
+        }
+        setInterimText('');
+        setInterimTranslatedText('');
         
         const timestampMs = Date.now();
         const seq = chunkSequenceRef.current++;
@@ -177,12 +230,14 @@ export const useTranscript = () => {
   const clearTranscript = useCallback(() => {
     setFinalChunks([]);
     setInterimText('');
+    setInterimTranslatedText('');
     chunkSequenceRef.current = 0;
   }, []);
 
   return {
     finalChunks,
     interimText,
+    interimTranslatedText,
     displayMode,
     setDisplayMode,
     isActive,

@@ -73,7 +73,8 @@ export class TextTranslationService {
     apiKey: string,
     customPromptInjection: string,
     onPartialText: (partial: string) => void,
-    retryCount = 0
+    retryCount = 0,
+    abortSignal?: AbortSignal
   ): Promise<string> {
     const isFallback = retryCount > 0;
     const model = isFallback ? this.FALLBACK_MODEL : this.PRIMARY_MODEL;
@@ -83,6 +84,7 @@ export class TextTranslationService {
       
       const response = await fetch(url, {
         method: 'POST',
+        signal: abortSignal,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -166,6 +168,9 @@ export class TextTranslationService {
 
       return fullText.trim();
     } catch (error) {
+      if (abortSignal?.aborted) {
+        throw error;
+      }
       if (retryCount < 3) {
         console.warn(`[TextTranslationService] Streaming model ${model} failed (attempt ${retryCount + 1}/4), retrying...`, error);
         
@@ -174,7 +179,7 @@ export class TextTranslationService {
         const delay = isQuotaError ? 1000 : 2000;
         
         await new Promise(resolve => setTimeout(resolve, delay));
-        return this.translateTextStreaming(text, targetLang, apiKey, customPromptInjection, onPartialText, retryCount + 1);
+        return this.translateTextStreaming(text, targetLang, apiKey, customPromptInjection, onPartialText, retryCount + 1, abortSignal);
       }
       
       console.error(`[TextTranslationService] All streaming models failed after 3 retries.`, error);

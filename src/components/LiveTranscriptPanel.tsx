@@ -10,6 +10,7 @@ import GlassCard from './GlassCard';
 interface LiveTranscriptPanelProps {
   finalChunks: TranscriptChunk[];
   interimText: string;
+  interimTranslatedText: string;
   displayMode: DisplayMode;
   onDisplayModeChange: (mode: DisplayMode) => void;
   isActive: boolean;
@@ -18,6 +19,7 @@ interface LiveTranscriptPanelProps {
 export default function LiveTranscriptPanel({
   finalChunks,
   interimText,
+  interimTranslatedText,
   displayMode,
   onDisplayModeChange,
   isActive
@@ -55,13 +57,20 @@ export default function LiveTranscriptPanel({
   );
 
   const InterimRow = () => {
-    if (!interimText) return null;
+    if (!interimText && !interimTranslatedText) return null;
     return (
       <Animated.View entering={FadeIn}>
         <View style={styles.interimContainer}>
           <View style={styles.liveIndicator} />
           <View style={styles.textContainer}>
-            <Text style={styles.interimText}>{interimText}</Text>
+            {displayMode !== 'translated' && interimText ? (
+              <Text style={[styles.interimText, displayMode === 'both' && styles.dimmedText]}>
+                {interimText}
+              </Text>
+            ) : null}
+            {displayMode !== 'original' && interimTranslatedText ? (
+              <Text style={styles.interimText}>{interimTranslatedText}</Text>
+            ) : null}
           </View>
         </View>
       </Animated.View>
@@ -229,6 +238,10 @@ const styles = StyleSheet.create({
     color: '#00D4AA',
     fontSize: 15,
     fontStyle: 'italic',
+  },
+  dimmedText: {
+    opacity: 0.6,
+    marginBottom: 4,
   },
   floatingBtnContainer: {
     position: 'absolute',
