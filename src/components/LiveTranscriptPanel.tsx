@@ -5,6 +5,7 @@ import { TranscriptChunk } from '@/services/transcriptDatabase';
 import { DisplayMode } from '@/hooks/useTranscript';
 import TranscriptChunkRow from './TranscriptChunkRow';
 import Animated, { FadeIn, FadeOut, FadeInUp } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import GlassCard from './GlassCard';
 
 interface LiveTranscriptPanelProps {
@@ -140,7 +141,7 @@ export default function LiveTranscriptPanel({
             {isScrolledUp && (
               <Animated.View entering={FadeInUp} exiting={FadeOut} style={styles.floatingBtnContainer}>
                 <Pressable style={styles.scrollBtn} onPress={scrollToBottom}>
-                  <Text style={styles.scrollBtnText}>↓ New text below</Text>
+                  <Ionicons name="arrow-down" size={20} color="#00D4AA" />
                 </Pressable>
               </Animated.View>
             )}
@@ -252,19 +253,22 @@ const styles = StyleSheet.create({
   floatingBtnContainer: {
     position: 'absolute',
     bottom: 16,
-    alignSelf: 'center',
+    right: 16,
+    zIndex: 10,
   },
   scrollBtn: {
-    backgroundColor: 'rgba(30, 41, 59, 0.9)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    backgroundColor: 'rgba(30, 41, 59, 0.95)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  scrollBtnText: {
-    color: '#00D4AA',
-    fontSize: 13,
-    fontWeight: '600',
+    borderColor: 'rgba(255,255,255,0.15)',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
   },
 });
