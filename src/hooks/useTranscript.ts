@@ -27,6 +27,8 @@ export const useTranscript = () => {
   const interimTranslationDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const latestInterimAbortControllerRef = useRef<AbortController | null>(null);
 
+  const lastInterimTranslationTimeRef = useRef<number>(0);
+
   useEffect(() => {
     setDebugState('liveTranscript', {
       interimText,
@@ -60,7 +62,9 @@ export const useTranscript = () => {
       sessionIdRef.current = newSessionId;
       setFinalChunks([]);
       setInterimText('');
+      setInterimTranslatedText('');
       chunkSequenceRef.current = 0;
+      lastInterimTranslationTimeRef.current = 0;
 
       // 2. Connect to transcription service
       const parsedVocab = customVocabularyStr.split(',').map(s => s.trim()).filter(s => s.length > 0);
@@ -82,8 +86,14 @@ export const useTranscript = () => {
           return;
         }
 
-        interimTranslationDebounceTimerRef.current = setTimeout(async () => {
+        const now = Date.now();
+        const timeSinceLast = now - lastInterimTranslationTimeRef.current;
+        const throttleMs = 1200; // Translate at most once every 1.2 seconds
+
+        const executeTranslation = async (textToTranslate: string) => {
           if (!apiKeyRef.current) return;
+          
+          lastInterimTranslationTimeRef.current = Date.now();
           
           if (latestInterimAbortControllerRef.current) {
             latestInterimAbortControllerRef.current.abort();
@@ -93,7 +103,7 @@ export const useTranscript = () => {
           
           try {
             await TextTranslationService.translateTextStreaming(
-              text,
+              textToTranslate,
               targetLangRef.current,
               apiKeyRef.current,
               customTextPromptInjectionRef.current,
@@ -110,12 +120,23 @@ export const useTranscript = () => {
               console.warn('[useTranscript] Interim translation failed', e);
             }
           }
-        }, 500);
+        };
+
+        if (timeSinceLast >= throttleMs) {
+          executeTranslation(text);
+        } else {
+          interimTranslationDebounceTimerRef.current = setTimeout(() => {
+            executeTranslation(text);
+          }, throttleMs - timeSinceLast);
+        }
       });
 
       transcriptionService.onFinalText(async (text) => {
         if (!text || !sessionIdRef.current || !apiKeyRef.current) return;
         
+        if (interimTranslationDebounceTimerRef.current) {
+          clearTimeout(interimTranslationDebounceTimerRef.current);
+        }
         if (latestInterimAbortControllerRef.current) {
           latestInterimAbortControllerRef.current.abort();
           latestInterimAbortControllerRef.current = null;
