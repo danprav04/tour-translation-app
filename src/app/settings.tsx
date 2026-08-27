@@ -29,7 +29,7 @@ const DONT_KILL_MY_APP_SCORES: Record<string, number> = {
   'google': 0, 'nokia': 0, 'htc': 0, 'stock-android': 0,
 };
 
-export const appSubversion = '01';
+export const appSubversion = '02';
 
 export default function SettingsScreen() {
   const router = useRouter();
