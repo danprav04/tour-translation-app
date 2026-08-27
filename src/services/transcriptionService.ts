@@ -114,15 +114,15 @@ class TranscriptionService {
             }
 
             // --- Transcribe Live Model Responses ---
-            if (msg.serverContent?.interim_input_transcription) {
-              const text = msg.serverContent.interim_input_transcription.text;
+            if (msg.serverContent?.interimInputTranscription) {
+              const text = msg.serverContent.interimInputTranscription.text;
               if (text && this.onInterimTextCallback) {
                 this.onInterimTextCallback(text);
               }
             }
 
-            if (msg.serverContent?.input_transcription) {
-              const text = msg.serverContent.input_transcription.text;
+            if (msg.serverContent?.inputTranscription) {
+              const text = msg.serverContent.inputTranscription.text;
               if (text && this.onFinalTextCallback) {
                 this.onFinalTextCallback(text.trim());
               }
@@ -132,16 +132,6 @@ class TranscriptionService {
             if (msg.serverContent?.turnComplete) {
               if (this.onInterimTextCallback) {
                 this.onInterimTextCallback('');
-              }
-            }
-
-            // --- Legacy Fallback Model Responses ---
-            if (msg.serverContent?.inputTranscription) {
-              const text = msg.serverContent.inputTranscription.text;
-              if (text && this.onFinalTextCallback) {
-                // In the legacy fallback without client-side buffering, it might be a bit choppy
-                // but it's only a fallback if the primary ASR model fails completely.
-                this.onFinalTextCallback(text.trim());
               }
             }
 

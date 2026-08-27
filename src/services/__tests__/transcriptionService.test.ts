@@ -106,7 +106,7 @@ describe('TranscriptionService', () => {
     ws.onmessage({
       data: JSON.stringify({
         serverContent: {
-          interim_input_transcription: { text: 'Hello ' }
+          interimInputTranscription: { text: 'Hello ' }
         }
       })
     });
@@ -116,7 +116,7 @@ describe('TranscriptionService', () => {
     ws.onmessage({
       data: JSON.stringify({
         serverContent: {
-          input_transcription: { text: 'Hello World' }
+          inputTranscription: { text: 'Hello World' }
         }
       })
     });
@@ -131,26 +131,6 @@ describe('TranscriptionService', () => {
       })
     });
     expect(onInterimText).toHaveBeenCalledWith('');
-  });
-
-  it('handles legacy inputTranscription messages', async () => {
-    const onFinalText = jest.fn();
-    transcriptionService.onFinalText(onFinalText);
-
-    const connectPromise = transcriptionService.connect('test-key');
-    const ws = (transcriptionService as any).ws;
-    ws.onopen();
-    ws.onmessage({ data: JSON.stringify({ setupComplete: true }) });
-    await connectPromise;
-
-    ws.onmessage({
-      data: JSON.stringify({
-        serverContent: {
-          inputTranscription: { text: 'Legacy fallback text' }
-        }
-      })
-    });
-    expect(onFinalText).toHaveBeenCalledWith('Legacy fallback text');
   });
 
   it('handles sendAudioChunk format', async () => {
