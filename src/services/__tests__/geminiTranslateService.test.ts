@@ -126,23 +126,5 @@ describe('GeminiTranslateService', () => {
     jest.useRealTimers();
   });
 
-  it('should manage keepalive interval', async () => {
-    jest.useFakeTimers();
-    const connectPromise = geminiTranslateService.connect('dummyKey', 'en');
-    
-    // Simulate setupComplete
-    const ws = (geminiTranslateService as any).ws;
-    ws.onmessage({ data: JSON.stringify({ setupComplete: true }) });
-    await connectPromise;
 
-    expect((geminiTranslateService as any).keepaliveInterval).not.toBeNull();
-    
-    jest.advanceTimersByTime(8000);
-    expect(ws.send).toHaveBeenCalled();
-
-    geminiTranslateService.disconnect();
-    expect((geminiTranslateService as any).keepaliveInterval).toBeNull();
-    
-    jest.useRealTimers();
-  });
 });

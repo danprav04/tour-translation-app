@@ -6,7 +6,6 @@ class TranscriptionService {
   private onCloseCallback: (() => void) | null = null;
   public currentApiKey: string | null = null;
   public connectionState: 'disconnected' | 'connecting' | 'connected' = 'disconnected';
-  private keepaliveInterval: ReturnType<typeof setInterval> | null = null;
   private sessionRotationTimer: ReturnType<typeof setTimeout> | null = null;
 
   private async connectWithModel(
@@ -109,7 +108,6 @@ class TranscriptionService {
               console.log(`[Transcription WS] Setup complete received for ${modelName}.`);
               this.connectionState = 'connected';
               isSetupComplete = true;
-              this.startKeepalive();
               resolve();
             }
 
@@ -276,7 +274,6 @@ class TranscriptionService {
   disconnect(): void {
     this.onCloseCallback = null;
     this.onErrorCallback = null;
-    this.stopKeepalive();
     if (this.sessionRotationTimer) {
       clearTimeout(this.sessionRotationTimer);
       this.sessionRotationTimer = null;
