@@ -41,14 +41,14 @@ export default function LiveTranscriptPanel({
     setIsScrolledUp(false);
   };
 
-  // Auto-scroll when new chunks arrive
+  // Auto-scroll when new chunks or interim text arrives
   React.useEffect(() => {
-    if (!isScrolledUp && finalChunks.length > 0 && !isCollapsed) {
+    if (!isScrolledUp && !isCollapsed) {
       setTimeout(() => {
         listRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [finalChunks.length, isScrolledUp, isCollapsed]);
+  }, [finalChunks.length, interimText, interimTranslatedText, isScrolledUp, isCollapsed]);
 
   const renderItem = useCallback(
     ({ item }: { item: TranscriptChunk }) => (
