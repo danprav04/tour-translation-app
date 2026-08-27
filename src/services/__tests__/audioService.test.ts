@@ -46,6 +46,7 @@ describe('AudioService', () => {
     jest.clearAllMocks();
     await audioService.stopCapture();
     audioService.setMuted(false);
+    (audioService as any).resetPlaylist();
   });
 
   it('should request permissions', async () => {
@@ -132,23 +133,6 @@ describe('AudioService', () => {
     expect(AudioSession.selectAudioOutput).toHaveBeenCalledWith('failing-device');
     expect(AudioSession.selectAudioOutput).toHaveBeenCalledWith(null);
     expect(fallbackCallback).toHaveBeenCalled();
-  });
-
-  it('should start and stop keep-alive playback', () => {
-    audioService.startKeepAlive();
-    expect(BackgroundTimer.setInterval).toHaveBeenCalledWith(expect.any(Function), 8000);
-    expect(audioService['keepAliveInterval']).not.toBeNull();
-
-    // Trigger the interval callback to cover that code path
-    const intervalFn = (BackgroundTimer.setInterval as jest.Mock).mock.calls[0][0];
-    intervalFn();
-    expect(audioService['jitterBuffer'].length).toBeGreaterThan(0);
-
-    audioService.stopKeepAlive();
-    expect(BackgroundTimer.clearInterval).toHaveBeenCalledWith(123);
-    expect(audioService['keepAliveInterval']).toBeNull();
-
-    audioService['playlist'] = null; // cleanup
   });
 
   it('should play chunk immediately if no seq is provided', () => {

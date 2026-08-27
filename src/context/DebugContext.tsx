@@ -7,7 +7,7 @@ interface DebugContextType {
   getDebugData: () => Record<string, any>;
 }
 
-const DebugContext = createContext<DebugContextType | undefined>(undefined);
+export const DebugContext = createContext<DebugContextType | undefined>(undefined);
 
 export const DebugProvider = ({ children }: { children: ReactNode }) => {
   // We use a mutable ref so writing high-frequency data (like audio levels)

@@ -7,12 +7,18 @@ class TranscriptionService {
   public currentApiKey: string | null = null;
   public connectionState: 'disconnected' | 'connecting' | 'connected' = 'disconnected';
   private keepaliveInterval: ReturnType<typeof setInterval> | null = null;
-  private accumulatedInterim: string = '';
-  private chunksSinceLastTurn: number = 0;
+  private sessionRotationTimer: ReturnType<typeof setTimeout> | null = null;
 
-  private async connectWithModel(apiKey: string, modelName: string, customPromptInjection?: string): Promise<void> {
+  private async connectWithModel(
+    apiKey: string, 
+    modelName: string, 
+    transcriptionMode: 'SMART' | 'VERBATIM', 
+    customVocabulary: string[]
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
-      const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+      // Use v1alpha for gemini-3.5-transcribe-live, fallback uses v1beta
+      const apiVersion = modelName.includes('transcribe') ? 'v1alpha' : 'v1beta';
+      const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.${apiVersion}.GenerativeService.BidiGenerateContent?key=${apiKey}`;
       const ws = new WebSocket(url);
       this.ws = ws;
 
@@ -23,29 +29,41 @@ class TranscriptionService {
         
         console.log(`[Transcription WS] Connected. Sending setup for model: ${modelName}...`);
         
-        const systemInstructionText = customPromptInjection 
-          ? `Listen to the audio input.\n\nAdditional instructions: ${customPromptInjection}`
-          : "Listen to the audio input.";
-
-        const setupMessage = {
-          setup: {
-            model: modelName,
-            generationConfig: {
-              responseModalities: ["AUDIO"],
-            },
-            inputAudioTranscription: {},
-            systemInstruction: {
-              parts: [{ text: systemInstructionText }]
-            },
-            realtimeInputConfig: {
-              automaticActivityDetection: {
-                disabled: false,
-                prefixPaddingMs: 100,
-                silenceDurationMs: 1200
+        let setupMessage: any;
+        
+        if (modelName.includes('transcribe')) {
+          setupMessage = {
+            setup: {
+              model: modelName,
+              generationConfig: {
+                responseModalities: ["TEXT"],
+              },
+              transcriptionConfig: {
+                mode: transcriptionMode,
+                ...(customVocabulary.length > 0 && { customVocabulary })
               }
             }
-          }
-        };
+          };
+        } else {
+          // Fallback legacy setup for gemini-3.1-flash-live-preview
+          setupMessage = {
+            setup: {
+              model: modelName,
+              generationConfig: {
+                responseModalities: ["AUDIO"],
+              },
+              inputAudioTranscription: {},
+              realtimeInputConfig: {
+                automaticActivityDetection: {
+                  disabled: false,
+                  prefixPaddingMs: 100,
+                  silenceDurationMs: 1200
+                }
+              }
+            }
+          };
+        }
+        
         ws.send(JSON.stringify(setupMessage));
       };
 
@@ -82,11 +100,6 @@ class TranscriptionService {
           const messages = Array.isArray(message) ? message : [message];
 
           for (const msg of messages) {
-            // DEBUG: Log all incoming message keys to diagnose transcription
-            const topKeys = Object.keys(msg);
-            const serverContentKeys = msg.serverContent ? Object.keys(msg.serverContent) : [];
-            console.log(`[Transcription WS] MSG keys: [${topKeys.join(',')}], serverContent keys: [${serverContentKeys.join(',')}]`);
-
             if (msg.setupComplete) {
               console.log(`[Transcription WS] Setup complete received for ${modelName}.`);
               this.connectionState = 'connected';
@@ -95,32 +108,35 @@ class TranscriptionService {
               resolve();
             }
 
-            // Handle input transcription (user's speech → text)
-            if (msg.serverContent?.inputTranscription) {
-              console.log(`[Transcription WS] inputTranscription received:`, JSON.stringify(msg.serverContent.inputTranscription));
-              const text = msg.serverContent.inputTranscription.text;
-              if (text) {
-                this.accumulatedInterim += text;
-                this.processInterimText();
+            // --- Transcribe Live Model Responses ---
+            if (msg.serverContent?.interim_input_transcription) {
+              const text = msg.serverContent.interim_input_transcription.text;
+              if (text && this.onInterimTextCallback) {
+                this.onInterimTextCallback(text);
               }
             }
 
-            // Also check for legacy modelTurn text (fallback)
-            if (msg.serverContent?.modelTurn?.parts) {
-              console.log(`[Transcription WS] modelTurn received:`, JSON.stringify(msg.serverContent.modelTurn.parts.map((p: any) => ({ text: p.text, hasInlineData: !!p.inlineData }))));
+            if (msg.serverContent?.input_transcription) {
+              const text = msg.serverContent.input_transcription.text;
+              if (text && this.onFinalTextCallback) {
+                this.onFinalTextCallback(text.trim());
+              }
             }
-
-            // Ignore model audio output (inlineData) — we only need the input transcription
             
+            // Clear interim text on turn completion
             if (msg.serverContent?.turnComplete) {
-              console.log(`[Transcription WS] turnComplete. accumulatedInterim: "${this.accumulatedInterim}"`);
-              this.chunksSinceLastTurn = 0;
-              if (this.accumulatedInterim.trim() && this.onFinalTextCallback) {
-                this.onFinalTextCallback(this.accumulatedInterim.trim());
-              }
-              this.accumulatedInterim = '';
               if (this.onInterimTextCallback) {
                 this.onInterimTextCallback('');
+              }
+            }
+
+            // --- Legacy Fallback Model Responses ---
+            if (msg.serverContent?.inputTranscription) {
+              const text = msg.serverContent.inputTranscription.text;
+              if (text && this.onFinalTextCallback) {
+                // In the legacy fallback without client-side buffering, it might be a bit choppy
+                // but it's only a fallback if the primary ASR model fails completely.
+                this.onFinalTextCallback(text.trim());
               }
             }
 
@@ -168,25 +184,42 @@ class TranscriptionService {
     });
   }
 
-  async connect(apiKey: string, customPromptInjection?: string): Promise<void> {
+  async connect(
+    apiKey: string, 
+    transcriptionMode: 'SMART' | 'VERBATIM' = 'SMART',
+    customVocabulary: string[] = []
+  ): Promise<void> {
     if (this.ws) {
       this.disconnect();
     }
     this.currentApiKey = apiKey;
     this.connectionState = 'connecting';
-    this.accumulatedInterim = '';
-    this.chunksSinceLastTurn = 0;
+    
+    // Clear any previous rotation timer
+    if (this.sessionRotationTimer) {
+      clearTimeout(this.sessionRotationTimer);
+      this.sessionRotationTimer = null;
+    }
 
     const modelsToTry = [
-      "models/gemini-3.1-flash-live-preview",
-      "models/gemini-2.5-flash-native-audio",
+      "models/gemini-3.5-transcribe-live",
+      "models/gemini-3.1-flash-live-preview" // Fallback
     ];
 
     let lastError: Error | null = null;
     
     for (const model of modelsToTry) {
       try {
-        await this.connectWithModel(apiKey, model, customPromptInjection);
+        await this.connectWithModel(apiKey, model, transcriptionMode, customVocabulary);
+        
+        // Schedule session rotation every 9 minutes (Live sessions expire at 10m)
+        this.sessionRotationTimer = setTimeout(() => {
+          console.log('[Transcription WS] 9 minutes elapsed, rotating session to prevent timeout...');
+          this.connectOverlap(apiKey, transcriptionMode, customVocabulary).catch(err => {
+            console.error('[Transcription WS] Session rotation failed:', err);
+          });
+        }, 9 * 60 * 1000);
+        
         return; // Success!
       } catch (err) {
         console.warn(`[Transcription WS] Model ${model} failed:`, err instanceof Error ? err.message : String(err));
@@ -224,17 +257,18 @@ class TranscriptionService {
     }
 
     this.chunkCount++;
-    this.chunksSinceLastTurn++;
     if (this.chunkCount === 1 || this.chunkCount % 50 === 0) {
-      console.log(`[Transcription WS] Sent ${this.chunkCount} audio chunks (data length: ${base64PcmData.length})`);
+      console.log(`[Transcription WS] Sent ${this.chunkCount} audio chunks`);
     }
 
     const message = {
       realtimeInput: {
-        audio: {
-          mimeType: "audio/pcm;rate=16000",
-          data: base64PcmData
-        }
+        mediaChunks: [
+          {
+            mimeType: "audio/pcm;rate=16000",
+            data: base64PcmData
+          }
+        ]
       }
     };
     try {
@@ -242,79 +276,50 @@ class TranscriptionService {
     } catch (e) {
       console.warn('[Transcription WS] Failed to send audio chunk:', e);
     }
-    
-    if (this.chunksSinceLastTurn >= 40) {
-      console.log(`[Transcription WS] Forcing server VAD trigger with 1.2s of artificial silence after ${this.chunksSinceLastTurn} chunks`);
-      try {
-        // 1.2 seconds of 16kHz 16-bit PCM silence is 38,400 bytes of zeros.
-        // In base64, every 3 zero bytes = 4 'A's. 38400 / 3 * 4 = 51200 'A's.
-        const silentBase64 = 'A'.repeat(51200);
-        this.ws.send(JSON.stringify({
-          realtimeInput: {
-            audio: {
-              mimeType: "audio/pcm;rate=16000",
-              data: silentBase64
-            }
-          }
-        }));
-      } catch (e) {
-        console.warn('[Transcription WS] Failed to send artificial silence:', e);
-      }
-      this.chunksSinceLastTurn = 0;
-    }
-  }
-
-  private processInterimText() {
-    let forcedChunk = false;
-    const sentenceMatches = this.accumulatedInterim.match(/[^.?!。？！]+[.?!。？！]+/g);
-    const sentenceCount = sentenceMatches ? sentenceMatches.length : 0;
-    const isLong = this.accumulatedInterim.length > 150;
-    
-    if (sentenceCount >= 2 || (isLong && sentenceCount >= 1)) {
-      const match = this.accumulatedInterim.match(/.*[.?!。？！](?=\s|$)/);
-      if (match) {
-        const splitIndex = match[0].length;
-        const chunkToFinalize = this.accumulatedInterim.substring(0, splitIndex).trim();
-        const remaining = this.accumulatedInterim.substring(splitIndex).trimStart();
-        
-        if (chunkToFinalize && this.onFinalTextCallback) {
-          console.log(`[Transcription WS] Forcing chunk (sentences): "${chunkToFinalize}"`);
-          this.onFinalTextCallback(chunkToFinalize);
-          this.accumulatedInterim = remaining;
-          forcedChunk = true;
-        }
-      }
-    } else if (this.accumulatedInterim.length > 250) {
-      const lastSpace = this.accumulatedInterim.lastIndexOf(' ');
-      if (lastSpace > 0) {
-        const chunkToFinalize = this.accumulatedInterim.substring(0, lastSpace).trim();
-        const remaining = this.accumulatedInterim.substring(lastSpace).trimStart();
-        if (chunkToFinalize && this.onFinalTextCallback) {
-          console.log(`[Transcription WS] Forcing chunk (length fallback): "${chunkToFinalize}"`);
-          this.onFinalTextCallback(chunkToFinalize);
-          this.accumulatedInterim = remaining;
-          forcedChunk = true;
-        }
-      }
-    }
-    
-    if (this.onInterimTextCallback) {
-      this.onInterimTextCallback(this.accumulatedInterim);
-    }
   }
 
   disconnect(): void {
     this.onCloseCallback = null;
     this.onErrorCallback = null;
     this.stopKeepalive();
+    if (this.sessionRotationTimer) {
+      clearTimeout(this.sessionRotationTimer);
+      this.sessionRotationTimer = null;
+    }
     if (this.ws) {
       this.ws.onclose = null;
       this.ws.close();
       this.ws = null;
     }
     this.connectionState = 'disconnected';
-    this.accumulatedInterim = '';
-    this.chunksSinceLastTurn = 0;
+  }
+
+  async connectOverlap(
+    apiKey: string, 
+    transcriptionMode: 'SMART' | 'VERBATIM', 
+    customVocabulary: string[]
+  ): Promise<void> {
+    const oldWs = this.ws;
+    this.ws = null; 
+    
+    if (this.sessionRotationTimer) {
+      clearTimeout(this.sessionRotationTimer);
+      this.sessionRotationTimer = null;
+    }
+
+    try {
+      await this.connect(apiKey, transcriptionMode, customVocabulary);
+    } catch (error) {
+      if (!this.ws && oldWs && oldWs.readyState === WebSocket.OPEN) {
+        this.ws = oldWs;
+      }
+      throw error;
+    }
+    
+    if (oldWs) {
+      oldWs.onclose = null;
+      try { oldWs.close(); } catch (e) { /* ignore */ }
+    }
   }
 
   onInterimText(callback: (text: string) => void): void {

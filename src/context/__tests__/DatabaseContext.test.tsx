@@ -1,7 +1,7 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { Text } from 'react-native';
+import { render } from '@testing-library/react-native';
 import { DatabaseProvider, useDatabaseContext } from '../DatabaseContext';
-import * as SQLite from 'expo-sqlite';
 
 jest.mock('expo-sqlite', () => {
   return {
@@ -12,17 +12,22 @@ jest.mock('expo-sqlite', () => {
 
 const TestChild = () => {
   const db = useDatabaseContext();
-  return <>{db ? 'DB Loaded' : 'No DB'}</>;
+  return <Text>{db ? 'DB Loaded' : 'No DB'}</Text>;
 };
 
 describe('DatabaseContext', () => {
-  it('provides the database context', () => {
-    render(
+  it('provides the database context', async () => {
+    const { getByText } = await render(
       <DatabaseProvider>
         <TestChild />
       </DatabaseProvider>
     );
 
-    expect(screen.getByText('DB Loaded')).toBeTruthy();
+    expect(getByText('DB Loaded')).toBeTruthy();
+  });
+
+  it('throws error when used outside provider', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    await expect(render(<TestChild />)).rejects.toThrow('useDatabaseContext must be used within a DatabaseProvider');
   });
 });

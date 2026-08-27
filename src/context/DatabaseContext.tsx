@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import { TranscriptDatabaseService } from '@/services/transcriptDatabase';
 
-const DatabaseContext = createContext<TranscriptDatabaseService | null>(null);
+export const DatabaseContext = createContext<TranscriptDatabaseService | null>(null);
 
 export const useDatabaseContext = () => {
   const context = useContext(DatabaseContext);

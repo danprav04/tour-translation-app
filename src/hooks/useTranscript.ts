@@ -36,7 +36,9 @@ export const useTranscript = () => {
     sourceLang: string,
     targetLang: string,
     roomCode?: string,
-    customTextPromptInjection?: string
+    customTextPromptInjection?: string,
+    transcriptionMode: 'SMART' | 'VERBATIM' = 'SMART',
+    customVocabularyStr: string = ''
   ) => {
     try {
       sourceLangRef.current = sourceLang;
@@ -58,15 +60,14 @@ export const useTranscript = () => {
       chunkSequenceRef.current = 0;
 
       // 2. Connect to transcription service
-      await transcriptionService.connect(apiKey, customTextPromptInjection);
+      const parsedVocab = customVocabularyStr.split(',').map(s => s.trim()).filter(s => s.length > 0);
+      await transcriptionService.connect(apiKey, transcriptionMode, parsedVocab);
 
       transcriptionService.onInterimText((text) => {
-        console.log('[useTranscript] onInterimText callback triggered, text length:', text?.length, 'text:', text);
         setInterimText(text);
       });
 
       transcriptionService.onFinalText(async (text) => {
-        console.log('[useTranscript] onFinalText callback triggered, text:', text);
         if (!text || !sessionIdRef.current || !apiKeyRef.current) return;
         
         const timestampMs = Date.now();
@@ -79,34 +80,38 @@ export const useTranscript = () => {
           sequence: seq,
           timestampMs,
           originalText: text,
-          translatedText: '...', // Loading indicator
+          translatedText: '', // Empty initially, will stream in
           createdAt: timestampMs
         };
         
         setFinalChunks(prev => [...prev, tempChunk]);
 
         try {
-          // 3. Translate the finalized text
-          const translatedText = await TextTranslationService.translateText(
+          // 3. Translate the finalized text progressively
+          const finalTranslatedText = await TextTranslationService.translateTextStreaming(
             text,
-            sourceLangRef.current,
             targetLangRef.current,
             apiKeyRef.current,
-            customTextPromptInjectionRef.current
+            customTextPromptInjectionRef.current,
+            (partialTranslation) => {
+              // 4. Update UI progressively
+              setFinalChunks(prev => 
+                prev.map(c => c.sequence === seq ? { ...c, translatedText: partialTranslation } : c)
+              );
+            }
           );
 
-          // 4. Update UI with translated text
+          // 5. Final state update and save to database
           setFinalChunks(prev => 
-            prev.map(c => c.sequence === seq ? { ...c, translatedText } : c)
+            prev.map(c => c.sequence === seq ? { ...c, translatedText: finalTranslatedText } : c)
           );
 
-          // 5. Save to database
           await db.insertChunk({
             sessionId: sessionIdRef.current,
             sequence: seq,
             timestampMs,
             originalText: text,
-            translatedText
+            translatedText: finalTranslatedText
           });
         } catch (err) {
           console.error('[useTranscript] Failed to translate chunk:', err);

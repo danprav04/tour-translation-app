@@ -42,12 +42,36 @@ jest.mock('socket.io-client', () => {
     emit: jest.fn(),
     disconnect: jest.fn(),
     connect: jest.fn(),
+    io: {
+      on: jest.fn(),
+    },
   };
-  return jest.fn(() => mockSocket);
+  const ioFn = jest.fn(() => mockSocket);
+  return {
+    __esModule: true,
+    default: ioFn,
+    io: ioFn,
+  };
 });
 
 // Mock react-native-background-timer
 jest.mock('react-native-background-timer', () => ({
   setInterval: jest.fn().mockReturnValue(123),
   clearInterval: jest.fn(),
+  setTimeout: jest.fn((cb, ms) => setTimeout(cb, ms)),
+  clearTimeout: jest.fn((id) => clearTimeout(id)),
+  stop: jest.fn(),
+}));
+
+// Mock NetInfo
+jest.mock('@react-native-community/netinfo', () =>
+  require('@react-native-community/netinfo/jest/netinfo-mock')
+);
+
+// Mock react-native-background-actions
+jest.mock('react-native-background-actions', () => ({
+  start: jest.fn().mockResolvedValue(undefined),
+  stop: jest.fn().mockResolvedValue(undefined),
+  isRunning: jest.fn().mockReturnValue(false),
+  updateNotification: jest.fn().mockResolvedValue(undefined),
 }));

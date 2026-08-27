@@ -14,6 +14,8 @@ export interface Settings {
   micAmplification: number;
   customTextPromptInjection: string;
   customVoicePromptInjection: string;
+  transcriptionMode: 'SMART' | 'VERBATIM';
+  customVocabulary: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -28,6 +30,8 @@ const DEFAULT_SETTINGS: Settings = {
   micAmplification: 3.0,
   customTextPromptInjection: '',
   customVoicePromptInjection: '',
+  transcriptionMode: 'SMART',
+  customVocabulary: '',
 };
 
 const SETTINGS_KEY = '@tour_settings';
