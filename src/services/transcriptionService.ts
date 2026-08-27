@@ -32,15 +32,20 @@ class TranscriptionService {
         let setupMessage: any;
         
         if (modelName.includes('transcribe')) {
+          const sysText = [
+            `You are a real-time transcription service.`,
+            `Transcription mode: ${transcriptionMode}.`,
+            customVocabulary.length > 0 ? `Custom vocabulary: ${customVocabulary.join(', ')}` : ''
+          ].filter(Boolean).join(' ');
+
           setupMessage = {
             setup: {
               model: modelName,
               generationConfig: {
                 responseModalities: ["TEXT"],
               },
-              transcriptionConfig: {
-                mode: transcriptionMode,
-                ...(customVocabulary.length > 0 && { customVocabulary })
+              systemInstruction: {
+                parts: [{ text: sysText }]
               }
             }
           };

@@ -53,10 +53,8 @@ describe('TranscriptionService', () => {
     const setupMsg = JSON.parse(ws.send.mock.calls[0][0]);
     expect(setupMsg.setup.model).toBe('models/gemini-3.5-transcribe-live');
     expect(setupMsg.setup.generationConfig.responseModalities).toEqual(['TEXT']);
-    expect(setupMsg.setup.transcriptionConfig).toEqual({
-      mode: 'SMART',
-      customVocabulary: ['TermA', 'TermB'],
-    });
+    expect(setupMsg.setup.systemInstruction.parts[0].text).toContain('Transcription mode: SMART');
+    expect(setupMsg.setup.systemInstruction.parts[0].text).toContain('Custom vocabulary: TermA, TermB');
 
     // Trigger setup complete
     ws.onmessage({ data: JSON.stringify({ setupComplete: true }) });
