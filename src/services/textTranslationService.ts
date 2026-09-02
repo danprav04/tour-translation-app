@@ -165,8 +165,11 @@ export class TextTranslationService {
           } catch (e) {}
         }
       }
-
-      return fullText.trim();
+      const finalText = fullText.trim();
+      if (!finalText) {
+        throw new Error(`Streaming response contained no translation text from ${model}`);
+      }
+      return finalText;
     } catch (error) {
       if (abortSignal?.aborted) {
         throw error;

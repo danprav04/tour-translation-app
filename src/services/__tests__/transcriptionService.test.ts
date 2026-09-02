@@ -185,4 +185,54 @@ describe('TranscriptionService', () => {
     expect(transcriptionService.connectionState).toBe('disconnected');
     expect(transcriptionService.isConnected()).toBe(false);
   });
+  it('detects transcription loops and suppresses them', async () => {
+    const onFinalText = jest.fn();
+    const onLoopDetected = jest.fn();
+    transcriptionService.onFinalText(onFinalText);
+    transcriptionService.onLoopDetected(onLoopDetected);
+    
+    // Set low sensitivity for testing
+    transcriptionService.setLoopDetectionSensitivity(0.6);
+
+    const connectPromise = transcriptionService.connect('test-key');
+    const ws = (transcriptionService as any).ws;
+    ws.onopen();
+    ws.onmessage({ data: JSON.stringify({ setupComplete: true }) });
+    await connectPromise;
+
+    // Send first chunk
+    ws.onmessage({ data: JSON.stringify({ serverContent: { inputTranscription: { text: 'Hello this is a test string' } } }) });
+    expect(onFinalText).toHaveBeenCalledWith('Hello this is a test string');
+    expect(onLoopDetected).not.toHaveBeenCalled();
+
+    // Send similar chunk
+    ws.onmessage({ data: JSON.stringify({ serverContent: { inputTranscription: { text: 'Hello this is a test string' } } }) });
+    expect(onFinalText).toHaveBeenCalledTimes(1); // Should not have been called again
+    expect(onLoopDetected).toHaveBeenCalled();
+  });
+
+  it('triggers session rotation after 3 consecutive loops', async () => {
+    const connectOverlapSpy = jest.spyOn(transcriptionService, 'connectOverlap').mockResolvedValue();
+    transcriptionService.setLoopDetectionSensitivity(0.6);
+    
+    const connectPromise = transcriptionService.connect('test-key');
+    const ws = (transcriptionService as any).ws;
+    ws.onopen();
+    ws.onmessage({ data: JSON.stringify({ setupComplete: true }) });
+    await connectPromise;
+
+    ws.onmessage({ data: JSON.stringify({ serverContent: { inputTranscription: { text: 'Initial chunk' } } }) });
+    
+    // 1st loop
+    ws.onmessage({ data: JSON.stringify({ serverContent: { inputTranscription: { text: 'Initial chunk' } } }) });
+    expect(connectOverlapSpy).not.toHaveBeenCalled();
+    
+    // 2nd loop
+    ws.onmessage({ data: JSON.stringify({ serverContent: { inputTranscription: { text: 'Initial chunk' } } }) });
+    expect(connectOverlapSpy).not.toHaveBeenCalled();
+    
+    // 3rd loop - should rotate
+    ws.onmessage({ data: JSON.stringify({ serverContent: { inputTranscription: { text: 'Initial chunk' } } }) });
+    expect(connectOverlapSpy).toHaveBeenCalledWith('test-key', 'SMART', []);
+  });
 });

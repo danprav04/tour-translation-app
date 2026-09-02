@@ -54,6 +54,8 @@ export const useHost = () => {
   const reconnectTimerRef = useRef<any>(null);
   const isReconnectingGeminiRef = useRef(false);
   const geminiFirstErrorTimeRef = useRef<number | null>(null);
+  const isStartingTranslationRef = useRef(false);
+  const isStartingRoomRef = useRef(false);
 
   useEffect(() => {
     isTranslatingRef.current = isTranslating;
@@ -135,6 +137,8 @@ export const useHost = () => {
   }, [settings.useLegacyWebSockets, isConnected]);
 
   const startRoom = async (customRoomCode?: string) => {
+    if (isStartingRoomRef.current) return;
+    isStartingRoomRef.current = true;
     try {
       if (!settings.serverUrl) {
         throw new Error('Server URL is not configured.');
@@ -206,6 +210,8 @@ export const useHost = () => {
         error instanceof Error ? error.message : 'Failed to start session.'
       );
       setIsConnected(false);
+    } finally {
+      isStartingRoomRef.current = false;
     }
   };
 
@@ -354,6 +360,9 @@ export const useHost = () => {
   const startTranslation = async (langCode: string, isReconnect = false) => {
     // Guard against overlapping connection attempts
     if (isReconnectingGeminiRef.current && !isReconnect) return;
+    if (isStartingTranslationRef.current && !isReconnect) return;
+    
+    isStartingTranslationRef.current = true;
 
     try {
       if (isReconnect) {
@@ -369,19 +378,19 @@ export const useHost = () => {
       
       // Start parallel transcription service
       try {
-        if (!isReconnect) {
-          console.log('[Host] Starting transcript service...');
-          await transcript.startTranscription(
-            settings.geminiApiKey,
-            'auto',
-            langCode,
-            roomCode || undefined,
-            settings.customTextPromptInjection,
-            settings.transcriptionMode,
-            settings.customVocabulary
-          );
-          console.log('[Host] Transcript service started successfully');
-        }
+        console.log(`[Host] Starting transcript service (isReconnect: ${isReconnect})...`);
+        await transcript.startTranscription(
+          settings.geminiApiKey,
+          'auto',
+          langCode,
+          roomCode || undefined,
+          settings.customTextPromptInjection,
+          settings.transcriptionMode,
+          settings.customVocabulary,
+          settings.loopDetectionSensitivity,
+          isReconnect
+        );
+        console.log('[Host] Transcript service started successfully');
       } catch (err) {
         console.error('[Host] Failed to start transcription service', err);
       }
@@ -529,6 +538,8 @@ export const useHost = () => {
       console.error('Failed to start translation', error);
       addDebugEvent(`Translation failed to start: ${error instanceof Error ? error.message : String(error)}`);
       setIsTranslating(false);
+    } finally {
+      isStartingTranslationRef.current = false;
     }
   };
 

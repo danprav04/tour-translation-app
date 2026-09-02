@@ -16,6 +16,7 @@ export interface Settings {
   customVoicePromptInjection: string;
   transcriptionMode: 'SMART' | 'VERBATIM';
   customVocabulary: string;
+  loopDetectionSensitivity: number;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -32,6 +33,7 @@ const DEFAULT_SETTINGS: Settings = {
   customVoicePromptInjection: '',
   transcriptionMode: 'SMART',
   customVocabulary: '',
+  loopDetectionSensitivity: 0.7,
 };
 
 const SETTINGS_KEY = '@tour_settings';

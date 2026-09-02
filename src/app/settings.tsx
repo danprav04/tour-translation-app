@@ -29,7 +29,7 @@ const DONT_KILL_MY_APP_SCORES: Record<string, number> = {
   'google': 0, 'nokia': 0, 'htc': 0, 'stock-android': 0,
 };
 
-export const appSubversion = '00';
+export const appSubversion = '01';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -47,6 +47,7 @@ export default function SettingsScreen() {
   const [customVoicePromptInjection, setCustomVoicePromptInjection] = useState(settings.customVoicePromptInjection ?? '');
   const [transcriptionMode, setTranscriptionMode] = useState<'SMART' | 'VERBATIM'>(settings.transcriptionMode ?? 'SMART');
   const [customVocabulary, setCustomVocabulary] = useState(settings.customVocabulary ?? '');
+  const [loopDetectionSensitivity, setLoopDetectionSensitivity] = useState(settings.loopDetectionSensitivity ?? 0.7);
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -91,6 +92,7 @@ export default function SettingsScreen() {
       customVoicePromptInjection: customVoicePromptInjection,
       transcriptionMode: transcriptionMode,
       customVocabulary: customVocabulary,
+      loopDetectionSensitivity: loopDetectionSensitivity,
     });
   };
 
@@ -107,6 +109,7 @@ export default function SettingsScreen() {
     customVoicePromptInjection,
     transcriptionMode,
     customVocabulary,
+    loopDetectionSensitivity,
   ]);
 
   const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? packageJson.version ?? '1.0.0';
@@ -275,6 +278,40 @@ export default function SettingsScreen() {
                     const next = Math.min(5.0, micAmplification + 0.5);
                     setMicAmplification(next);
                     updateSettings({ ...settings, micAmplification: next });
+                  }}
+                  style={styles.stepperBtn}
+                >
+                  <Text style={styles.stepperBtnText}>+</Text>
+                </Pressable>
+              </View>
+            </View>
+          </GlassCard>
+
+          {/* Loop Detection */}
+          <GlassCard style={styles.section}>
+            <View style={styles.switchRow}>
+              <View style={styles.switchTextContainer}>
+                <Text style={styles.sectionTitle}>🔁 Loop Detection Filter</Text>
+                <Text style={styles.sectionDesc}>
+                  Sensitivity for suppressing hallucinated transcript repetitions. (Current: {Math.round(loopDetectionSensitivity * 100)}%)
+                </Text>
+              </View>
+              <View style={styles.stepperContainer}>
+                <Pressable
+                  onPress={() => {
+                    const next = Math.max(0.1, loopDetectionSensitivity - 0.1);
+                    setLoopDetectionSensitivity(next);
+                    updateSettings({ ...settings, loopDetectionSensitivity: next });
+                  }}
+                  style={styles.stepperBtn}
+                >
+                  <Text style={styles.stepperBtnText}>-</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    const next = Math.min(1.0, loopDetectionSensitivity + 0.1);
+                    setLoopDetectionSensitivity(next);
+                    updateSettings({ ...settings, loopDetectionSensitivity: next });
                   }}
                   style={styles.stepperBtn}
                 >

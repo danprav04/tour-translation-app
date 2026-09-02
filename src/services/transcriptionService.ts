@@ -7,6 +7,29 @@ class TranscriptionService {
   public currentApiKey: string | null = null;
   public connectionState: 'disconnected' | 'connecting' | 'connected' = 'disconnected';
   private sessionRotationTimer: ReturnType<typeof setTimeout> | null = null;
+  private keepaliveInterval: ReturnType<typeof setInterval> | null = null;
+
+  // Loop detection state
+  private onLoopDetectedCallback: (() => void) | null = null;
+  public loopDetectionSensitivity: number = 0.7; // 70% word overlap default
+  private recentFinalChunks: string[] = [];
+  private consecutiveSuppressedChunks: number = 0;
+
+  private calculateWordOverlap(text1: string, text2: string): number {
+    const words1 = new Set(text1.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+    const words2 = new Set(text2.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+    if (words1.size === 0 && words2.size === 0) return 0;
+    
+    let intersection = 0;
+    for (const w of words1) {
+      if (words2.has(w)) intersection++;
+    }
+    
+    // Jaccard-like: intersection / min(size1, size2) to catch partial repetitions
+    const minSize = Math.min(words1.size, words2.size);
+    if (minSize === 0) return 0;
+    return intersection / minSize;
+  }
 
   private async connectWithModel(
     apiKey: string, 
@@ -120,9 +143,43 @@ class TranscriptionService {
             }
 
             if (msg.serverContent?.inputTranscription) {
-              const text = msg.serverContent.inputTranscription.text;
+              const text = msg.serverContent.inputTranscription.text?.trim();
               if (text && this.onFinalTextCallback) {
-                this.onFinalTextCallback(text.trim());
+                // Loop Detection Logic
+                let isLoop = false;
+                for (const recentText of this.recentFinalChunks) {
+                  const similarity = this.calculateWordOverlap(text, recentText);
+                  if (similarity >= this.loopDetectionSensitivity) {
+                    isLoop = true;
+                    break;
+                  }
+                }
+
+                if (isLoop) {
+                  this.consecutiveSuppressedChunks++;
+                  console.warn(`[Transcription WS] Loop detected (${this.consecutiveSuppressedChunks} times). Suppressing text: "${text}"`);
+                  if (this.onLoopDetectedCallback) {
+                    this.onLoopDetectedCallback();
+                  }
+
+                  if (this.consecutiveSuppressedChunks >= 3 && this.currentApiKey) {
+                    console.log('[Transcription WS] 3+ loops detected. Rotating session to break hallucination cycle...');
+                    this.consecutiveSuppressedChunks = 0;
+                    this.recentFinalChunks = []; // clear buffer
+                    // Rotate the connection seamlessly
+                    this.connectOverlap(this.currentApiKey, transcriptionMode, customVocabulary).catch(err => {
+                      console.error('[Transcription WS] Loop-triggered session rotation failed:', err);
+                    });
+                  }
+                } else {
+                  // Not a loop, accept it
+                  this.consecutiveSuppressedChunks = 0;
+                  this.recentFinalChunks.push(text);
+                  if (this.recentFinalChunks.length > 3) {
+                    this.recentFinalChunks.shift();
+                  }
+                  this.onFinalTextCallback(text);
+                }
               }
             }
             
@@ -193,6 +250,8 @@ class TranscriptionService {
       clearTimeout(this.sessionRotationTimer);
       this.sessionRotationTimer = null;
     }
+    this.recentFinalChunks = [];
+    this.consecutiveSuppressedChunks = 0;
 
     const modelsToTry = [
       "models/gemini-3.5-transcribe-live",
@@ -320,6 +379,14 @@ class TranscriptionService {
 
   onFinalText(callback: (text: string) => void): void {
     this.onFinalTextCallback = callback;
+  }
+
+  onLoopDetected(callback: () => void): void {
+    this.onLoopDetectedCallback = callback;
+  }
+
+  setLoopDetectionSensitivity(sensitivity: number): void {
+    this.loopDetectionSensitivity = Math.max(0, Math.min(1, sensitivity));
   }
 
   onError(callback: (error: Error) => void): void {

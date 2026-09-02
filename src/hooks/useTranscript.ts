@@ -43,7 +43,9 @@ export const useTranscript = () => {
     roomCode?: string,
     customTextPromptInjection?: string,
     transcriptionMode: 'SMART' | 'VERBATIM' = 'SMART',
-    customVocabularyStr: string = ''
+    customVocabularyStr: string = '',
+    loopDetectionSensitivity: number = 0.7,
+    isReconnect: boolean = false
   ) => {
     try {
       sourceLangRef.current = sourceLang;
@@ -51,24 +53,32 @@ export const useTranscript = () => {
       apiKeyRef.current = apiKey;
       customTextPromptInjectionRef.current = customTextPromptInjection || '';
       
-      // 1. Create a new DB session
-      const newSessionId = await db.createSession({
-        sourceLang,
-        targetLang,
-        roomCode
-      });
-      
-      setSessionId(newSessionId);
-      sessionIdRef.current = newSessionId;
-      setFinalChunks([]);
-      setInterimText('');
-      setInterimTranslatedText('');
-      chunkSequenceRef.current = 0;
-      lastInterimTranslationTimeRef.current = 0;
+      if (!isReconnect) {
+        // 1. Create a new DB session
+        const newSessionId = await db.createSession({
+          sourceLang,
+          targetLang,
+          roomCode
+        });
+        
+        setSessionId(newSessionId);
+        sessionIdRef.current = newSessionId;
+        setFinalChunks([]);
+        setInterimText('');
+        setInterimTranslatedText('');
+        chunkSequenceRef.current = 0;
+        lastInterimTranslationTimeRef.current = 0;
+      }
 
       // 2. Connect to transcription service
+      transcriptionService.setLoopDetectionSensitivity(loopDetectionSensitivity);
       const parsedVocab = customVocabularyStr.split(',').map(s => s.trim()).filter(s => s.length > 0);
       await transcriptionService.connect(apiKey, transcriptionMode, parsedVocab);
+
+      transcriptionService.onLoopDetected(() => {
+        // We could show a UI toast here, but for now we just rely on the service logs
+        // and let the service handle the rotation.
+      });
 
       transcriptionService.onInterimText((text) => {
         setInterimText(text);

@@ -211,5 +211,35 @@ describe('TextTranslationService', () => {
 
       await expect(streamPromise).rejects.toThrow('No response body from streaming API');
     });
+    it('throws error if streaming response yields empty text', async () => {
+      const mockReader = {
+        read: jest.fn().mockResolvedValue({ value: undefined, done: true })
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        body: {
+          getReader: () => mockReader
+        }
+      });
+
+      const streamPromise = TextTranslationService.translateTextStreaming(
+        'Hello',
+        'es',
+        'test-key',
+        '',
+        () => {}
+      );
+
+      for (let i = 0; i < 4; i++) {
+        await Promise.resolve();
+        await Promise.resolve();
+        jest.advanceTimersByTime(2000);
+        await Promise.resolve();
+        await Promise.resolve();
+      }
+
+      await expect(streamPromise).rejects.toThrow('Streaming response contained no translation text');
+    });
   });
 });
